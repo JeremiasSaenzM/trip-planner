@@ -8,9 +8,8 @@ It is the frontend for an existing planning system that currently lives as Markd
 
 I'm a developer in the making. This project is for learning and for my portfolio.
 
-- Explain what you're doing and why, briefly, especially for new concepts (React server components, SQL, RLS, migrations, testing).
+- Write the code yourself. I learn by reading it: after each step, give a short explanation of what you did and why, especially for new concepts (React server components, SQL, RLS, migrations, testing). Don't offer exercises; I'll ask if I want to write something myself.
 - Work in small steps. Propose a plan before larger changes, and wait for my OK.
-- When a task is a good learning exercise, offer to let me write it myself, with hints.
 - One focused commit per meaningful step, with a clear message (Conventional Commits: `feat:`, `fix:`, `chore:`, `docs:`, `test:`).
 - Don't add libraries without saying why.
 
