@@ -27,7 +27,7 @@ I'm a developer in the making. This project is for learning and for my portfolio
 
 - My real financial data and personal details NEVER go into the repo. Real data lives only in Supabase.
 - The repo seeds the database with **fake demo data** only (`supabase/seed.sql`).
-- Secrets only in `.env.local` (gitignored). Never commit keys. Only the Supabase anon key may reach the browser; the service-role key never does.
+- Secrets only in `.env.local` (gitignored). Never commit keys. Only the Supabase publishable key (`sb_publishable_…`, formerly anon) may reach the browser; the secret key (`sb_secret_…`, formerly service-role) never does.
 - Every table has RLS enabled. Policy: only my authenticated user can read or write.
 - Free Supabase has no automatic backups: provide an "export my data" feature early.
 
@@ -70,6 +70,8 @@ Each phase ends with something working, committed, and pushed.
 
 0. ✅ **Setup** — Next.js scaffold, this file, GitHub repo, Vercel deploy of the starter page.
 1. **Auth** — Supabase project linked; magic-link login for my email only; protected app shell; mobile-first layout.
+   - Uses Supabase's default Magic Link email template (PKCE `?code=` flow via `/auth/callback`): links must be opened in the same browser that requested them. Built-in email sender is rate-limited (~2/hour).
+   - Optional later upgrade: free custom SMTP (e.g. Resend) + Magic Link template using `{{ .RedirectTo }}?token_hash={{ .TokenHash }}&type=email` for cross-device links. `/auth/callback` already handles `token_hash`, so only the template changes.
 2. **Data model** — Migrations for: trips, competitions, sources, budget_lines, payments, savings_entries, fx_rates, decisions, open_items, change_log. Enums for information states and budget categories. RLS on everything. Fake seed data.
 3. **Read-only dashboard** — Required monthly saving, trip cost range, payment timeline, deadlines and open items; scenario and target/conservative toggles; charts.
 4. **Rules as code** — Tested pure functions: savings requirement, US/Canada stop check, cost roll-ups, currency conversion.
