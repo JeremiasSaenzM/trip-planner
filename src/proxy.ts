@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+import { isAllowedEmail } from "@/lib/allowed-email";
 import { supabasePublishableKey, supabaseUrl } from "@/lib/supabase/env";
 
 // Paths a logged-out visitor may open. Everything else redirects to /login.
@@ -43,7 +44,9 @@ export async function proxy(request: NextRequest) {
   // the token refresh. getClaims() verifies the access token's signature;
   // getSession() would trust the cookie blindly.
   const { data } = await supabase.auth.getClaims();
-  const isLoggedIn = Boolean(data?.claims);
+  // A valid session for any other email counts as logged out. Otherwise
+  // getCurrentUser() would send it to /login and this proxy straight back to /.
+  const isLoggedIn = isAllowedEmail(data?.claims?.email);
 
   const { pathname } = request.nextUrl;
   const isPublic = PUBLIC_PATHS.some((path) => pathname.startsWith(path));
