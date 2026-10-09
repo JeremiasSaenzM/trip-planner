@@ -12,5 +12,14 @@ if (!url || !publishableKey) {
   );
 }
 
+// Must be the bare project URL. A copied API URL such as ".../rest/v1/" makes
+// every Auth call fail with "Invalid path specified in request URL".
+if (new URL(url).pathname !== "/") {
+  throw new Error(
+    `NEXT_PUBLIC_SUPABASE_URL must be just the project URL (https://<project-ref>.supabase.co), ` +
+      `without a path like /rest/v1. Got path "${new URL(url).pathname}".`,
+  );
+}
+
 export const supabaseUrl = url;
 export const supabasePublishableKey = publishableKey;

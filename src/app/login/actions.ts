@@ -48,7 +48,13 @@ export async function sendMagicLink(
   });
 
   if (error) {
-    console.error("login: signInWithOtp failed:", error.code, error.message);
+    // Server-side only: the browser just gets the friendly message below.
+    console.error("login: signInWithOtp failed:", {
+      name: error.name,
+      status: error.status,
+      code: error.code,
+      message: error.message,
+    });
     if (error.code === "over_email_send_rate_limit" || error.status === 429) {
       return {
         status: "error",

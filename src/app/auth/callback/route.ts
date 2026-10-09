@@ -1,4 +1,4 @@
-import type { EmailOtpType } from "@supabase/supabase-js";
+import type { AuthError, EmailOtpType } from "@supabase/supabase-js";
 import { NextResponse, type NextRequest } from "next/server";
 
 import { createClient } from "@/lib/supabase/server";
@@ -26,14 +26,14 @@ export async function GET(request: NextRequest) {
       code,
       flowId ? { flowId } : undefined,
     );
-    if (error) console.error("auth/callback: code exchange failed:", error.code);
+    if (error) logAuthError("code exchange failed", error);
     ok = !error;
   } else if (tokenHash && type) {
     const { error } = await supabase.auth.verifyOtp({
       type,
       token_hash: tokenHash,
     });
-    if (error) console.error("auth/callback: OTP verification failed:", error.code);
+    if (error) logAuthError("OTP verification failed", error);
     ok = !error;
   }
 
@@ -44,4 +44,13 @@ export async function GET(request: NextRequest) {
   target.pathname = ok ? "/" : "/login";
   if (!ok) target.searchParams.set("error", "link");
   return NextResponse.redirect(target);
+}
+
+// Server-side only; the browser just sees /login?error=link.
+function logAuthError(what: string, error: AuthError) {
+  console.error(`auth/callback: ${what}:`, {
+    status: error.status,
+    code: error.code,
+    message: error.message,
+  });
 }
