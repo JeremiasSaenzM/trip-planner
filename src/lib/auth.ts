@@ -1,6 +1,7 @@
 import "server-only";
 
 import { redirect } from "next/navigation";
+import { connection } from "next/server";
 import { cache } from "react";
 
 import { isAllowedEmail } from "@/lib/allowed-email";
@@ -21,6 +22,11 @@ export type CurrentUser = {
 //
 // React's cache() runs it at most once per request, however many components call it.
 export const getCurrentUser = cache(async (): Promise<CurrentUser> => {
+  // Next.js can prerender cookie-dependent UI ahead of a request (for prefetching)
+  // and reuse the result. Supabase checks token expiry with Date.now(), and a
+  // clock reading can't be reused, so connection() pins this to the real request.
+  await connection();
+
   const supabase = await createClient();
 
   // getClaims() verifies the access token's signature (against the project's
