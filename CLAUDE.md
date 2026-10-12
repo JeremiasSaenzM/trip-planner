@@ -19,6 +19,7 @@ I'm a developer in the making. This project is for learning and for my portfolio
 - Supabase: Postgres, Auth, Row Level Security (free plan)
 - Charts: Recharts. Validation: Zod. Tests: Vitest. CI: GitHub Actions
 - Supabase CLI for migrations (`supabase/migrations/`)
+- Local Docker isn't available on the dev machine, so `supabase start` / `supabase test db` (pgTAP, in `supabase/tests/database/`) can't run locally. They run in GitHub Actions (`.github/workflows/db-tests.yml`) on every push and pull request instead.
 - Later: Supabase MCP server for Claude, scoped to this project, read-only by default
 - No paid services. No Claude API unless I explicitly decide to add it.
 
@@ -41,7 +42,7 @@ These come from the planning system. Encode them in the schema and in tested fun
 
 **Hard constraints (apply before cost):**
 1. No itinerary may stop in the United States or Canada (connections, technical/refueling stops, same-flight-number stops; US territories such as Puerto Rico count as US). Overflight is fine. Every other country is acceptable; their transit requirements are not evaluated.
-2. Be at the destination (landing plus onward travel) before the first required festival activity, and leave only after the final festival day.
+2. Be at the destination (landing plus onward travel) before the first official festival day begins, and depart only after the final official festival day has ended. Activities inside the festival are irrelevant to this check.
 3. No non-refundable competition-related commitment before the choir is officially accepted, unless I explicitly accept the risk.
 4. The fare must allow my baggage: one checked suitcase, ~23 kg.
 
