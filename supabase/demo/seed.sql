@@ -6,6 +6,16 @@
 -- (-v demo_owner_email=... when this is invoked), and never a literal.
 select id as owner_id from auth.users where email = :'demo_owner_email' \gset
 
+-- \gset leaves owner_id unset (and :'owner_id' expands to '') when no
+-- row matched -- never insert the fake fixtures below under an empty
+-- or wrong owner, fail loudly instead.
+do $$
+begin
+  if :'owner_id' = '' then
+    raise exception 'No auth user found for demo_owner_email %. Create that user in the demo project first (Authentication -> Users -> Add user).', :'demo_owner_email';
+  end if;
+end $$;
+
 set app.actor = 'seed';
 
 insert into trips (id, owner_id, name, status) values
