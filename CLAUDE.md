@@ -32,6 +32,18 @@ I'm a developer in the making. This project is for learning and for my portfolio
 - Every table has RLS enabled. Policy: only my authenticated user can read or write.
 - Free Supabase has no automatic backups: provide an "export my data" feature early.
 
+## Demo mode
+
+A second Supabase project for previews isn't possible (free-tier project limit), so Vercel Preview deployments instead run the app against typed fixture data baked into the code, not a real database.
+
+- `DEMO_MODE` is a server-only env var (never `NEXT_PUBLIC_`), set on Vercel scoped to Preview deployments only. `src/lib/demo-mode.ts`'s `isDemoMode()` is the only thing that reads it.
+- `assertDemoModeIsSafe()` (called once from `src/instrumentation.ts`, at server startup) throws if `DEMO_MODE` is set while `VERCEL_ENV === 'production'`, so a scoping mistake crashes the server instead of serving fake data to a real visitor.
+- `src/lib/data/` is the one data-access layer, with two implementations (`real.ts`, Supabase; `demo.ts`, fixtures from `fixtures.ts`) behind a shared `DataSource` type (`src/lib/data/types.ts`). Pages and components only import `src/lib/data/index.ts`'s `dataSource`, and never know which implementation answered.
+- Demo fixtures go through the exact same `src/lib/domain/` functions real data would — no demo-specific branching in domain code.
+- **Every write function `src/lib/data` gains (Phase 5 — recording savings, marking a payment paid, editing a budget line, ...) must call `assertWritesAllowed()` (`src/lib/demo-mode.ts`) as its first line, so it throws in demo mode.** Phase 5 forms must never write while `DEMO_MODE` is on.
+- A visible "Demo data — not real" banner (`src/app/demo-banner.tsx`) shows on every page while `DEMO_MODE` is on.
+- Previews still use my real Supabase login (magic link); demo mode only swaps out the dashboard data, not auth.
+
 ## Domain rules the app must enforce
 
 These come from the planning system. Encode them in the schema and in tested functions in `src/lib/domain/`, not just in UI text.
