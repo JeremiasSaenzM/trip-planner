@@ -3,8 +3,12 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-// Sections of the app. Phase 3 adds Budget, Payments, Deadlines, etc.
-const NAV_ITEMS = [{ href: "/", label: "Trips", icon: SuitcaseIcon }];
+// Sections of the app.
+const NAV_ITEMS = [
+  { href: "/", label: "Overview", icon: SuitcaseIcon },
+  { href: "/payments", label: "Payments", icon: ReceiptIcon },
+  { href: "/deadlines", label: "Deadlines", icon: CalendarIcon },
+];
 
 // Client Component because it needs usePathname() to highlight the current section.
 // Mobile: fixed tab bar at the bottom, within thumb reach.
@@ -66,6 +70,42 @@ function SuitcaseIcon() {
     >
       <rect x="3" y="7" width="18" height="13" rx="2" />
       <path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M3 13h18" />
+    </svg>
+  );
+}
+
+function ReceiptIcon() {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 24 24"
+      className="size-6"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.75}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3Z" />
+      <path d="M9 8h6M9 12h6" />
+    </svg>
+  );
+}
+
+function CalendarIcon() {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 24 24"
+      className="size-6"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.75}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect x="3" y="5" width="18" height="16" rx="2" />
+      <path d="M8 3v4M16 3v4M3 10h18" />
     </svg>
   );
 }
