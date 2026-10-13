@@ -1,10 +1,25 @@
 "use client";
 
-import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { DateTime } from "luxon";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Legend,
+  Line,
+  LineChart,
+  ReferenceLine,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 
-import type { BudgetCategory } from "@/lib/domain/types";
-import type { CategoryTotals } from "@/lib/domain/roll-up-budget-by-scenario";
 import type { ScheduleEntry } from "@/lib/domain/calculate-required-savings";
+import type { CategoryTotals } from "@/lib/domain/roll-up-budget-by-scenario";
+import type { BudgetCategory } from "@/lib/domain/types";
+
+import type { Basis } from "./dashboard-data";
 
 const CATEGORY_LABELS: Record<BudgetCategory, string> = {
   A: "Competition",
@@ -21,6 +36,10 @@ const CATEGORY_LABELS: Record<BudgetCategory, string> = {
 
 const CATEGORY_ORDER: BudgetCategory[] = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"];
 
+function formatUsdTick(value: number): string {
+  return `$${Math.round(value).toLocaleString()}`;
+}
+
 export function BudgetByCategoryChart({ byCategory }: { byCategory: Record<BudgetCategory, CategoryTotals> }) {
   const data = CATEGORY_ORDER.map((category) => ({
     category: CATEGORY_LABELS[category],
@@ -35,40 +54,104 @@ export function BudgetByCategoryChart({ byCategory }: { byCategory: Record<Budge
   return (
     <ResponsiveContainer width="100%" height={240}>
       <BarChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-        <CartesianGrid strokeDasharray="3 3" className="stroke-zinc-200 dark:stroke-zinc-800" />
+        <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
         <XAxis dataKey="category" tick={{ fontSize: 11 }} />
-        <YAxis tick={{ fontSize: 11 }} width={44} />
-        <Tooltip formatter={(value) => `$${Number(value).toLocaleString()}`} />
+        <YAxis tick={{ fontSize: 11 }} width={44} tickFormatter={formatUsdTick} />
+        <Tooltip formatter={(value) => formatUsdTick(Number(value))} />
         <Legend wrapperStyle={{ fontSize: 12 }} />
-        <Bar dataKey="target" name="Target" fill="#52525b" radius={[3, 3, 0, 0]} />
-        <Bar dataKey="conservative" name="Conservative" fill="#a1a1aa" radius={[3, 3, 0, 0]} />
+        <Bar dataKey="target" name="Target" fill="var(--chart-target)" radius={[3, 3, 0, 0]} />
+        <Bar dataKey="conservative" name="Conservative" fill="var(--chart-conservative)" radius={[3, 3, 0, 0]} />
       </BarChart>
     </ResponsiveContainer>
   );
 }
 
-export function SavingsScheduleChart({ schedule }: { schedule: ScheduleEntry[] }) {
-  const data = schedule.map((entry) => ({
-    dueDate: entry.dueDate,
-    required: Math.round(entry.cumulativeTarget),
-    remaining: Math.round(entry.remainingTarget),
-  }));
+function toTimestamp(date: string): number {
+  return DateTime.fromISO(date).toMillis();
+}
 
-  if (data.length === 0) {
-    return <p className="text-sm text-zinc-500 dark:text-zinc-400">No deadlines to schedule against yet.</p>;
+function formatDateTick(timestamp: number): string {
+  return DateTime.fromMillis(timestamp).toFormat("MMM d");
+}
+
+export function SavingsScheduleChart({
+  schedule,
+  availableUsd,
+  bindingRequirementUsd,
+  asOfDate,
+  basis,
+}: {
+  schedule: ScheduleEntry[];
+  availableUsd: number;
+  bindingRequirementUsd: number;
+  asOfDate: string;
+  basis: Basis;
+}) {
+  const future = schedule.filter((entry) => !entry.isPastDue);
+
+  if (future.length === 0) {
+    return <p className="text-sm text-zinc-500 dark:text-zinc-400">No upcoming deadlines to schedule against yet.</p>;
   }
+
+  const cumulativeField = basis === "target" ? "cumulativeTarget" : "cumulativeConservative";
+  const requiredField = basis === "target" ? "requiredMonthlyTarget" : "requiredMonthlyConservative";
+
+  const asOfTs = toTimestamp(asOfDate);
+  const data = [
+    { timestamp: asOfTs, cumulativeRequired: 0, projectedSavings: availableUsd },
+    ...future.map((entry) => {
+      const months = DateTime.fromISO(entry.dueDate).diff(DateTime.fromISO(asOfDate), "months").months;
+      return {
+        timestamp: toTimestamp(entry.dueDate),
+        cumulativeRequired: entry[cumulativeField],
+        projectedSavings: availableUsd + bindingRequirementUsd * months,
+      };
+    }),
+  ];
+
+  const tightest = future.reduce((best, entry) => ((entry[requiredField] ?? 0) > (best[requiredField] ?? 0) ? entry : best));
 
   return (
     <ResponsiveContainer width="100%" height={240}>
-      <BarChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-        <CartesianGrid strokeDasharray="3 3" className="stroke-zinc-200 dark:stroke-zinc-800" />
-        <XAxis dataKey="dueDate" tick={{ fontSize: 11 }} />
-        <YAxis tick={{ fontSize: 11 }} width={44} />
-        <Tooltip formatter={(value) => `$${Number(value).toLocaleString()}`} />
+      <LineChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
+        <XAxis
+          dataKey="timestamp"
+          type="number"
+          domain={["dataMin", "dataMax"]}
+          tickFormatter={formatDateTick}
+          tick={{ fontSize: 11 }}
+        />
+        <YAxis tick={{ fontSize: 11 }} width={44} tickFormatter={formatUsdTick} />
+        <Tooltip
+          labelFormatter={(value) => formatDateTick(Number(value))}
+          formatter={(value) => formatUsdTick(Number(value))}
+        />
         <Legend wrapperStyle={{ fontSize: 12 }} />
-        <Bar dataKey="required" name="Cumulative required" fill="#52525b" radius={[3, 3, 0, 0]} />
-        <Bar dataKey="remaining" name="Still remaining" fill="#dc2626" radius={[3, 3, 0, 0]} />
-      </BarChart>
+        <ReferenceLine
+          x={toTimestamp(tightest.dueDate)}
+          stroke="var(--chart-neutral)"
+          strokeDasharray="3 3"
+          label={{ value: "Tightest deadline", position: "insideTopRight", fontSize: 11, fill: "var(--chart-neutral)" }}
+        />
+        <Line
+          type="stepAfter"
+          dataKey="cumulativeRequired"
+          name="Cumulative required"
+          stroke="var(--chart-target)"
+          strokeWidth={2}
+          dot={{ r: 3 }}
+        />
+        <Line
+          type="linear"
+          dataKey="projectedSavings"
+          name="Projected savings"
+          stroke="var(--chart-neutral)"
+          strokeWidth={2}
+          strokeDasharray="4 2"
+          dot={false}
+        />
+      </LineChart>
     </ResponsiveContainer>
   );
 }

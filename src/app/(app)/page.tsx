@@ -39,7 +39,7 @@ async function Overview({ searchParams }: { searchParams: PageProps<"/">["search
     return <EmptyState>No scenario yet for this trip.</EmptyState>;
   }
 
-  const { rollup, savings, provisional, noDepartureDate } = data;
+  const { rollup, savings, provisional, noDepartureDate, availableUsd } = data;
   const binding = savings?.bindingRequirement[data.basis] ?? null;
 
   return (
@@ -76,7 +76,7 @@ async function Overview({ searchParams }: { searchParams: PageProps<"/">["search
 
       <Card>
         <CardLabel>Trip cost range</CardLabel>
-        <div className="mt-1 flex items-end gap-4">
+        <div className="mt-1 flex items-start gap-4">
           <RangeFigure label="Min" value={rollup.totals.min} />
           <RangeFigure label="Target" value={rollup.totals.target} emphasize />
           <RangeFigure label="Conservative" value={rollup.totals.conservative} />
@@ -106,10 +106,16 @@ async function Overview({ searchParams }: { searchParams: PageProps<"/">["search
         <BudgetByCategoryChart byCategory={rollup.byCategory} />
       </Card>
 
-      {savings && (
+      {savings && binding !== null && (
         <Card>
           <CardLabel>Savings schedule</CardLabel>
-          <SavingsScheduleChart schedule={savings.schedule} />
+          <SavingsScheduleChart
+            schedule={savings.schedule}
+            availableUsd={availableUsd}
+            bindingRequirementUsd={binding}
+            asOfDate={data.asOfDate}
+            basis={data.basis}
+          />
         </Card>
       )}
     </div>

@@ -25,6 +25,9 @@ export type DashboardData =
       noDepartureDate: boolean;
       provisional: boolean;
       obligations: BuiltObligation[];
+      /** Savings minus everything already paid. 0 when noDepartureDate
+       * (buildObligations never ran, so there's nothing to report). */
+      availableUsd: number;
       /** Scenario-scoped: this scenario's own payments plus the trip's shared ones. */
       payments: Payment[];
       /** Trip-scoped (open items aren't scenario-specific). */
@@ -118,6 +121,7 @@ export async function loadDashboardData(params: {
       noDepartureDate: true,
       provisional: false,
       obligations: [],
+      availableUsd: 0,
       payments: scenarioPayments,
       openItems: tripOpenItems,
     };
@@ -142,6 +146,7 @@ export async function loadDashboardData(params: {
     noDepartureDate: false,
     provisional: obligationsResult.provisional,
     obligations: obligationsResult.obligations,
+    availableUsd: obligationsResult.availableUsd,
     payments: scenarioPayments,
     openItems: tripOpenItems,
   };
