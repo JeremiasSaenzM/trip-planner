@@ -73,7 +73,7 @@ Each phase ends with something working, committed, and pushed.
 1. ✅ **Auth** — Supabase project linked; magic-link login for my email only; protected app shell; mobile-first layout.
    - Uses Supabase's default Magic Link email template (PKCE `?code=` flow via `/auth/callback`): links must be opened in the same browser that requested them. Built-in email sender is rate-limited (~2/hour).
    - Optional later upgrade: free custom SMTP (e.g. Resend) + Magic Link template using `{{ .RedirectTo }}?token_hash={{ .TokenHash }}&type=email` for cross-device links. `/auth/callback` already handles `token_hash`, so only the template changes.
-2. **Data model** — Migrations for: trips, competitions, sources, budget_lines, payments, savings_entries, fx_rates, decisions, open_items, change_log. Enums for information states and budget categories. RLS on everything. Fake seed data.
+2. ✅ **Data model** — Migrations for: trips, competitions, sources, scenarios, budget_lines, payments, savings_entries, fx_rates, decisions, open_items, flight_options/flight_segments, change_log. Enums for information states and budget categories. RLS on everything. Fake seed data. Migrations pushed to the hosted project (seed data never did — hosted tables are empty, RLS confirmed enabled on all 13).
 3. **Read-only dashboard** — Required monthly saving, trip cost range, payment timeline, deadlines and open items; scenario and target/conservative toggles; charts.
 4. **Rules as code** — Tested pure functions: savings requirement, US/Canada stop check, cost roll-ups, currency conversion.
 5. **My inputs** — Record money set aside, mark payments done, edit budget lines with information state and source; audit log writes; data export.
@@ -82,4 +82,4 @@ Each phase ends with something working, committed, and pushed.
 
 ## Current phase
 
-Phase 2 — Data model.
+Phase 3 — Read-only dashboard.
