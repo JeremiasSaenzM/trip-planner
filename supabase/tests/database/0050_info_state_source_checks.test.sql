@@ -1,6 +1,7 @@
 -- "A confirmed value requires a source" is a same-row CHECK constraint
 -- on budget_lines (and payments, fx_rates, flight_options the same way).
 begin;
+create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 select plan(2);
 

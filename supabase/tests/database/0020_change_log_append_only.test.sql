@@ -4,6 +4,7 @@
 -- deletes have no USING clause to match against, so they must silently
 -- affect zero rows rather than touch anything.
 begin;
+create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 select plan(5);
 

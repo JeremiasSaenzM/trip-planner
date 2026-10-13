@@ -2,6 +2,11 @@
 -- seeded rows, and a second account -- which owns nothing -- sees zero
 -- rows in every single table, even though plenty of rows exist.
 begin;
+-- pgTAP ships in the Supabase Postgres image but isn't enabled by
+-- default. Tests provision it themselves, inside this same transaction,
+-- rather than shipping it as a migration -- a migration would also
+-- enable it on the hosted database, which never needs it.
+create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 select plan(14);
 
