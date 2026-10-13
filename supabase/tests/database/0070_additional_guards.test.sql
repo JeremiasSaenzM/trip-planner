@@ -2,6 +2,7 @@
 -- flight_options, the acceptance safeguard rejecting a non-traveler
 -- risk decision, and the payment/budget-line scenario consistency check.
 begin;
+create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 select plan(3);
 

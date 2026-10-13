@@ -4,6 +4,7 @@
 -- scenario/budget line (competition left at the default 'pending'
 -- acceptance) rather than touching seed data, so it's self-contained.
 begin;
+create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 select plan(3);
 

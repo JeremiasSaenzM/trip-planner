@@ -1,5 +1,6 @@
 -- Every budget line must have Minimum <= Target <= Conservative.
 begin;
+create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 select plan(1);
 
