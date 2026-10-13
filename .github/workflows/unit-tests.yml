@@ -18,3 +18,25 @@ jobs:
       - run: npm ci
 
       - run: npm test
+
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      # Generates .next/types/** (the PageProps<"/...">/LayoutProps<"/...">
+      # route param types) without a full build or any env vars -- tsc
+      # alone can't see those types otherwise, so a plain `tsc --noEmit`
+      # always fails on every route file with "Cannot find name
+      # 'PageProps'". Never use a dummy .env.local for this (see
+      # CLAUDE.md): typegen needs none.
+      - run: npx next typegen
+
+      - run: npx tsc --noEmit

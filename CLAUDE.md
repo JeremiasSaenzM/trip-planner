@@ -20,6 +20,7 @@ I'm a developer in the making. This project is for learning and for my portfolio
 - Charts: Recharts. Validation: Zod. Tests: Vitest. CI: GitHub Actions
 - Supabase CLI for migrations (`supabase/migrations/`)
 - Local Docker isn't available on the dev machine, so `supabase start` / `supabase test db` (pgTAP, in `supabase/tests/database/`) can't run locally. They run in GitHub Actions (`.github/workflows/db-tests.yml`) on every push and pull request instead.
+- Typechecking needs `npx next typegen` run once first (generates the `PageProps<"/...">`/`LayoutProps<"/...">` route types) before `npx tsc --noEmit` — it needs no env vars, so never reach for a dummy `.env.local` just to typecheck. CI runs both as the `typecheck` job in `.github/workflows/unit-tests.yml`.
 - Later: Supabase MCP server for Claude, scoped to this project, read-only by default
 - No paid services. No Claude API unless I explicitly decide to add it.
 
@@ -29,6 +30,7 @@ I'm a developer in the making. This project is for learning and for my portfolio
 - The repo seeds the database with **fake demo data** only (`supabase/seed.sql`).
 - Secrets only in `.env.local` (gitignored). Never commit keys. Only the Supabase publishable key (`sb_publishable_…`, formerly anon) may reach the browser; the secret key (`sb_secret_…`, formerly service-role) never does.
 - Never read, print, or reuse credentials from credential stores, keychains, environment files, or tokens (e.g. `git credential fill`, OS keychains, `.netrc`). If something needs authentication, stop and ask me to log in myself.
+- Never create or modify `.env.local` without asking me first — it may hold real values. If a one-off task (e.g. a test build) needs env vars, use a separate, clearly-named file or inline/exported env vars instead, and clean them up afterward.
 - Every table has RLS enabled. Policy: only my authenticated user can read or write.
 - Free Supabase has no automatic backups: provide an "export my data" feature early.
 
