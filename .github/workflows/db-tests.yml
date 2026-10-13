@@ -1,0 +1,27 @@
+name: Database tests
+
+# Local Docker isn't available on the dev machine for this project, so
+# the Supabase local stack (and the pgTAP suite that needs it) only
+# ever runs here, on GitHub's own runners, which have Docker preinstalled.
+on:
+  push:
+  pull_request:
+
+jobs:
+  db-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Start the local Supabase stack
+        run: supabase start
+
+      - name: Apply migrations and seed data
+        run: supabase db reset
+
+      - name: Run pgTAP tests
+        run: supabase test db
