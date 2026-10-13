@@ -25,3 +25,93 @@ jobs:
 
       - name: Run pgTAP tests
         run: supabase test db
+
+      # Everything below exercises supabase/demo/reseed.sql and seed.sql
+      # against the LOCAL stack only -- never the demo or production
+      # projects (there's no DEMO_DB_URL secret available in this job).
+      # It proves the marker check, the SQL-side owner-email lookup, and
+      # the not-found error all behave correctly before anyone runs
+      # demo-db-sync.yml for real.
+      - name: Install psql
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Get the local stack's database URL
+        id: localdb
+        run: echo "url=$(supabase status -o env | grep '^DB_URL=' | cut -d '=' -f2- | tr -d '"')" >> "$GITHUB_OUTPUT"
+
+      - name: Create a fake demo auth user
+        env:
+          DB_URL: ${{ steps.localdb.outputs.url }}
+        run: |
+          psql "$DB_URL" -v ON_ERROR_STOP=1 -c "
+            insert into auth.users (
+              instance_id, id, aud, role, email, encrypted_password,
+              email_confirmed_at, raw_app_meta_data, raw_user_meta_data,
+              created_at, updated_at, confirmation_token, email_change,
+              email_change_token_new, recovery_token
+            ) values (
+              '00000000-0000-0000-0000-000000000000',
+              '10000000-0000-0000-0000-000000000099',
+              'authenticated', 'authenticated', 'demo@example.invalid', '',
+              now(), '{\"provider\":\"email\",\"providers\":[\"email\"]}', '{}',
+              now(), now(), '', '', '', ''
+            );
+          "
+
+      - name: reseed.sql must refuse to run with no _demo_marker row
+        env:
+          DB_URL: ${{ steps.localdb.outputs.url }}
+        run: |
+          set +e
+          output=$(psql "$DB_URL" --single-transaction -v ON_ERROR_STOP=1 \
+            -v demo_owner_email='demo@example.invalid' \
+            -f supabase/demo/reseed.sql 2>&1)
+          status=$?
+          set -e
+          echo "$output"
+          if [ "$status" -eq 0 ]; then
+            echo "::error::reseed.sql succeeded with no _demo_marker row -- it must refuse to run."
+            exit 1
+          fi
+          echo "$output" | grep -q "Refusing to reseed" || {
+            echo "::error::Expected a 'Refusing to reseed' error, got the output above."
+            exit 1
+          }
+
+      - name: Insert the local-stack-only demo marker row
+        env:
+          DB_URL: ${{ steps.localdb.outputs.url }}
+        run: psql "$DB_URL" -v ON_ERROR_STOP=1 -c "insert into _demo_marker (id) values (1);"
+
+      - name: reseed.sql must succeed once the marker row exists
+        env:
+          DB_URL: ${{ steps.localdb.outputs.url }}
+        run: |
+          psql "$DB_URL" --single-transaction -v ON_ERROR_STOP=1 \
+            -v demo_owner_email='demo@example.invalid' \
+            -f supabase/demo/reseed.sql
+          count=$(psql "$DB_URL" -t -A -c "select count(*) from trips;")
+          if [ "$count" -lt 1 ]; then
+            echo "::error::Expected the trips table to have rows after a successful reseed, got $count."
+            exit 1
+          fi
+
+      - name: reseed.sql must fail for an email with no matching auth user
+        env:
+          DB_URL: ${{ steps.localdb.outputs.url }}
+        run: |
+          set +e
+          output=$(psql "$DB_URL" --single-transaction -v ON_ERROR_STOP=1 \
+            -v demo_owner_email='nobody@example.invalid' \
+            -f supabase/demo/reseed.sql 2>&1)
+          status=$?
+          set -e
+          echo "$output"
+          if [ "$status" -eq 0 ]; then
+            echo "::error::reseed.sql succeeded for an email with no matching auth user."
+            exit 1
+          fi
+          echo "$output" | grep -q "No auth user found" || {
+            echo "::error::Expected a 'No auth user found' error, got the output above."
+            exit 1
+          }
