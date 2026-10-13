@@ -27,6 +27,7 @@ I'm a developer in the making. This project is for learning and for my portfolio
 - My real financial data and personal details NEVER go into the repo. Real data lives only in Supabase.
 - The repo seeds the database with **fake demo data** only (`supabase/seed.sql`).
 - Secrets only in `.env.local` (gitignored). Never commit keys. Only the Supabase publishable key (`sb_publishable_…`, formerly anon) may reach the browser; the secret key (`sb_secret_…`, formerly service-role) never does.
+- Never read, print, or reuse credentials from credential stores, keychains, environment files, or tokens (e.g. `git credential fill`, OS keychains, `.netrc`). If something needs authentication, stop and ask me to log in myself.
 - Every table has RLS enabled. Policy: only my authenticated user can read or write.
 - Free Supabase has no automatic backups: provide an "export my data" feature early.
 
