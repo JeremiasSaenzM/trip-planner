@@ -20,6 +20,7 @@ I'm a developer in the making. This project is for learning and for my portfolio
 - Charts: Recharts. Validation: Zod. Tests: Vitest. CI: GitHub Actions
 - Supabase CLI for migrations (`supabase/migrations/`)
 - Local Docker isn't available on the dev machine, so `supabase start` / `supabase test db` (pgTAP, in `supabase/tests/database/`) can't run locally. They run in GitHub Actions (`.github/workflows/db-tests.yml`) on every push and pull request instead.
+- Typechecking needs `npx next typegen` run once first (generates the `PageProps<"/...">`/`LayoutProps<"/...">` route types) before `npx tsc --noEmit` — it needs no env vars, so never reach for a dummy `.env.local` just to typecheck. CI runs both as the `typecheck` job in `.github/workflows/unit-tests.yml`.
 - Later: Supabase MCP server for Claude, scoped to this project, read-only by default
 - No paid services. No Claude API unless I explicitly decide to add it.
 
@@ -29,6 +30,7 @@ I'm a developer in the making. This project is for learning and for my portfolio
 - The repo seeds the database with **fake demo data** only (`supabase/seed.sql`).
 - Secrets only in `.env.local` (gitignored). Never commit keys. Only the Supabase publishable key (`sb_publishable_…`, formerly anon) may reach the browser; the secret key (`sb_secret_…`, formerly service-role) never does.
 - Never read, print, or reuse credentials from credential stores, keychains, environment files, or tokens (e.g. `git credential fill`, OS keychains, `.netrc`). If something needs authentication, stop and ask me to log in myself.
+- Never create or modify `.env.local` without asking me first — it may hold real values. If a one-off task (e.g. a test build) needs env vars, use a separate, clearly-named file or inline/exported env vars instead, and clean them up afterward.
 - Every table has RLS enabled. Policy: only my authenticated user can read or write.
 - Free Supabase has no automatic backups: provide an "export my data" feature early.
 
@@ -88,7 +90,7 @@ Each phase ends with something working, committed, and pushed.
 2. ✅ **Data model** — Migrations for: trips, competitions, sources, scenarios, budget_lines, payments, savings_entries, fx_rates, decisions, open_items, flight_options/flight_segments, change_log. Enums for information states and budget categories. RLS on everything. Fake seed data. Migrations pushed to the hosted project (seed data never did — hosted tables are empty, RLS confirmed enabled on all 13).
 3. **Rules as code** — Tested pure functions in `src/lib/domain/`, run in CI with Vitest: savings requirement, US/Canada stop check (including territories), festival-period arrival/departure check, baggage check, Effective Flight Cost, cost roll-ups by scenario (handling shared lines), currency conversion (with planning-rate kinds).
 4. **Read-only dashboard** — Built only on top of those domain functions. Required monthly saving, trip cost range, payment timeline, deadlines and open items; scenario and target/conservative toggles; charts.
-5. **My inputs** — Record money set aside, mark payments done, edit budget lines with information state and source; audit log writes; data export.
+5. **My inputs** — Record money set aside, mark payments done, edit budget lines with information state and source; audit log writes; data export. Also when flight data can first be entered: a flights screen (options, US/Canada check, baggage check, festival-arrival check, Effective Flight Cost).
 6. **Claude bridge** — Supabase MCP (project-scoped) so research sessions can update data; migrate real numbers from the Project files; the Project's budget file then points to the database.
 7. **Reports and polish** — Printable budget summary, payment calendar, README with screenshots and the story of the project.
 
