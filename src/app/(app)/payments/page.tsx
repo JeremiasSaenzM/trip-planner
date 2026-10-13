@@ -120,18 +120,21 @@ function PaymentRow({ payment, asOfDate }: { payment: Payment; asOfDate: string 
         </div>
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-zinc-500 dark:text-zinc-400">
-        <span>Due {payment.dueDate ? formatDate(payment.dueDate) : "no date yet"}</span>
-        {payment.cancellationDeadline && (
-          <span
-            className={
-              cancellationSoon
-                ? "rounded-full bg-amber-100 px-2 py-0.5 font-medium text-amber-800 dark:bg-amber-950 dark:text-amber-300"
-                : undefined
-            }
-          >
-            Cancel by {formatDate(payment.cancellationDeadline)}
-          </span>
-        )}
+        <span>
+          {payment.status === "paid"
+            ? "Paid"
+            : `Due ${payment.dueDate ? formatDate(payment.dueDate) : "no date yet"}`}
+        </span>
+        {payment.cancellationDeadline &&
+          (cancellationSoon ? (
+            <span className="rounded-full bg-amber-100 px-2 py-0.5 font-medium text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+              Cancel by {formatDate(payment.cancellationDeadline)}
+            </span>
+          ) : (
+            <span className="font-medium text-chart-target">
+              Free cancellation until {formatDate(payment.cancellationDeadline)}
+            </span>
+          ))}
       </div>
     </Card>
   );
