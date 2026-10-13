@@ -68,7 +68,7 @@ These come from the planning system. Encode them in the schema and in tested fun
 Each phase ends with something working, committed, and pushed.
 
 0. ✅ **Setup** — Next.js scaffold, this file, GitHub repo, Vercel deploy of the starter page.
-1. **Auth** — Supabase project linked; magic-link login for my email only; protected app shell; mobile-first layout.
+1. ✅ **Auth** — Supabase project linked; magic-link login for my email only; protected app shell; mobile-first layout.
    - Uses Supabase's default Magic Link email template (PKCE `?code=` flow via `/auth/callback`): links must be opened in the same browser that requested them. Built-in email sender is rate-limited (~2/hour).
    - Optional later upgrade: free custom SMTP (e.g. Resend) + Magic Link template using `{{ .RedirectTo }}?token_hash={{ .TokenHash }}&type=email` for cross-device links. `/auth/callback` already handles `token_hash`, so only the template changes.
 2. **Data model** — Migrations for: trips, competitions, sources, budget_lines, payments, savings_entries, fx_rates, decisions, open_items, change_log. Enums for information states and budget categories. RLS on everything. Fake seed data.
@@ -80,4 +80,4 @@ Each phase ends with something working, committed, and pushed.
 
 ## Current phase
 
-Phase 1 — Auth.
+Phase 2 — Data model.
