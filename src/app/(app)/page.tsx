@@ -18,7 +18,7 @@ export default function TripsPage() {
   );
 }
 
-// Placeholder until Phase 3. It already goes through getCurrentUser(), as
+// Placeholder until Phase 4. It already goes through getCurrentUser(), as
 // every component showing private data will, so the page is protected
 // even if the proxy were bypassed.
 async function TripsPlaceholder() {
@@ -30,7 +30,7 @@ async function TripsPlaceholder() {
         Logged in as <span className="break-all font-medium">{user.email}</span>.
       </p>
       <p className="mt-2">
-        Trips, budget, savings and payments arrive in Phase 3.
+        Trips, budget, savings and payments arrive in Phase 4.
       </p>
     </div>
   );
