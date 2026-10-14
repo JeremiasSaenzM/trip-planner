@@ -175,6 +175,8 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await row.getByLabel("Why you're accepting this risk").fill("Still worth it at the new amount");
     await row.getByRole("button", { name: "I accept this risk" }).click();
 
-    await expect(row.getByText("$500.00")).toBeVisible();
+    // exact: true -- a substring match would also hit the "$500.00 due
+    // later" line (paidAmount is still 0, so dueLater equals the new total).
+    await expect(row.getByText("$500.00", { exact: true })).toBeVisible();
   });
 });
