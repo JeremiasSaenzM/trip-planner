@@ -89,7 +89,11 @@ test("the full first-run journey, starting from a signed-out, empty account", as
 
     await expect(availableBalance).toHaveText("$0");
     await page.getByLabel("Amount (USD)").fill("100");
-    await page.getByLabel("Date").fill("2026-01-01");
+    // exact: true -- now that a payment exists, the Savings schedule
+    // chart renders a real legend (empty before), and Recharts' own
+    // "<series name> legend icon" aria-label on its SVG icon is a
+    // case-insensitive substring match for plain "Date" otherwise.
+    await page.getByLabel("Date", { exact: true }).fill("2026-01-01");
     await page.getByLabel("Note (optional)").fill("First savings");
     await page.getByRole("button", { name: "Record" }).click();
     await expect(availableBalance).toHaveText("$100");
