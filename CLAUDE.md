@@ -88,12 +88,13 @@ Each phase ends with something working, committed, and pushed.
    - Uses Supabase's default Magic Link email template (PKCE `?code=` flow via `/auth/callback`): links must be opened in the same browser that requested them. Built-in email sender is rate-limited (~2/hour).
    - Optional later upgrade: free custom SMTP (e.g. Resend) + Magic Link template using `{{ .RedirectTo }}?token_hash={{ .TokenHash }}&type=email` for cross-device links. `/auth/callback` already handles `token_hash`, so only the template changes.
 2. ✅ **Data model** — Migrations for: trips, competitions, sources, scenarios, budget_lines, payments, savings_entries, fx_rates, decisions, open_items, flight_options/flight_segments, change_log. Enums for information states and budget categories. RLS on everything. Fake seed data. Migrations pushed to the hosted project (seed data never did — hosted tables are empty, RLS confirmed enabled on all 13).
-3. **Rules as code** — Tested pure functions in `src/lib/domain/`, run in CI with Vitest: savings requirement, US/Canada stop check (including territories), festival-period arrival/departure check, baggage check, Effective Flight Cost, cost roll-ups by scenario (handling shared lines), currency conversion (with planning-rate kinds).
-4. **Read-only dashboard** — Built only on top of those domain functions. Required monthly saving, trip cost range, payment timeline, deadlines and open items; scenario and target/conservative toggles; charts.
+3. ✅ **Rules as code** — Tested pure functions in `src/lib/domain/`, run in CI with Vitest: savings requirement, US/Canada stop check (including territories), festival-period arrival/departure check, baggage check, Effective Flight Cost, cost roll-ups by scenario (handling shared lines), currency conversion (with planning-rate kinds).
+4. ✅ **Read-only dashboard** — Built only on top of those domain functions. Required monthly saving, trip cost range, payment timeline, deadlines and open items; scenario and target/conservative toggles; charts.
 5. **My inputs** — Record money set aside, mark payments done, edit budget lines with information state and source; audit log writes; data export. Also when flight data can first be entered: a flights screen (options, US/Canada check, baggage check, festival-arrival check, Effective Flight Cost).
 6. **Claude bridge** — Supabase MCP (project-scoped) so research sessions can update data; migrate real numbers from the Project files; the Project's budget file then points to the database.
 7. **Reports and polish** — Printable budget summary, payment calendar, README with screenshots and the story of the project.
+   - Saving-method selector: a way to pick phased vs. parallel saving as **the** plan I'm actually following, instead of just showing both charts side by side with no way to say which one counts.
 
 ## Current phase
 
-Phase 3 — Rules as code.
+Phase 5 — My inputs.
