@@ -65,5 +65,26 @@ describe("demoDataSource writes", () => {
         includesExtension: false,
       }),
     ).rejects.toThrow(/disabled in demo mode/);
+    await expect(
+      demoDataSource.recordSavingsEntry({
+        tripId: "20000000-0000-0000-0000-000000000001",
+        amount: 100,
+        recordedOn: "2026-01-01",
+      }),
+    ).rejects.toThrow(/disabled in demo mode/);
+    await expect(
+      demoDataSource.updateSavingsEntry({
+        id: "90000000-0000-0000-0000-000000000001",
+        amount: 100,
+        recordedOn: "2026-01-01",
+        reason: "Test",
+      }),
+    ).rejects.toThrow(/disabled in demo mode/);
+    await expect(
+      demoDataSource.deleteSavingsEntry({
+        id: "90000000-0000-0000-0000-000000000001",
+        reason: "Test",
+      }),
+    ).rejects.toThrow(/disabled in demo mode/);
   });
 });

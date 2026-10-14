@@ -27,6 +27,20 @@ export const infoState = z.enum([
   "conflicting",
 ] satisfies [InfoState, ...InfoState[]]);
 
+// A YYYY-MM-DD value is a calendar date, not an instant -- compared in
+// UTC explicitly here, the same rule format.ts/charts.tsx/
+// savings-plan-charts.tsx already follow, rather than the server's
+// ambient time zone (which "today" would otherwise silently depend on).
+// Mirrors savings_entries_recorded_on_not_future on the DB side.
+export function todayUtc(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+export const dateNotInFuture = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "Use a YYYY-MM-DD date")
+  .refine((date) => date <= todayUtc(), "Date can't be in the future");
+
 // A reason is required for every edit and delete -- change_log's trigger
 // (supabase/migrations/20261012131400_change_log.sql) already refuses an
 // UPDATE/DELETE with no app.change_reason set, for anything but seed data.

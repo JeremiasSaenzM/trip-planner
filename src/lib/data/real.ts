@@ -66,6 +66,18 @@ function mapScenarioRow(row: Record<string, unknown>): Scenario {
   };
 }
 
+function mapSavingsEntryRow(row: Record<string, unknown>): SavingsEntry {
+  return {
+    id: row.id as string,
+    tripId: row.trip_id as string,
+    amount: row.amount as number,
+    currency: row.currency as SavingsEntry["currency"],
+    recordedOn: row.recorded_on as string,
+    note: row.note as string | null,
+    createdAt: row.created_at as string,
+  };
+}
+
 // Real implementation: queries Supabase directly. Every table has an
 // "owner_all" RLS policy, so these never add their own owner filter --
 // the signed-in user's rows are already all Postgres will return.
@@ -193,17 +205,7 @@ export const realDataSource: DataSource = {
     const supabase = await createClient();
     const { data, error } = await supabase.from("savings_entries").select("*");
     if (error) throw error;
-    return (data ?? []).map(
-      (row): SavingsEntry => ({
-        id: row.id,
-        tripId: row.trip_id,
-        amount: row.amount,
-        currency: row.currency,
-        recordedOn: row.recorded_on,
-        note: row.note,
-        createdAt: row.created_at,
-      }),
-    );
+    return (data ?? []).map(mapSavingsEntryRow);
   },
 
   async getFxRates() {
@@ -341,5 +343,55 @@ export const realDataSource: DataSource = {
       .single();
     if (error) throw error;
     return mapScenarioRow(data);
+  },
+
+  // A new entry has nothing prior to justify changing, so change_log's
+  // trigger doesn't require a reason for it -- this stays a plain
+  // insert, with currency hardcoded to "USD" (see savings-entries.ts's
+  // own doc comment on why the form never asks for one).
+  async recordSavingsEntry(input) {
+    assertWritesAllowed();
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("savings_entries")
+      .insert({
+        trip_id: input.tripId,
+        amount: input.amount,
+        currency: "USD",
+        recorded_on: input.recordedOn,
+        note: input.note ?? null,
+      })
+      .select("*")
+      .single();
+    if (error) throw error;
+    return mapSavingsEntryRow(data);
+  },
+
+  // Edits and deletes go through RPCs (20261014200000_savings_entries_writes.sql)
+  // that set app.change_reason in the same call the trigger checks it
+  // in -- a plain .update()/.delete() has no way to do that, since
+  // PostgREST runs each request as a single statement.
+  async updateSavingsEntry(input) {
+    assertWritesAllowed();
+    const supabase = await createClient();
+    const { data, error } = await supabase.rpc("update_savings_entry", {
+      p_id: input.id,
+      p_amount: input.amount,
+      p_recorded_on: input.recordedOn,
+      p_note: input.note ?? null,
+      p_reason: input.reason,
+    });
+    if (error) throw error;
+    return mapSavingsEntryRow(data as Record<string, unknown>);
+  },
+
+  async deleteSavingsEntry(input) {
+    assertWritesAllowed();
+    const supabase = await createClient();
+    const { error } = await supabase.rpc("delete_savings_entry", {
+      p_id: input.id,
+      p_reason: input.reason,
+    });
+    if (error) throw error;
   },
 };

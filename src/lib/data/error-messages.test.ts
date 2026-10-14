@@ -34,6 +34,32 @@ describe("translatePostgresError", () => {
     expect(message).toMatch(/reason is required/);
   });
 
+  it("translates a write RPC's own blank-reason guard the same way, since it uses the same prefix", () => {
+    const message = translatePostgresError({ message: "A reason is required for this change." });
+    expect(message).toMatch(/reason is required/);
+  });
+
+  it("translates a write RPC's ownership-check exception", () => {
+    const message = translatePostgresError({
+      message: "Savings entry 90000000-0000-0000-0000-000000000001 not found (or not yours)",
+    });
+    expect(message).toBe("That doesn't exist, or isn't yours.");
+  });
+
+  it("translates the new savings_entries check constraints", () => {
+    expect(
+      translatePostgresError({
+        message: 'new row for relation "savings_entries" violates check constraint "savings_entries_amount_positive"',
+      }),
+    ).toBe("The amount has to be more than zero.");
+    expect(
+      translatePostgresError({
+        message:
+          'new row for relation "savings_entries" violates check constraint "savings_entries_recorded_on_not_future"',
+      }),
+    ).toBe("That date can't be in the future.");
+  });
+
   it("falls back to the raw message for anything unmapped, instead of going blank", () => {
     const message = translatePostgresError({ message: "some brand-new constraint failed" });
     expect(message).toBe("some brand-new constraint failed");

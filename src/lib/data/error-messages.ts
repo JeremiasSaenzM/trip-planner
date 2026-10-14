@@ -18,6 +18,8 @@ const CHECK_CONSTRAINT_MESSAGES: Record<string, string> = {
   payments_paid_not_over_total: "The amount paid can't be more than the total.",
   competitions_end_after_start: "The festival can't end before it starts.",
   fx_rates_currency_date_kind_unique: "There's already a rate for this currency, date and kind -- edit that one instead.",
+  savings_entries_amount_positive: "The amount has to be more than zero.",
+  savings_entries_recorded_on_not_future: "That date can't be in the future.",
 };
 
 const CHECK_CONSTRAINT_PATTERN = /violates (?:check|unique) constraint "([^"]+)"/;
@@ -36,12 +38,23 @@ const ACCEPTANCE_SAFEGUARD_MESSAGE =
 const REASON_REQUIRED_PREFIX = "A reason is required for";
 const REASON_REQUIRED_MESSAGE = "Say why you're making this change -- a reason is required for edits and deletes.";
 
+// The standard suffix every edit/delete RPC's own ownership check raises
+// with (e.g. update_savings_entry/delete_savings_entry in
+// 20261014200000_savings_entries_writes.sql) -- RLS makes "where id =
+// p_id" match zero rows for an id you don't own, which reads the same
+// as a plain unknown id, so the message doesn't try to tell them apart.
+const NOT_FOUND_SUFFIX = "not found (or not yours)";
+const NOT_FOUND_MESSAGE = "That doesn't exist, or isn't yours.";
+
 export function translatePostgresError(error: { message: string }): string {
   if (error.message.startsWith(ACCEPTANCE_SAFEGUARD_PREFIX)) {
     return ACCEPTANCE_SAFEGUARD_MESSAGE;
   }
   if (error.message.startsWith(REASON_REQUIRED_PREFIX)) {
     return REASON_REQUIRED_MESSAGE;
+  }
+  if (error.message.includes(NOT_FOUND_SUFFIX)) {
+    return NOT_FOUND_MESSAGE;
   }
 
   const constraintMatch = error.message.match(CHECK_CONSTRAINT_PATTERN);
