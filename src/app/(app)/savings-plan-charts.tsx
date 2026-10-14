@@ -28,6 +28,12 @@ type SawtoothPoint = {
   balance: number;
   isPeak: boolean;
   label: string | null;
+  /** Peak labels can run long (e.g. "Before departure (9 items)"
+   * including an amount) -- anchoring every label dead-center clips the
+   * last one against the chart's right edge, since it's the point
+   * closest to it. "end" for that point keeps the text growing leftward,
+   * into the plot, instead of off the edge. */
+  labelAnchor: "start" | "middle" | "end";
   monthlySaving: number;
 };
 
@@ -37,7 +43,7 @@ function PeakDot(props: { cx?: number; cy?: number; payload?: SawtoothPoint }) {
   return (
     <g>
       <circle cx={cx} cy={cy} r={3} fill="var(--chart-target)" />
-      <text x={cx} y={cy - 8} textAnchor="middle" fontSize={10} fill="var(--chart-neutral)">
+      <text x={cx} y={cy - 8} textAnchor={payload.labelAnchor} fontSize={10} fill="var(--chart-neutral)">
         {payload.label}
       </text>
     </g>
@@ -74,15 +80,17 @@ export function buildPhasedSawtoothData(
       balance: startingBalance,
       isPeak: false,
       label: null,
+      labelAnchor: "middle",
       monthlySaving: future[0].monthlySaving ?? 0,
     },
   ];
-  for (const phase of future) {
+  future.forEach((phase, i) => {
     data.push({
       timestamp: toTimestamp(phase.toDate),
       balance: phase.balanceBeforePayment,
       isPeak: true,
       label: `${phase.description} (${formatUsd(phase.balanceBeforePayment)})`,
+      labelAnchor: i === future.length - 1 ? "end" : "middle",
       monthlySaving: phase.monthlySaving ?? 0,
     });
     data.push({
@@ -90,9 +98,10 @@ export function buildPhasedSawtoothData(
       balance: phase.balanceAfterPayment,
       isPeak: false,
       label: null,
+      labelAnchor: "middle",
       monthlySaving: phase.monthlySaving ?? 0,
     });
-  }
+  });
   return data;
 }
 
@@ -193,6 +202,7 @@ export function buildParallelSawtoothData(
       balance,
       isPeak: false,
       label: null,
+      labelAnchor: "middle",
       monthlySaving: plan.periods[0].totalMonthlySaving,
     },
   ];
@@ -204,6 +214,7 @@ export function buildParallelSawtoothData(
       balance,
       isPeak: true,
       label: `${pot.description} (${formatUsd(pot.amountUsd)})`,
+      labelAnchor: i === openPots.length - 1 ? "end" : "middle",
       monthlySaving: period.totalMonthlySaving,
     });
     balance = Math.max(0, balance - pot.amountUsd);
@@ -212,6 +223,7 @@ export function buildParallelSawtoothData(
       balance,
       isPeak: false,
       label: null,
+      labelAnchor: "middle",
       monthlySaving: period.totalMonthlySaving,
     });
   });
