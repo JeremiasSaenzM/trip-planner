@@ -12,3 +12,12 @@
 export type FormActionState = { status: "idle" } | { status: "success" } | { status: "error"; message: string };
 
 export const initialFormActionState: FormActionState = { status: "idle" };
+
+// updatePaymentStatus's own state: a "blocked" status change (the
+// acceptance safeguard) is not a normal error -- the form offers "I
+// accept this risk" for it specifically, so it needs to be told apart
+// from every other error. See isAcceptanceSafeguardError() in
+// src/lib/data/error-messages.ts and payment-actions.ts.
+export type PaymentStatusActionState = FormActionState | { status: "blocked"; message: string };
+
+export const initialPaymentStatusActionState: PaymentStatusActionState = { status: "idle" };

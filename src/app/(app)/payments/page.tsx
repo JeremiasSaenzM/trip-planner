@@ -2,12 +2,14 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 
 import { getCurrentUser } from "@/lib/auth";
-import type { Payment } from "@/lib/data/types";
+import type { BudgetLine, Payment } from "@/lib/data/types";
 
 import { DashboardControls } from "../dashboard-controls";
 import { loadDashboardData } from "../dashboard-data";
 import { Card, EmptyState } from "../dashboard-ui";
 import { formatAmount, formatDate } from "../format";
+import { AddPaymentForm, PaymentRowActions } from "../payment-write-ui";
+import { REFUNDABILITY_LABELS, STATUS_LABELS, TIMING_LABELS } from "../payment-labels";
 
 export const metadata: Metadata = { title: "Payments" };
 
@@ -33,7 +35,10 @@ async function PaymentsScreen({ searchParams }: { searchParams: PageProps<"/paym
   if (data.status === "no_trip") return <EmptyState>No trip yet.</EmptyState>;
   if (data.status === "no_scenario") return <EmptyState>No scenario yet for this trip.</EmptyState>;
 
-  const { payments, competition, asOfDate } = data;
+  const { payments, competition, asOfDate, trip, scenario, budgetLines, tripPayments } = data;
+  const competitionId = competition?.id ?? null;
+
+  const addForm = <AddPaymentForm tripId={trip.id} scenarioId={scenario.id} budgetLines={budgetLines} />;
 
   if (payments.length === 0) {
     return (
@@ -44,6 +49,7 @@ async function PaymentsScreen({ searchParams }: { searchParams: PageProps<"/paym
           activeScenarioId={data.scenario.id}
           basis={data.basis}
         />
+        <Card>{addForm}</Card>
         <EmptyState>No payments recorded for this scenario yet.</EmptyState>
       </div>
     );
@@ -64,19 +70,55 @@ async function PaymentsScreen({ searchParams }: { searchParams: PageProps<"/paym
         basis={data.basis}
       />
 
+      <Card>{addForm}</Card>
+
       {!canSplit && (
         <p className="text-sm text-zinc-500 dark:text-zinc-400">
           No departure date yet for this scenario, so payments aren&apos;t split by pre-trip/during-trip.
         </p>
       )}
 
-      <PaymentGroup title="Due before you leave" payments={preTrip} asOfDate={asOfDate} />
-      {canSplit && <PaymentGroup title="Due during the trip" payments={duringTrip} asOfDate={asOfDate} />}
+      <PaymentGroup
+        title="Due before you leave"
+        payments={preTrip}
+        asOfDate={asOfDate}
+        tripId={trip.id}
+        competitionId={competitionId}
+        budgetLines={budgetLines}
+        tripPayments={tripPayments}
+      />
+      {canSplit && (
+        <PaymentGroup
+          title="Due during the trip"
+          payments={duringTrip}
+          asOfDate={asOfDate}
+          tripId={trip.id}
+          competitionId={competitionId}
+          budgetLines={budgetLines}
+          tripPayments={tripPayments}
+        />
+      )}
     </div>
   );
 }
 
-function PaymentGroup({ title, payments, asOfDate }: { title: string; payments: Payment[]; asOfDate: string }) {
+function PaymentGroup({
+  title,
+  payments,
+  asOfDate,
+  tripId,
+  competitionId,
+  budgetLines,
+  tripPayments,
+}: {
+  title: string;
+  payments: Payment[];
+  asOfDate: string;
+  tripId: string;
+  competitionId: string | null;
+  budgetLines: BudgetLine[];
+  tripPayments: Payment[];
+}) {
   if (payments.length === 0) return null;
 
   const sorted = [...payments].sort((a, b) => (a.dueDate ?? "9999-99-99").localeCompare(b.dueDate ?? "9999-99-99"));
@@ -86,19 +128,46 @@ function PaymentGroup({ title, payments, asOfDate }: { title: string; payments: 
       <h2 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">{title}</h2>
       <div className="space-y-2">
         {sorted.map((payment) => (
-          <PaymentRow key={payment.id} payment={payment} asOfDate={asOfDate} />
+          <PaymentRow
+            key={payment.id}
+            payment={payment}
+            asOfDate={asOfDate}
+            tripId={tripId}
+            competitionId={competitionId}
+            budgetLines={budgetLines}
+            tripPayments={tripPayments}
+          />
         ))}
       </div>
     </div>
   );
 }
 
-function PaymentRow({ payment, asOfDate }: { payment: Payment; asOfDate: string }) {
+function PaymentRow({
+  payment,
+  asOfDate,
+  tripId,
+  competitionId,
+  budgetLines,
+  tripPayments,
+}: {
+  payment: Payment;
+  asOfDate: string;
+  tripId: string;
+  competitionId: string | null;
+  budgetLines: BudgetLine[];
+  tripPayments: Payment[];
+}) {
   const dueLater = payment.totalAmount - payment.paidAmount;
   const cancellationSoon =
     payment.cancellationDeadline !== null &&
     payment.cancellationDeadline >= asOfDate &&
     payment.cancellationDeadline <= addDays(asOfDate, 30);
+
+  const budgetLine = budgetLines.find((line) => line.id === payment.budgetLineId);
+  const otherPaymentsOnBudgetLine = tripPayments.filter(
+    (other) => other.budgetLineId === payment.budgetLineId && other.id !== payment.id,
+  ).length;
 
   return (
     <Card>
@@ -136,32 +205,16 @@ function PaymentRow({ payment, asOfDate }: { payment: Payment; asOfDate: string 
             </span>
           ))}
       </div>
+      <PaymentRowActions
+        payment={payment}
+        tripId={tripId}
+        competitionId={competitionId}
+        budgetLineAutoCreated={budgetLine?.autoCreated ?? false}
+        otherPaymentsOnBudgetLine={otherPaymentsOnBudgetLine}
+      />
     </Card>
   );
 }
-
-const STATUS_LABELS: Record<Payment["status"], string> = {
-  planned: "Planned",
-  committed: "Committed",
-  paid: "Paid",
-  cancelled: "Cancelled",
-};
-
-const TIMING_LABELS: Record<Payment["timingType"], string> = {
-  paid_now: "Paid now",
-  due_on_date: "Due on date",
-  pay_before_arrival: "Pay before arrival",
-  pay_at_property: "Pay at property",
-  unknown: "Timing unknown",
-  optional: "Optional",
-};
-
-const REFUNDABILITY_LABELS: Record<Payment["refundability"], string> = {
-  refundable: "Refundable",
-  partially_refundable: "Partially refundable",
-  non_refundable: "Non-refundable",
-  unknown: "Refundability unknown",
-};
 
 function addDays(date: string, days: number): string {
   const d = new Date(`${date}T00:00:00Z`);
