@@ -79,6 +79,25 @@ function SavingsEntryRow({ entry }: { entry: SavingsEntry }) {
   const [editState, editAction, editPending] = useActionState(updateSavingsEntry, initialFormActionState);
   const [deleteState, deleteAction, deletePending] = useActionState(deleteSavingsEntry, initialFormActionState);
 
+  // entry.id stays the same across an edit, so this component never
+  // remounts and its own mode state would otherwise survive a
+  // successful save forever, leaving the row stuck showing the edit
+  // form with no way back to "Delete". editingSnapshot captures what
+  // the row looked like the moment editing started; once the server's
+  // own values (after revalidatePath()) differ from that snapshot, the
+  // save must have gone through, so it's safe to snap back to "view".
+  const [editingSnapshot, setEditingSnapshot] = useState<SavingsEntry | null>(null);
+  if (
+    mode === "edit" &&
+    editingSnapshot &&
+    (entry.amount !== editingSnapshot.amount ||
+      entry.recordedOn !== editingSnapshot.recordedOn ||
+      entry.note !== editingSnapshot.note)
+  ) {
+    setMode("view");
+    setEditingSnapshot(null);
+  }
+
   if (mode === "edit") {
     return (
       <li className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
@@ -165,7 +184,14 @@ function SavingsEntryRow({ entry }: { entry: SavingsEntry }) {
         </p>
       </div>
       <div className="flex gap-2 text-sm">
-        <button type="button" onClick={() => setMode("edit")} className="text-zinc-600 underline dark:text-zinc-400">
+        <button
+          type="button"
+          onClick={() => {
+            setEditingSnapshot(entry);
+            setMode("edit");
+          }}
+          className="text-zinc-600 underline dark:text-zinc-400"
+        >
           Edit
         </button>
         <button type="button" onClick={() => setMode("delete")} className="text-red-600 underline dark:text-red-400">
