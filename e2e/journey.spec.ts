@@ -71,6 +71,18 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await expect(availableBalance).toHaveText("$600");
   });
 
+  // Regression check: a save that changes nothing visible (same
+  // amount, date and note) must still return the row to view mode --
+  // it previously got stuck showing the edit form forever, since
+  // nothing about the row's own props ever changed to signal success.
+  await test.step("edit again with unchanged values and still returns to view mode", async () => {
+    await page.getByRole("button", { name: "Edit" }).click();
+    await page.getByLabel("Reason for this change").fill("No change, just confirming this still works");
+    await page.getByRole("button", { name: "Save" }).click();
+    await expect(page.getByRole("button", { name: "Delete" })).toBeVisible();
+    await expect(availableBalance).toHaveText("$600");
+  });
+
   await test.step("delete the entry with a reason", async () => {
     await page.getByRole("button", { name: "Delete" }).click();
     await page.getByLabel("Reason for deleting this").fill("Testing deletion");
