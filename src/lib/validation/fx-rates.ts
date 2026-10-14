@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import type { RateKind } from "@/lib/domain/types";
 
-import { changeReason, currencyCode, infoState } from "./shared";
+import { changeReason, currencyCode, id, infoState } from "./shared";
 
 const rateKind = z.enum(["observed", "planning_base", "planning_conservative"] satisfies [
   RateKind,
@@ -21,13 +21,13 @@ const fxRateFields = z.object({
   rateDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use a YYYY-MM-DD date"),
   rateKind,
   informationState: infoState,
-  sourceId: z.string().uuid("Even a planning rate needs a source"),
+  sourceId: z.guid("Even a planning rate needs a source"),
 });
 
 export const createFxRateInput = fxRateFields;
 
 export const updateFxRateInput = fxRateFields.extend({
-  id: z.string().uuid(),
+  id,
   reason: changeReason,
 });
 

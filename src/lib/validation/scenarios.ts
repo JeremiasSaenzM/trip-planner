@@ -1,9 +1,11 @@
 import { z } from "zod";
 
+import { id } from "./shared";
+
 export const createScenarioInput = z.object({
-  tripId: z.string().uuid(),
+  tripId: id,
   name: z.string().trim().min(1, "Name the scenario"),
-  competitionId: z.string().uuid().optional(),
+  competitionId: id.optional(),
   includesExtension: z.boolean().default(false),
   notes: z.string().trim().optional(),
 });

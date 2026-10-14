@@ -2,6 +2,15 @@ import { z } from "zod";
 
 import type { InfoState } from "@/lib/domain/types";
 
+// Every foreign key in this app is a Postgres uuid column, but not every
+// id in it is a freshly-generated v4 uuid: supabase/seed.sql and
+// src/lib/data/fixtures.ts deliberately use memorable, sequential ids
+// like "20000000-0000-0000-0000-000000000001" so fixtures are easy to
+// cross-reference by eye. Zod v4's .uuid() checks the actual version/
+// variant bits and rejects those -- z.guid() checks only the general
+// 8-4-4-4-12 hex shape, which is what every id here actually needs.
+export const id = z.guid();
+
 // Mirrors every table's "currency text ... check (currency ~ '^[A-Z]{3}$')"
 // constraint (budget_lines, payments, savings_entries, fx_rates).
 export const currencyCode = z

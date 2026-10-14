@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { checkConfirmedNeedsSource, infoState } from "./shared";
+import { checkConfirmedNeedsSource, id, infoState } from "./shared";
 
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use a YYYY-MM-DD date");
 
@@ -8,7 +8,7 @@ const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use a YYYY-MM-DD date")
 // start_date) and competitions_dates_confirmed_needs_source.
 export const createCompetitionInput = z
   .object({
-    tripId: z.string().uuid(),
+    tripId: id,
     name: z.string().trim().min(1, "Name the competition"),
     city: z.string().trim().min(1),
     country: z.string().trim().min(1),
@@ -17,7 +17,7 @@ export const createCompetitionInput = z
     endDate: isoDate,
     timezone: z.string().trim().min(1, "Pick the competition's own time zone, e.g. Europe/Paris"),
     datesState: infoState.default("pending"),
-    datesSourceId: z.string().uuid().optional(),
+    datesSourceId: id.optional(),
   })
   .superRefine((value, ctx) => {
     if (value.endDate < value.startDate) {

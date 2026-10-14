@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import type { BudgetCategory } from "@/lib/domain/types";
 
-import { changeReason, checkAmountOrder, checkConfirmedNeedsSource, currencyCode, infoState } from "./shared";
+import { changeReason, checkAmountOrder, checkConfirmedNeedsSource, currencyCode, id, infoState } from "./shared";
 
 const budgetCategory = z.enum(["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"] satisfies [
   BudgetCategory,
@@ -17,7 +17,7 @@ const budgetLineFields = z.object({
   amountConservative: z.number().nonnegative(),
   currency: currencyCode,
   informationState: infoState,
-  sourceId: z.string().uuid().optional(),
+  sourceId: id.optional(),
   notes: z.string().trim().optional(),
 });
 
@@ -35,8 +35,8 @@ function refineBudgetLine(value: z.infer<typeof budgetLineFields>, ctx: z.Refine
 // yet, so no reason required (matches change_log's trigger).
 export const createBudgetLineInput = budgetLineFields
   .extend({
-    tripId: z.string().uuid(),
-    scenarioId: z.string().uuid().optional(),
+    tripId: id,
+    scenarioId: id.optional(),
   })
   .superRefine(refineBudgetLine);
 
@@ -45,7 +45,7 @@ export const createBudgetLineInput = budgetLineFields
 // must collect it up front.
 export const updateBudgetLineInput = budgetLineFields
   .extend({
-    id: z.string().uuid(),
+    id,
     reason: changeReason,
   })
   .superRefine(refineBudgetLine);

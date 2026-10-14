@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import type { PaymentStatus, PaymentTiming, Refundability } from "@/lib/data/types";
 
-import { changeReason, checkConfirmedNeedsSource, currencyCode, infoState } from "./shared";
+import { changeReason, checkConfirmedNeedsSource, currencyCode, id, infoState } from "./shared";
 
 const paymentStatus = z.enum(["planned", "committed", "paid", "cancelled"] satisfies [
   PaymentStatus,
@@ -30,7 +30,7 @@ const refundability = z.enum([
 // <= total) is already enforced by the DB; this schema only rules out
 // the shapes that can never be valid (zero/negative).
 export const recordPaymentInput = z.object({
-  paymentId: z.string().uuid(),
+  paymentId: id,
   amount: z.number().positive(),
   reason: changeReason,
 });
@@ -41,10 +41,10 @@ export const recordPaymentInput = z.object({
 // only ever set by the "I accept this risk" retry path below, never
 // typed in directly.
 export const updatePaymentStatusInput = z.object({
-  paymentId: z.string().uuid(),
+  paymentId: id,
   status: paymentStatus,
   reason: changeReason,
-  riskAcceptedDecisionId: z.string().uuid().optional(),
+  riskAcceptedDecisionId: id.optional(),
 });
 
 // Mirrors payments_confirmed_needs_source and
@@ -52,17 +52,17 @@ export const updatePaymentStatusInput = z.object({
 // pairs on the same row (what the payment itself is, and when it's due).
 export const updatePaymentDetailsInput = z
   .object({
-    paymentId: z.string().uuid(),
+    paymentId: id,
     description: z.string().trim().min(1),
     totalAmount: z.number().nonnegative(),
     currency: currencyCode,
     dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
     cancellationDeadline: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
     datesState: infoState,
-    datesSourceId: z.string().uuid().optional(),
+    datesSourceId: id.optional(),
     timingType: paymentTiming,
     informationState: infoState,
-    sourceId: z.string().uuid().optional(),
+    sourceId: id.optional(),
     refundability,
     competitionRelated: z.boolean(),
     reason: changeReason,
