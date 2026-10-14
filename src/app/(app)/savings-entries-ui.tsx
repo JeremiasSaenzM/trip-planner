@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 
 import type { SavingsEntry } from "@/lib/data/types";
 
@@ -76,72 +76,20 @@ type RowMode = "view" | "edit" | "delete";
 
 function SavingsEntryRow({ entry }: { entry: SavingsEntry }) {
   const [mode, setMode] = useState<RowMode>("view");
-  const [editState, editAction, editPending] = useActionState(updateSavingsEntry, initialFormActionState);
   const [deleteState, deleteAction, deletePending] = useActionState(deleteSavingsEntry, initialFormActionState);
 
-  // entry.id stays the same across an edit, so this component never
-  // remounts and its own mode state would otherwise survive a
-  // successful save forever, leaving the row stuck showing the edit
-  // form with no way back to "Delete". editingSnapshot captures what
-  // the row looked like the moment editing started; once the server's
-  // own values (after revalidatePath()) differ from that snapshot, the
-  // save must have gone through, so it's safe to snap back to "view".
-  const [editingSnapshot, setEditingSnapshot] = useState<SavingsEntry | null>(null);
-  if (
-    mode === "edit" &&
-    editingSnapshot &&
-    (entry.amount !== editingSnapshot.amount ||
-      entry.recordedOn !== editingSnapshot.recordedOn ||
-      entry.note !== editingSnapshot.note)
-  ) {
-    setMode("view");
-    setEditingSnapshot(null);
-  }
+  // entry.id stays the same across an edit, so this row never remounts
+  // on its own -- editAttempt is bumped on every "Edit" click purely so
+  // EditEntryForm below can be given a fresh `key`, forcing a genuine
+  // remount (and so a fresh useActionState) each time editing starts.
+  // Without that, a *second* edit landing on the exact same values as
+  // the first would see the first attempt's already-"success" state
+  // and skip straight past the form; see EditEntryForm's own comment.
+  const [editAttempt, setEditAttempt] = useState(0);
 
   if (mode === "edit") {
     return (
-      <li className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
-        <form action={editAction} className="space-y-2.5">
-          <input type="hidden" name="id" value={entry.id} />
-          <div className="grid grid-cols-2 gap-2.5">
-            <input
-              name="amount"
-              type="number"
-              step="0.01"
-              min="0.01"
-              required
-              defaultValue={entry.amount}
-              aria-label="New amount (USD)"
-              className={inputClass}
-            />
-            <input
-              name="recordedOn"
-              type="date"
-              required
-              defaultValue={entry.recordedOn}
-              aria-label="New date"
-              className={inputClass}
-            />
-          </div>
-          <input name="note" defaultValue={entry.note ?? ""} aria-label="New note" className={inputClass} />
-          <input
-            name="reason"
-            required
-            placeholder="Reason for this change"
-            aria-label="Reason for this change"
-            className={inputClass}
-          />
-          {editState.status === "error" && <FormError message={editState.message} />}
-          <div className="flex gap-2">
-            <button type="submit" disabled={editPending} className={buttonClass}>
-              {editPending ? "Saving…" : "Save"}
-            </button>
-            <button type="button" onClick={() => setMode("view")} className={secondaryButtonClass}>
-              Cancel
-            </button>
-          </div>
-        </form>
-      </li>
+      <EditEntryForm key={editAttempt} entry={entry} onCancel={() => setMode("view")} onSaved={() => setMode("view")} />
     );
   }
 
@@ -187,7 +135,7 @@ function SavingsEntryRow({ entry }: { entry: SavingsEntry }) {
         <button
           type="button"
           onClick={() => {
-            setEditingSnapshot(entry);
+            setEditAttempt((attempt) => attempt + 1);
             setMode("edit");
           }}
           className="text-zinc-600 underline dark:text-zinc-400"
@@ -198,6 +146,76 @@ function SavingsEntryRow({ entry }: { entry: SavingsEntry }) {
           Delete
         </button>
       </div>
+    </li>
+  );
+}
+
+// Its own component (not inlined in SavingsEntryRow) so it can be given
+// a `key` that forces a remount -- and so a fresh useActionState -- each
+// time editing starts. Without that, a *second* edit submitting the
+// exact same values as a prior successful one would still carry that
+// prior attempt's already-"success" state on mount, and the effect
+// below would call onSaved() immediately instead of waiting for this
+// attempt's own submission.
+function EditEntryForm({
+  entry,
+  onCancel,
+  onSaved,
+}: {
+  entry: SavingsEntry;
+  onCancel: () => void;
+  onSaved: () => void;
+}) {
+  const [editState, editAction, editPending] = useActionState(updateSavingsEntry, initialFormActionState);
+
+  useEffect(() => {
+    if (editState.status === "success") {
+      onSaved();
+    }
+  }, [editState, onSaved]);
+
+  return (
+    <li className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
+      <form action={editAction} className="space-y-2.5">
+        <input type="hidden" name="id" value={entry.id} />
+        <div className="grid grid-cols-2 gap-2.5">
+          <input
+            name="amount"
+            type="number"
+            step="0.01"
+            min="0.01"
+            required
+            defaultValue={entry.amount}
+            aria-label="New amount (USD)"
+            className={inputClass}
+          />
+          <input
+            name="recordedOn"
+            type="date"
+            required
+            defaultValue={entry.recordedOn}
+            aria-label="New date"
+            className={inputClass}
+          />
+        </div>
+        <input name="note" defaultValue={entry.note ?? ""} aria-label="New note" className={inputClass} />
+        <input
+          name="reason"
+          required
+          placeholder="Reason for this change"
+          aria-label="Reason for this change"
+          className={inputClass}
+        />
+        {editState.status === "error" && <FormError message={editState.message} />}
+        <div className="flex gap-2">
+          <button type="submit" disabled={editPending} className={buttonClass}>
+            {editPending ? "Saving…" : "Save"}
+          </button>
+          <button type="button" onClick={onCancel} className={secondaryButtonClass}>
+            Cancel
+          </button>
+        </div>
+      </form>
     </li>
   );
 }

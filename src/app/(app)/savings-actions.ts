@@ -61,7 +61,11 @@ export async function updateSavingsEntry(
   }
 
   revalidatePath("/");
-  return initialFormActionState;
+  // Not initialFormActionState ("idle"): the row this came from doesn't
+  // unmount on success (same entry.id), so it needs a state it can tell
+  // apart from "haven't submitted yet" to know to switch back to view
+  // mode -- see savings-entries-ui.tsx.
+  return { status: "success" };
 }
 
 export async function deleteSavingsEntry(
