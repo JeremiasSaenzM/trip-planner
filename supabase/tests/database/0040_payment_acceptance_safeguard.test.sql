@@ -42,9 +42,19 @@ select throws_like(
   'a committed, non-refundable, competition-related payment is rejected while the competition is still pending'
 );
 
--- payment_id is given an explicit id up front (rather than letting it
--- default) so the decision below -- which 20261015090000's trigger now
--- requires to name this exact payment -- can be created first.
+-- decisions.payment_id (20261015090000) is a real foreign key, so the
+-- payment has to exist before a decision can name it -- inserted as
+-- 'planned' first (which the safeguard never blocks, no matter how
+-- risky), with an explicit id so the decision can reference it. This
+-- also matches how the app actually does it: the payment is always
+-- created well before anyone tries to commit it. The status change to
+-- 'committed' happens last, as a plain update.
+insert into payments (id, owner_id, budget_line_id, description, total_amount, currency, status, refundability, competition_related)
+values (
+  'd0000000-0000-0000-0000-000000000006', '10000000-0000-0000-0000-000000000001',
+  'd0000000-0000-0000-0000-000000000004', 'accepted-risk deposit', 100, 'EUR', 'planned', 'non_refundable', true
+);
+
 insert into decisions (
   id, owner_id, trip_id, competition_id, payment_id, title, rationale,
   decided_by, reversible, accepted_amount, accepted_currency
@@ -55,9 +65,11 @@ insert into decisions (
   'pgTAP fixture rationale', 'traveler', false, 100, 'EUR'
 );
 
+select set_config('app.change_reason', 'pgTAP: committing now that the risk is accepted', true);
+
 select lives_ok(
-  $$ insert into payments (id, owner_id, budget_line_id, description, total_amount, currency, status, refundability, competition_related, risk_accepted_decision_id)
-     values ('d0000000-0000-0000-0000-000000000006', '10000000-0000-0000-0000-000000000001', 'd0000000-0000-0000-0000-000000000004', 'accepted-risk deposit', 100, 'EUR', 'committed', 'non_refundable', true, 'd0000000-0000-0000-0000-000000000005') $$,
+  $$ update payments set status = 'committed', risk_accepted_decision_id = 'd0000000-0000-0000-0000-000000000005'
+     where id = 'd0000000-0000-0000-0000-000000000006' $$,
   'the same payment succeeds once a traveler risk-accepted decision is linked to it'
 );
 
