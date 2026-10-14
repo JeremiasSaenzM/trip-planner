@@ -10,14 +10,6 @@ import { getLatestMagicLink } from "./mailpit";
 const TEST_EMAIL = process.env.E2E_TEST_EMAIL ?? "e2e-test@example.com";
 
 test("create trip -> competition -> scenario, starting from a signed-out, empty account", async ({ page }) => {
-  // Temporary: logs every redirect hop so a login failure shows exactly
-  // where the chain diverges, instead of just the final URL.
-  page.on("response", (response) => {
-    if (response.request().isNavigationRequest()) {
-      console.log(`NAV ${response.status()} ${response.url()} -> ${response.headers().location ?? "(no redirect)"}`);
-    }
-  });
-
   await test.step("log in via the magic link", async () => {
     await page.goto("/login");
     await page.getByLabel("Email").fill(TEST_EMAIL);
@@ -25,7 +17,6 @@ test("create trip -> competition -> scenario, starting from a signed-out, empty 
     await expect(page.getByRole("status")).toContainText(TEST_EMAIL);
 
     const link = await getLatestMagicLink(TEST_EMAIL);
-    console.log("Magic link extracted from Mailpit:", link);
     await page.goto(link);
     await expect(page).toHaveURL("/");
   });
