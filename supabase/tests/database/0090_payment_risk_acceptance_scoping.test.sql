@@ -82,6 +82,12 @@ insert into decisions (
   'traveler', 100, 'EUR'
 );
 
+-- A plain UPDATE (not through an RPC, deliberately, to test the
+-- trigger/constraints in isolation) still needs a reason, same as any
+-- other update to this table -- set once here since it isn't rejected
+-- until change_log's own AFTER trigger runs, after the row write itself.
+select set_config('app.change_reason', 'pgTAP: accepting the risk for payment A', true);
+
 select lives_ok(
   $$ update payments set status = 'committed', risk_accepted_decision_id = 'e0000000-0000-0000-0000-000000000007'
      where id = 'e0000000-0000-0000-0000-000000000005' $$,
@@ -104,7 +110,11 @@ select is(
 -- Independent of the trigger: a payment that never reaches
 -- committed/paid never runs the safeguard's own check at all, so the
 -- unique constraint on risk_accepted_decision_id is what has to stop
--- the same decision being attached to it anyway.
+-- the same decision being attached to it anyway. A reason is set here
+-- too, so this reaches that unique-constraint check specifically,
+-- rather than failing on the reason requirement first.
+select set_config('app.change_reason', 'pgTAP: trying to reuse the same decision', true);
+
 select throws_like(
   $$ update payments set risk_accepted_decision_id = 'e0000000-0000-0000-0000-000000000007'
      where id = 'e0000000-0000-0000-0000-000000000006' $$,

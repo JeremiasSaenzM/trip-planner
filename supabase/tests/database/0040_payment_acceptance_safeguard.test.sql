@@ -42,15 +42,22 @@ select throws_like(
   'a committed, non-refundable, competition-related payment is rejected while the competition is still pending'
 );
 
-insert into decisions (id, owner_id, trip_id, competition_id, title, decided_by, reversible) values (
+-- payment_id is given an explicit id up front (rather than letting it
+-- default) so the decision below -- which 20261015090000's trigger now
+-- requires to name this exact payment -- can be created first.
+insert into decisions (
+  id, owner_id, trip_id, competition_id, payment_id, title, rationale,
+  decided_by, reversible, accepted_amount, accepted_currency
+) values (
   'd0000000-0000-0000-0000-000000000005', '10000000-0000-0000-0000-000000000001',
   'd0000000-0000-0000-0000-000000000001', 'd0000000-0000-0000-0000-000000000002',
-  'pgTAP fixture: accept the risk', 'traveler', false
+  'd0000000-0000-0000-0000-000000000006', 'pgTAP fixture: accept the risk',
+  'pgTAP fixture rationale', 'traveler', false, 100, 'EUR'
 );
 
 select lives_ok(
-  $$ insert into payments (owner_id, budget_line_id, description, total_amount, currency, status, refundability, competition_related, risk_accepted_decision_id)
-     values ('10000000-0000-0000-0000-000000000001', 'd0000000-0000-0000-0000-000000000004', 'accepted-risk deposit', 100, 'EUR', 'committed', 'non_refundable', true, 'd0000000-0000-0000-0000-000000000005') $$,
+  $$ insert into payments (id, owner_id, budget_line_id, description, total_amount, currency, status, refundability, competition_related, risk_accepted_decision_id)
+     values ('d0000000-0000-0000-0000-000000000006', '10000000-0000-0000-0000-000000000001', 'd0000000-0000-0000-0000-000000000004', 'accepted-risk deposit', 100, 'EUR', 'committed', 'non_refundable', true, 'd0000000-0000-0000-0000-000000000005') $$,
   'the same payment succeeds once a traveler risk-accepted decision is linked to it'
 );
 
