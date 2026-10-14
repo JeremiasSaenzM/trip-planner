@@ -1,9 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { rollUpBudgetByScenario } from "@/lib/domain/roll-up-budget-by-scenario";
 
 import { demoDataSource } from "./demo";
 import { budgetLines, savingsEntries } from "./fixtures";
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
 // These fixtures are never special-cased by domain code: they go through
 // rollUpBudgetByScenario() exactly as real Supabase rows would, because
@@ -34,5 +38,32 @@ describe("demo fixtures through the domain layer", () => {
 
   it("record savings only in USD", () => {
     expect(savingsEntries.every((entry) => entry.currency === "USD")).toBe(true);
+  });
+});
+
+describe("demoDataSource writes", () => {
+  it("every create* method throws instead of writing to the fixtures", async () => {
+    vi.stubEnv("DEMO_MODE", "true");
+
+    await expect(demoDataSource.createTrip({ name: "Test" })).rejects.toThrow(/disabled in demo mode/);
+    await expect(
+      demoDataSource.createCompetition({
+        tripId: "20000000-0000-0000-0000-000000000001",
+        name: "Test",
+        city: "Test",
+        country: "Test",
+        startDate: "2027-01-01",
+        endDate: "2027-01-02",
+        timezone: "UTC",
+        datesState: "pending",
+      }),
+    ).rejects.toThrow(/disabled in demo mode/);
+    await expect(
+      demoDataSource.createScenario({
+        tripId: "20000000-0000-0000-0000-000000000001",
+        name: "Test",
+        includesExtension: false,
+      }),
+    ).rejects.toThrow(/disabled in demo mode/);
   });
 });

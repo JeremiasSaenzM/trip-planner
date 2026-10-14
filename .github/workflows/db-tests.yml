@@ -3,8 +3,14 @@ name: Database tests
 # Local Docker isn't available on the dev machine for this project, so
 # the Supabase local stack (and the pgTAP suite that needs it) only
 # ever runs here, on GitHub's own runners, which have Docker preinstalled.
+#
+# Pull requests, plus pushes straight to main (a merge or a direct
+# commit) -- not every push to a feature branch too, since a PR push
+# already triggers the pull_request event. This is a private repo on
+# the free plan, so Actions minutes are limited.
 on:
   push:
+    branches: [main]
   pull_request:
 
 jobs:

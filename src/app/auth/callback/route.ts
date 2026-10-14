@@ -39,11 +39,18 @@ export async function GET(request: NextRequest) {
 
   // Session cookies set by the Supabase client above are attached to this
   // response automatically, because they were written through next/headers cookies().
-  const target = request.nextUrl.clone();
-  target.search = "";
-  target.pathname = ok ? "/" : "/login";
-  if (!ok) target.searchParams.set("error", "link");
-  return NextResponse.redirect(target);
+  //
+  // A relative Location header, not an absolute URL built from
+  // request.url/nextUrl: self-hosted (next start, no reverse proxy in
+  // front), neither reliably tracks the Host header actually used for
+  // this request -- a request to http://127.0.0.1:3000 was observed
+  // coming back out as a redirect to http://localhost:3000, a different
+  // origin with no session cookie, which bounced straight back to
+  // /login even though the code exchange itself had already succeeded.
+  // A relative Location resolves against the request's own origin by
+  // definition (RFC 3986 §5.1), so there's no origin left to get wrong.
+  const location = ok ? "/" : "/login?error=link";
+  return new NextResponse(null, { status: 307, headers: { Location: location } });
 }
 
 // Server-side only; the browser just sees /login?error=link.
