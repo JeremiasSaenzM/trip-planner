@@ -17,6 +17,7 @@ test("create trip -> competition -> scenario, starting from a signed-out, empty 
     await expect(page.getByRole("status")).toContainText(TEST_EMAIL);
 
     const link = await getLatestMagicLink(TEST_EMAIL);
+    console.log("Magic link extracted from Mailpit:", link);
     await page.goto(link);
     await expect(page).toHaveURL("/");
   });
