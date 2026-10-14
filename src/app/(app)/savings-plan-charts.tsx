@@ -56,21 +56,15 @@ function BalanceTooltip({ active, payload }: { active?: boolean; payload?: { pay
   );
 }
 
-export function PhasedSavingsChart({
-  plan,
-  availableUsd,
-  asOfDate,
-}: {
-  plan: BuildPhasedSavingsPlanResult;
-  availableUsd: number;
-  asOfDate: string;
-}) {
+/** Pure, so the "final balance ~0" invariant can be tested without rendering. */
+export function buildPhasedSawtoothData(
+  plan: BuildPhasedSavingsPlanResult,
+  availableUsd: number,
+  asOfDate: string,
+): SawtoothPoint[] {
   const pastDue = plan.phases.filter((phase) => phase.isPastDue);
   const future = plan.phases.filter((phase) => !phase.isPastDue);
-
-  if (future.length === 0) {
-    return <p className="text-sm text-zinc-500 dark:text-zinc-400">No upcoming deadlines to plan a phase for yet.</p>;
-  }
+  if (future.length === 0) return [];
 
   const startingBalance = pastDue.length > 0 ? pastDue[pastDue.length - 1].balanceAfterPayment : availableUsd;
 
@@ -99,6 +93,26 @@ export function PhasedSavingsChart({
       monthlySaving: phase.monthlySaving ?? 0,
     });
   }
+  return data;
+}
+
+export function PhasedSavingsChart({
+  plan,
+  availableUsd,
+  asOfDate,
+}: {
+  plan: BuildPhasedSavingsPlanResult;
+  availableUsd: number;
+  asOfDate: string;
+}) {
+  const pastDue = plan.phases.filter((phase) => phase.isPastDue);
+  const future = plan.phases.filter((phase) => !phase.isPastDue);
+
+  if (future.length === 0) {
+    return <p className="text-sm text-zinc-500 dark:text-zinc-400">No upcoming deadlines to plan a phase for yet.</p>;
+  }
+
+  const data = buildPhasedSawtoothData(plan, availableUsd, asOfDate);
 
   return (
     <div>
@@ -151,29 +165,27 @@ function PhasedSavingsList({ pastDue, future }: { pastDue: PhasedSavingsPhase[];
   );
 }
 
-export function ParallelSavingsChart({
-  plan,
-  availableUsd,
-  asOfDate,
-}: {
-  plan: BuildParallelSavingsPlanResult;
-  availableUsd: number;
-  asOfDate: string;
-}) {
-  const pastDue = plan.pots.filter((pot) => pot.isPastDue);
+/**
+ * Pure, so the "final balance ~0" invariant can be tested without
+ * rendering. The combined balance across every open pot: it rises during
+ * each period at that period's total monthly saving, then drops by that
+ * period's own payment amount right on its due date -- intended to be
+ * mathematically identical to the sum of every pot's own balance, since
+ * each pot's monthly saving is exactly what's needed to reach its own
+ * amount by its own due date (see build-parallel-savings-plan.test.ts's
+ * total-saved invariant). The final Math.max(0, ...) exists only to keep
+ * the line from dipping below zero on the chart -- it must never be the
+ * thing that makes the final balance look like ~0; see
+ * savings-plan-charts.test.ts.
+ */
+export function buildParallelSawtoothData(
+  plan: BuildParallelSavingsPlanResult,
+  availableUsd: number,
+  asOfDate: string,
+): SawtoothPoint[] {
   const openPots = plan.pots.filter((pot) => !pot.isPastDue);
+  if (plan.periods.length === 0) return [];
 
-  if (plan.periods.length === 0) {
-    return <p className="text-sm text-zinc-500 dark:text-zinc-400">No upcoming deadlines to plan a pot for yet.</p>;
-  }
-
-  // The combined balance across every open pot: it rises during each
-  // period at that period's total monthly saving, then drops by that
-  // period's own payment amount right on its due date -- mathematically
-  // identical to the sum of every pot's own balance, since each pot's
-  // monthly saving is exactly what's needed to reach its own amount by
-  // its own due date (see build-parallel-savings-plan.test.ts's
-  // total-saved invariant).
   let balance = availableUsd;
   const data: SawtoothPoint[] = [
     {
@@ -203,6 +215,25 @@ export function ParallelSavingsChart({
       monthlySaving: period.totalMonthlySaving,
     });
   });
+  return data;
+}
+
+export function ParallelSavingsChart({
+  plan,
+  availableUsd,
+  asOfDate,
+}: {
+  plan: BuildParallelSavingsPlanResult;
+  availableUsd: number;
+  asOfDate: string;
+}) {
+  const pastDue = plan.pots.filter((pot) => pot.isPastDue);
+
+  if (plan.periods.length === 0) {
+    return <p className="text-sm text-zinc-500 dark:text-zinc-400">No upcoming deadlines to plan a pot for yet.</p>;
+  }
+
+  const data = buildParallelSawtoothData(plan, availableUsd, asOfDate);
 
   return (
     <div>
@@ -249,9 +280,11 @@ function ParallelSavingsList({
       ))}
       {periods.map((period, i) => (
         <li key={i}>
-          {formatDate(period.fromDate)} → {formatDate(period.toDate)} · save{" "}
-          {formatUsd(period.totalMonthlySaving)}/month ({period.openPotCount} pot
-          {period.openPotCount === 1 ? "" : "s"})
+          {formatDate(period.fromDate)} → {formatDate(period.toDate)} ·{" "}
+          {period.monthsInPeriod === 0
+            ? "same date window"
+            : `save ${formatUsd(period.totalMonthlySaving)}/month`}{" "}
+          ({period.openPotCount} pot{period.openPotCount === 1 ? "" : "s"})
         </li>
       ))}
     </ul>

@@ -108,12 +108,22 @@ export function buildParallelSavingsPlan(input: BuildParallelSavingsPlanInput): 
   const periods: ParallelSavingsPeriod[] = openPots.map((pot, index) => {
     const periodStart = periodBoundaries[index];
     const stillOpen = openPots.filter((candidate) => candidate.dueDate >= pot.dueDate);
+    // Each pot's own monthsFromToday is already clamped to a minimum of
+    // 1 month. Re-deriving this period's length from a fresh
+    // monthsBetween(periodStart, pot.dueDate) would clamp it *again*,
+    // independently -- when two due dates are each under a month apart,
+    // both periods round up to "1 month" even though together they can't
+    // exceed the real elapsed time, double-counting the saving between
+    // them. Taking the difference of the already-clamped cumulative
+    // totals instead guarantees every pot's open periods sum to exactly
+    // its own monthsFromToday, however short the gaps are.
+    const previousMonthsFromToday = index > 0 ? openPots[index - 1].monthsFromToday ?? 0 : 0;
     return {
       fromDate: periodStart,
       toDate: pot.dueDate,
       totalMonthlySaving: stillOpen.reduce((sum, candidate) => sum + (candidate.monthlySaving ?? 0), 0),
       openPotCount: stillOpen.length,
-      monthsInPeriod: monthsBetween(periodStart, pot.dueDate),
+      monthsInPeriod: (pot.monthsFromToday ?? 0) - previousMonthsFromToday,
     };
   });
 

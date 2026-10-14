@@ -95,4 +95,30 @@ describe("buildParallelSavingsPlan", () => {
 
     expect(totalSaved + availableUsd).toBeCloseTo(totalNeeded, 5);
   });
+
+  it("still satisfies total saved + available money = total needed when two deadlines are under a month apart", () => {
+    // Deposit and Registration are 10 days apart, and Deposit is only 14
+    // days out from today -- both periods would clamp to "1 month" if
+    // computed independently, which used to double-count the overlap.
+    const availableUsd = 0;
+    const obligations: ObligationForGrouping[] = [
+      obligation("Deposit", 600, "2027-01-15"),
+      obligation("Registration", 900, "2027-01-25"),
+      obligation("Flight", 1200, "2027-06-01"),
+    ];
+    const result = buildParallelSavingsPlan({
+      obligations,
+      availableUsd,
+      asOfDate: "2027-01-01",
+      basis: "target",
+    });
+
+    const totalSavedViaPeriods = result.periods.reduce(
+      (sum, period) => sum + period.totalMonthlySaving * period.monthsInPeriod,
+      0,
+    );
+    const totalNeeded = obligations.reduce((sum, o) => sum + o.amountTargetUsd, 0);
+
+    expect(totalSavedViaPeriods + availableUsd).toBeCloseTo(totalNeeded, 5);
+  });
 });
