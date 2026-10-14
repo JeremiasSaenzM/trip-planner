@@ -1,4 +1,4 @@
-import { defineConfig } from "vitest/config";
+import { configDefaults, defineConfig } from "vitest/config";
 import path from "node:path";
 
 export default defineConfig({
@@ -9,5 +9,9 @@ export default defineConfig({
   },
   test: {
     environment: "node",
+    // e2e/ holds Playwright specs, run by `playwright test`, not Vitest
+    // -- they import "test"/"expect" from @playwright/test, which only
+    // work inside Playwright's own runner.
+    exclude: [...configDefaults.exclude, "e2e/**"],
   },
 });

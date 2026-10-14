@@ -1,0 +1,96 @@
+name: End-to-end tests
+
+# Drives the real UI with Playwright, against the same local Supabase
+# stack db-tests.yml spins up -- the only Supabase project this repo has
+# is the real, hosted one (see CLAUDE.md's "no second Supabase project"
+# rule), so every write-path form gets rehearsed here, in CI, never by
+# hand against real data.
+on:
+  push:
+  pull_request:
+
+jobs:
+  e2e-tests:
+    runs-on: ubuntu-latest
+    env:
+      E2E_TEST_EMAIL: e2e-test@example.com
+    steps:
+      - uses: actions/checkout@v7.0.1
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm ci
+
+      - uses: supabase/setup-cli@v3.0.1
+        with:
+          version: 2.120.0
+
+      - name: Start the local Supabase stack
+        run: supabase start
+
+      - name: Apply migrations and seed data
+        run: supabase db reset
+
+      # Prints API_URL/ANON_KEY/SERVICE_ROLE_KEY (among others) as
+      # KEY="value" lines -- this CLI version's actual local values,
+      # rather than hardcoding the well-known demo defaults and risking
+      # a mismatch with this repo's supabase/config.toml. The sed strips
+      # the surrounding quotes GITHUB_ENV would otherwise keep as part
+      # of the value.
+      - name: Export local Supabase connection details
+        run: |
+          supabase status -o env | sed -E 's/^([A-Z_]+)="?([^"]*)"?$/\1=\2/' >> "$GITHUB_ENV"
+
+      # The login form only ever calls signInWithOtp with
+      # shouldCreateUser: false (src/app/login/actions.ts), so this user
+      # has to exist before the suite can log in as it at all.
+      - name: Create the E2E test auth user
+        run: |
+          curl -sf -X POST "$API_URL/auth/v1/admin/users" \
+            -H "apikey: $SERVICE_ROLE_KEY" \
+            -H "Authorization: Bearer $SERVICE_ROLE_KEY" \
+            -H "Content-Type: application/json" \
+            -d "{\"email\": \"$E2E_TEST_EMAIL\", \"email_confirm\": true}"
+
+      - name: Install Playwright's browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Build the app against the local stack
+        run: npx next build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ env.API_URL }}
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ env.ANON_KEY }}
+          ALLOWED_EMAIL: ${{ env.E2E_TEST_EMAIL }}
+
+      - name: Start the app in the background
+        run: nohup npx next start > next-start.log 2>&1 &
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ env.API_URL }}
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ env.ANON_KEY }}
+          ALLOWED_EMAIL: ${{ env.E2E_TEST_EMAIL }}
+
+      - name: Wait for the app to respond
+        run: |
+          for _ in $(seq 1 30); do
+            curl -sf http://127.0.0.1:3000 > /dev/null && exit 0
+            sleep 1
+          done
+          echo "App never came up:"
+          cat next-start.log
+          exit 1
+
+      - name: Run Playwright
+        run: npx playwright test
+        env:
+          E2E_TEST_EMAIL: ${{ env.E2E_TEST_EMAIL }}
+
+      - name: Upload the Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
