@@ -93,7 +93,7 @@ Each phase ends with something working, committed, and pushed.
 5. **My inputs** — Record money set aside, mark payments done, edit budget lines with information state and source; audit log writes; data export. Also when flight data can first be entered: a flights screen (options, US/Canada check, baggage check, festival-arrival check, Effective Flight Cost).
 6. **Claude bridge** — Supabase MCP (project-scoped) so research sessions can update data; migrate real numbers from the Project files; the Project's budget file then points to the database.
 7. **Reports and polish** — Printable budget summary, payment calendar, README with screenshots and the story of the project.
-   - Saving-method selector: a way to pick phased vs. parallel saving as **the** plan I'm actually following, instead of just showing both charts side by side with no way to say which one counts.
+   - Saving-method selector: choose flat / one phase at a time / one pot per payment; show only that chart, and make the headline number follow the choice (e.g. "Amount to save during current phase = X").
 
 ## Current phase
 
