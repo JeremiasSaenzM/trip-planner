@@ -223,14 +223,18 @@ export type CreateScenarioWrite = {
   notes?: string;
 };
 
+export type RecordSavingsEntryWrite = { tripId: string; amount: number; recordedOn: string; note?: string };
+export type UpdateSavingsEntryWrite = { id: string; amount: number; recordedOn: string; note?: string; reason: string };
+export type DeleteSavingsEntryWrite = { id: string; reason: string };
+
 // One data-access layer, two implementations (src/lib/data/real.ts, the
 // real Supabase-backed one, and src/lib/data/demo.ts, typed fixture data)
 // -- chosen by src/lib/data/index.ts, the only place that calls
 // isDemoMode(). Pages and components import only from src/lib/data/index.ts
 // and never know which implementation answered.
 //
-// Phase 5 is adding write methods here one at a time: this is the first
-// batch (the bootstrap flow -- create a trip, a competition, a scenario).
+// Phase 5 is adding write methods here one at a time: the bootstrap flow
+// (create a trip, a competition, a scenario), then savings entries.
 // Every one of them MUST call assertWritesAllowed() (src/lib/demo-mode.ts)
 // as its first line, so a form submitted while DEMO_MODE is on throws
 // instead of silently doing nothing, or worse, writing fixture-derived
@@ -251,4 +255,7 @@ export type DataSource = {
   createTrip(input: CreateTripWrite): Promise<Trip>;
   createCompetition(input: CreateCompetitionWrite): Promise<Competition>;
   createScenario(input: CreateScenarioWrite): Promise<Scenario>;
+  recordSavingsEntry(input: RecordSavingsEntryWrite): Promise<SavingsEntry>;
+  updateSavingsEntry(input: UpdateSavingsEntryWrite): Promise<SavingsEntry>;
+  deleteSavingsEntry(input: DeleteSavingsEntryWrite): Promise<void>;
 };

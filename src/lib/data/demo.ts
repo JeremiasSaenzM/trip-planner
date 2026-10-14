@@ -31,4 +31,7 @@ export const demoDataSource: DataSource = {
   createTrip: async () => writesDisabledInDemoMode(),
   createCompetition: async () => writesDisabledInDemoMode(),
   createScenario: async () => writesDisabledInDemoMode(),
+  recordSavingsEntry: async () => writesDisabledInDemoMode(),
+  updateSavingsEntry: async () => writesDisabledInDemoMode(),
+  deleteSavingsEntry: async () => writesDisabledInDemoMode(),
 };
