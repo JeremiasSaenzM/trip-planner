@@ -1,46 +1,34 @@
 "use client";
 
 import { DateTime } from "luxon";
-import {
-  Bar,
-  CartesianGrid,
-  ComposedChart,
-  Legend,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 import type { BuildParallelSavingsPlanResult } from "@/lib/domain/build-parallel-savings-plan";
 import type { BuildPhasedSavingsPlanResult, PhasedSavingsPhase } from "@/lib/domain/build-phased-savings-plan";
 
 import { formatDate, formatUsd } from "./format";
 
+// A YYYY-MM-DD value is a calendar date, not an instant -- always parse
+// and format it pinned to "utc" so the result never depends on the
+// server's or the browser's ambient time zone. See format.ts/format.test.ts.
 function toTimestamp(date: string): number {
-  return DateTime.fromISO(date).toMillis();
+  return DateTime.fromISO(date, { zone: "utc" }).toMillis();
 }
 
 function formatDateTick(timestamp: number): string {
-  return DateTime.fromMillis(timestamp).toFormat("MMM d");
+  return DateTime.fromMillis(timestamp, { zone: "utc" }).toFormat("MMM d");
 }
 
 function formatUsdTick(value: number): string {
   return `$${Math.round(value).toLocaleString()}`;
 }
 
-// Shades of the one accent hue, darkest (first pot, closest) to lightest
-// (last pot, furthest out) -- chosen to stay legible in both light and
-// dark mode without needing a mode-specific palette of their own.
-const POT_COLORS = ["#0e7490", "#0891b2", "#06b6d4", "#22d3ee", "#67e8f9", "#a5f3fc"];
-
 type SawtoothPoint = {
   timestamp: number;
   balance: number;
   isPeak: boolean;
   label: string | null;
+  monthlySaving: number;
 };
 
 function PeakDot(props: { cx?: number; cy?: number; payload?: SawtoothPoint }) {
@@ -53,6 +41,18 @@ function PeakDot(props: { cx?: number; cy?: number; payload?: SawtoothPoint }) {
         {payload.label}
       </text>
     </g>
+  );
+}
+
+function BalanceTooltip({ active, payload }: { active?: boolean; payload?: { payload: SawtoothPoint }[] }) {
+  if (!active || !payload?.length) return null;
+  const point = payload[0].payload;
+  return (
+    <div className="rounded-lg border border-zinc-200 bg-white px-3 py-2 text-xs shadow dark:border-zinc-700 dark:bg-zinc-900">
+      <p className="font-medium">{formatDateTick(point.timestamp)}</p>
+      <p>Balance: {formatUsdTick(point.balance)}</p>
+      <p>Saving this period: {formatUsdTick(point.monthlySaving)}/month</p>
+    </div>
   );
 }
 
@@ -75,7 +75,13 @@ export function PhasedSavingsChart({
   const startingBalance = pastDue.length > 0 ? pastDue[pastDue.length - 1].balanceAfterPayment : availableUsd;
 
   const data: SawtoothPoint[] = [
-    { timestamp: toTimestamp(asOfDate), balance: startingBalance, isPeak: false, label: null },
+    {
+      timestamp: toTimestamp(asOfDate),
+      balance: startingBalance,
+      isPeak: false,
+      label: null,
+      monthlySaving: future[0].monthlySaving ?? 0,
+    },
   ];
   for (const phase of future) {
     data.push({
@@ -83,12 +89,14 @@ export function PhasedSavingsChart({
       balance: phase.balanceBeforePayment,
       isPeak: true,
       label: `${phase.description} (${formatUsd(phase.balanceBeforePayment)})`,
+      monthlySaving: phase.monthlySaving ?? 0,
     });
     data.push({
       timestamp: toTimestamp(phase.toDate),
       balance: phase.balanceAfterPayment,
       isPeak: false,
       label: null,
+      monthlySaving: phase.monthlySaving ?? 0,
     });
   }
 
@@ -143,7 +151,15 @@ function PhasedSavingsList({ pastDue, future }: { pastDue: PhasedSavingsPhase[];
   );
 }
 
-export function ParallelSavingsChart({ plan }: { plan: BuildParallelSavingsPlanResult }) {
+export function ParallelSavingsChart({
+  plan,
+  availableUsd,
+  asOfDate,
+}: {
+  plan: BuildParallelSavingsPlanResult;
+  availableUsd: number;
+  asOfDate: string;
+}) {
   const pastDue = plan.pots.filter((pot) => pot.isPastDue);
   const openPots = plan.pots.filter((pot) => !pot.isPastDue);
 
@@ -151,37 +167,66 @@ export function ParallelSavingsChart({ plan }: { plan: BuildParallelSavingsPlanR
     return <p className="text-sm text-zinc-500 dark:text-zinc-400">No upcoming deadlines to plan a pot for yet.</p>;
   }
 
-  const data = plan.periods.map((period) => {
-    const row: Record<string, number | string> = {
-      label: formatDateTick(toTimestamp(period.toDate)),
-      total: period.totalMonthlySaving,
-    };
-    openPots.forEach((pot, i) => {
-      row[`pot-${i}`] = pot.dueDate >= period.toDate ? pot.monthlySaving ?? 0 : 0;
+  // The combined balance across every open pot: it rises during each
+  // period at that period's total monthly saving, then drops by that
+  // period's own payment amount right on its due date -- mathematically
+  // identical to the sum of every pot's own balance, since each pot's
+  // monthly saving is exactly what's needed to reach its own amount by
+  // its own due date (see build-parallel-savings-plan.test.ts's
+  // total-saved invariant).
+  let balance = availableUsd;
+  const data: SawtoothPoint[] = [
+    {
+      timestamp: toTimestamp(asOfDate),
+      balance,
+      isPeak: false,
+      label: null,
+      monthlySaving: plan.periods[0].totalMonthlySaving,
+    },
+  ];
+  openPots.forEach((pot, i) => {
+    const period = plan.periods[i];
+    balance += period.totalMonthlySaving * period.monthsInPeriod;
+    data.push({
+      timestamp: toTimestamp(pot.dueDate),
+      balance,
+      isPeak: true,
+      label: `${pot.description} (${formatUsd(pot.amountUsd)})`,
+      monthlySaving: period.totalMonthlySaving,
     });
-    return row;
+    balance = Math.max(0, balance - pot.amountUsd);
+    data.push({
+      timestamp: toTimestamp(pot.dueDate),
+      balance,
+      isPeak: false,
+      label: null,
+      monthlySaving: period.totalMonthlySaving,
+    });
   });
 
   return (
     <div>
       <ResponsiveContainer width="100%" height={240}>
-        <ComposedChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+        <LineChart data={data} margin={{ top: 20, right: 8, left: 0, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
-          <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+          <XAxis
+            dataKey="timestamp"
+            type="number"
+            domain={["dataMin", "dataMax"]}
+            tickFormatter={formatDateTick}
+            tick={{ fontSize: 11 }}
+          />
           <YAxis tick={{ fontSize: 11 }} width={44} tickFormatter={formatUsdTick} />
-          <Tooltip formatter={(value) => formatUsdTick(Number(value))} />
-          <Legend wrapperStyle={{ fontSize: 12 }} />
-          {openPots.map((pot, i) => (
-            <Bar
-              key={i}
-              dataKey={`pot-${i}`}
-              name={pot.description}
-              stackId="pots"
-              fill={POT_COLORS[i % POT_COLORS.length]}
-            />
-          ))}
-          <Line type="linear" dataKey="total" name="Total" stroke="var(--chart-neutral)" strokeWidth={2} dot />
-        </ComposedChart>
+          <Tooltip content={<BalanceTooltip />} />
+          <Line
+            type="linear"
+            dataKey="balance"
+            name="Balance"
+            stroke="var(--chart-target)"
+            strokeWidth={2}
+            dot={<PeakDot />}
+          />
+        </LineChart>
       </ResponsiveContainer>
       <ParallelSavingsList pastDue={pastDue} periods={plan.periods} />
     </div>

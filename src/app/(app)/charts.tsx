@@ -69,12 +69,15 @@ export function BudgetByCategoryChart({ byCategory }: { byCategory: Record<Budge
   );
 }
 
+// A YYYY-MM-DD value is a calendar date, not an instant -- always parse
+// and format it pinned to "utc" so the result never depends on the
+// server's or the browser's ambient time zone. See format.ts/format.test.ts.
 function toTimestamp(date: string): number {
-  return DateTime.fromISO(date).toMillis();
+  return DateTime.fromISO(date, { zone: "utc" }).toMillis();
 }
 
 function formatDateTick(timestamp: number): string {
-  return DateTime.fromMillis(timestamp).toFormat("MMM d");
+  return DateTime.fromMillis(timestamp, { zone: "utc" }).toFormat("MMM d");
 }
 
 export function SavingsScheduleChart({
@@ -84,6 +87,7 @@ export function SavingsScheduleChart({
   bindingRequirementUsd,
   asOfDate,
   basis,
+  departureDate,
 }: {
   schedule: ScheduleEntry[];
   obligations: BuiltObligation[];
@@ -91,6 +95,7 @@ export function SavingsScheduleChart({
   bindingRequirementUsd: number;
   asOfDate: string;
   basis: Basis;
+  departureDate: string | null;
 }) {
   const future = schedule.filter((entry) => !entry.isPastDue);
 
@@ -104,14 +109,17 @@ export function SavingsScheduleChart({
   // schedule entries carry only amounts/dates -- the obligation's own
   // description (what the tooltip names) has to be looked up by due date.
   const deadlineNames = new Map(
-    groupObligationsByDueDate(obligations, basis).map((group) => [group.dueDate, group.description]),
+    groupObligationsByDueDate(obligations, basis, departureDate).map((group) => [group.dueDate, group.description]),
   );
 
   const asOfTs = toTimestamp(asOfDate);
   const data = [
     { timestamp: asOfTs, cumulativeRequired: 0, projectedSavings: availableUsd, payment: null as string | null },
     ...future.map((entry) => {
-      const months = DateTime.fromISO(entry.dueDate).diff(DateTime.fromISO(asOfDate), "months").months;
+      const months = DateTime.fromISO(entry.dueDate, { zone: "utc" }).diff(
+        DateTime.fromISO(asOfDate, { zone: "utc" }),
+        "months",
+      ).months;
       return {
         timestamp: toTimestamp(entry.dueDate),
         cumulativeRequired: entry[cumulativeField],
