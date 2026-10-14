@@ -1,7 +1,7 @@
 import "server-only";
 
 import { dataSource } from "@/lib/data";
-import type { Competition, OpenItem, Payment, Scenario, Trip } from "@/lib/data/types";
+import type { Competition, OpenItem, Payment, SavingsEntry, Scenario, Trip } from "@/lib/data/types";
 import { buildObligations, type BuiltObligation } from "@/lib/domain/build-obligations";
 import { buildParallelSavingsPlan, type BuildParallelSavingsPlanResult } from "@/lib/domain/build-parallel-savings-plan";
 import { buildPhasedSavingsPlan, type BuildPhasedSavingsPlanResult } from "@/lib/domain/build-phased-savings-plan";
@@ -38,6 +38,8 @@ export type DashboardData =
       payments: Payment[];
       /** Trip-scoped (open items aren't scenario-specific). */
       openItems: OpenItem[];
+      /** Trip-scoped (money set aside isn't scenario-specific either). */
+      savingsEntries: SavingsEntry[];
     };
 
 // The one place every dashboard page (Overview, Payments, Deadlines)
@@ -101,14 +103,13 @@ export async function loadDashboardData(params: {
     : null;
 
   const tripOpenItems = openItems.filter((item) => item.tripId === trip.id);
+  const tripSavingsEntries = savingsEntries.filter((entry) => entry.tripId === trip.id);
 
   const obligationsResult = buildObligations({
     payments: scenarioPayments,
     allTripPayments: tripPayments,
     budgetLines: scenarioBudgetLines,
-    savingsEntries: savingsEntries
-      .filter((entry) => entry.tripId === trip.id)
-      .map((entry) => ({ amountUsd: entry.amount, recordedOn: entry.recordedOn })),
+    savingsEntries: tripSavingsEntries.map((entry) => ({ amountUsd: entry.amount, recordedOn: entry.recordedOn })),
     rates,
     departureDate: competition?.startDate ?? null,
     departureDateConfirmed: competition?.datesState === "confirmed",
@@ -134,6 +135,7 @@ export async function loadDashboardData(params: {
       parallelPlan: null,
       payments: scenarioPayments,
       openItems: tripOpenItems,
+      savingsEntries: tripSavingsEntries,
     };
   }
 
@@ -177,5 +179,6 @@ export async function loadDashboardData(params: {
     parallelPlan,
     payments: scenarioPayments,
     openItems: tripOpenItems,
+    savingsEntries: tripSavingsEntries,
   };
 }

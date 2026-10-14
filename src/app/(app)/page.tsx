@@ -10,6 +10,7 @@ import { loadDashboardData } from "./dashboard-data";
 import { Card, CardLabel, Caveat, RangeFigure } from "./dashboard-ui";
 import { formatUsd } from "./format";
 import { ParallelSavingsChart, PhasedSavingsChart } from "./savings-plan-charts";
+import { RecordSavingsEntryForm, SavingsEntryList } from "./savings-entries-ui";
 
 export const metadata: Metadata = { title: "Overview" };
 
@@ -45,8 +46,18 @@ async function Overview({ searchParams }: { searchParams: PageProps<"/">["search
     );
   }
 
-  const { rollup, savings, provisional, noDepartureDate, availableUsd, obligations, phasedPlan, parallelPlan, competition } =
-    data;
+  const {
+    rollup,
+    savings,
+    provisional,
+    noDepartureDate,
+    availableUsd,
+    obligations,
+    phasedPlan,
+    parallelPlan,
+    competition,
+    savingsEntries,
+  } = data;
   const binding = savings?.bindingRequirement[data.basis] ?? null;
 
   return (
@@ -79,6 +90,20 @@ async function Overview({ searchParams }: { searchParams: PageProps<"/">["search
         ) : (
           <p className="text-3xl font-semibold tracking-tight">{formatUsd(binding ?? 0)}</p>
         )}
+      </Card>
+
+      <Card>
+        <CardLabel>Money set aside</CardLabel>
+        <p data-testid="available-balance" className="mt-1 text-3xl font-semibold tracking-tight">
+          {formatUsd(availableUsd)}
+        </p>
+        <p className="mb-3 text-xs text-zinc-500 dark:text-zinc-400">
+          Available, after what&apos;s already been paid.
+        </p>
+        <RecordSavingsEntryForm tripId={data.trip.id} />
+        <div className="mt-4">
+          <SavingsEntryList entries={savingsEntries} />
+        </div>
       </Card>
 
       <Card>

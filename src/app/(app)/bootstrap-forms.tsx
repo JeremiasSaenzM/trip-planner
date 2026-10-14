@@ -7,20 +7,7 @@ import type { Competition } from "@/lib/data/types";
 import { createCompetition, createScenario, createTrip } from "./bootstrap-actions";
 import { Card, CardLabel } from "./dashboard-ui";
 import { initialFormActionState } from "./form-action-state";
-
-const inputClass =
-  "block w-full rounded-lg border border-zinc-300 bg-white px-3 py-3 text-base outline-none focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10 dark:border-zinc-700 dark:bg-zinc-900 dark:focus:border-zinc-300";
-const labelClass = "block text-sm font-medium";
-const buttonClass =
-  "w-full rounded-lg bg-zinc-900 px-4 py-3 text-base font-medium text-white disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900";
-
-function FormError({ message }: { message: string }) {
-  return (
-    <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-      {message}
-    </p>
-  );
-}
+import { buttonClass, FormError, inputClass, labelClass } from "./form-styles";
 
 // The Overview page's "no_trip" empty state: the hosted database starts
 // out completely empty, so this is the only way into the rest of the app.
