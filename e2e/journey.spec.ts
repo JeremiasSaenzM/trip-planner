@@ -1,6 +1,18 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 import { getLatestMagicLink } from "./mailpit";
+
+function parseUsd(text: string): number {
+  return Number(text.replace(/[^0-9.-]/g, ""));
+}
+
+// The Payments page lists every row with the same "Change status" /
+// "Edit" / "Delete" labels -- this scopes to the one Card whose text
+// includes the given payment's description, the same way a person
+// would find it by eye.
+function paymentRow(page: Page, description: string) {
+  return page.locator("div.rounded-xl").filter({ hasText: description });
+}
 
 // e2e-tests.yml creates this exact user via Supabase's admin API before
 // the suite runs -- login requires shouldCreateUser: false, so it must
@@ -49,26 +61,46 @@ test("the full first-run journey, starting from a signed-out, empty account", as
   });
 
   const availableBalance = page.getByTestId("available-balance");
+  const requiredMonthlySaving = page.getByTestId("required-monthly-saving");
 
-  // TODO(PR5, budget lines): once a budget line/payment exists, add an
-  // assertion here that "Required monthly saving" actually drops after
-  // recording savings -- with none yet, it's already $0 and can't drop
-  // any further, so "Available" rising is the only thing to check for now.
-  await test.step("record a savings entry", async () => {
+  await test.step("add a payment and watch required monthly saving rise", async () => {
+    await expect(requiredMonthlySaving).toHaveText("$0");
+
+    await page.goto("/payments");
+    await page.getByLabel("Description").fill("Registration fee");
+    await page.getByLabel("Budget category").selectOption("A");
+    await page.getByLabel("Amount").fill("300");
+    await page.getByLabel("Refundability").selectOption("refundable");
+    await page.getByLabel("Timing").selectOption("due_on_date");
+    await page.getByLabel("Due date (optional)").fill("2027-02-01");
+    await page.getByRole("button", { name: "Add payment" }).click();
+    await expect(page.getByText("Registration fee")).toBeVisible();
+
+    await page.goto("/");
+    const required = parseUsd(await requiredMonthlySaving.innerText());
+    expect(required).toBeGreaterThan(0);
+  });
+
+  await test.step("record a savings entry, and watch required monthly saving drop", async () => {
+    const requiredBefore = parseUsd(await requiredMonthlySaving.innerText());
+
     await expect(availableBalance).toHaveText("$0");
-    await page.getByLabel("Amount (USD)").fill("500");
+    await page.getByLabel("Amount (USD)").fill("100");
     await page.getByLabel("Date").fill("2026-01-01");
     await page.getByLabel("Note (optional)").fill("First savings");
     await page.getByRole("button", { name: "Record" }).click();
-    await expect(availableBalance).toHaveText("$500");
+    await expect(availableBalance).toHaveText("$100");
+
+    const requiredAfter = parseUsd(await requiredMonthlySaving.innerText());
+    expect(requiredAfter).toBeLessThan(requiredBefore);
   });
 
   await test.step("edit the entry with a reason", async () => {
     await page.getByRole("button", { name: "Edit" }).click();
-    await page.getByLabel("New amount (USD)").fill("600");
+    await page.getByLabel("New amount (USD)").fill("150");
     await page.getByLabel("Reason for this change").fill("Added more than I first recorded");
     await page.getByRole("button", { name: "Save" }).click();
-    await expect(availableBalance).toHaveText("$600");
+    await expect(availableBalance).toHaveText("$150");
   });
 
   // Regression check: a save that changes nothing visible (same
@@ -80,7 +112,7 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await page.getByLabel("Reason for this change").fill("No change, just confirming this still works");
     await page.getByRole("button", { name: "Save" }).click();
     await expect(page.getByRole("button", { name: "Delete" })).toBeVisible();
-    await expect(availableBalance).toHaveText("$600");
+    await expect(availableBalance).toHaveText("$150");
   });
 
   await test.step("delete the entry with a reason", async () => {
@@ -89,5 +121,34 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await page.getByRole("button", { name: "Delete" }).click();
     await expect(page.getByText("No savings recorded yet.")).toBeVisible();
     await expect(availableBalance).toHaveText("$0");
+  });
+
+  await test.step("add a non-refundable, competition-related payment", async () => {
+    await page.goto("/payments");
+    await page.getByLabel("Description").fill("Accommodation deposit");
+    await page.getByLabel("Budget category").selectOption("C");
+    await page.getByLabel("Amount").fill("200");
+    await page.getByLabel("Refundability").selectOption("non_refundable");
+    await page.getByLabel("Timing").selectOption("due_on_date");
+    await page.getByLabel("Due date (optional)").fill("2027-03-01");
+    await page.getByLabel(/tied to the competition itself/i).check();
+    await page.getByRole("button", { name: "Add payment" }).click();
+    await expect(page.getByText("Accommodation deposit")).toBeVisible();
+  });
+
+  await test.step("hit the acceptance safeguard, then accept the risk", async () => {
+    const row = paymentRow(page, "Accommodation deposit");
+
+    await row.getByRole("button", { name: "Change status" }).click();
+    await row.getByLabel("New status").selectOption("committed");
+    await row.getByLabel("Reason for this change").fill("Trying to commit before acceptance");
+    await row.getByRole("button", { name: "Save" }).click();
+
+    await expect(row.getByRole("button", { name: "I accept this risk" })).toBeVisible();
+
+    await row.getByLabel("Why you're accepting this risk").fill("Deposit is small enough to risk");
+    await row.getByRole("button", { name: "I accept this risk" }).click();
+
+    await expect(row.getByText("Committed")).toBeVisible();
   });
 });
