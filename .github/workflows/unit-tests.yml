@@ -1,7 +1,12 @@
 name: Unit tests
 
+# Pull requests, plus pushes straight to main (a merge or a direct
+# commit) -- not every push to a feature branch too, since a PR push
+# already triggers the pull_request event. This is a private repo on
+# the free plan, so Actions minutes are limited.
 on:
   push:
+    branches: [main]
   pull_request:
 
 jobs:
