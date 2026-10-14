@@ -29,6 +29,9 @@ export type BuildPhasedSavingsPlanInput = {
   availableUsd: number;
   asOfDate: string;
   basis: Basis;
+  /** Labeling hint only, passed through to groupObligationsByDueDate() --
+   * see its own doc comment. */
+  departureDate?: string | null;
 };
 
 export type BuildPhasedSavingsPlanResult = {
@@ -49,7 +52,7 @@ function monthsBetween(fromDate: string, toDate: string): number {
  * as a shortfall now, never as a monthly rate.
  */
 export function buildPhasedSavingsPlan(input: BuildPhasedSavingsPlanInput): BuildPhasedSavingsPlanResult {
-  const deadlines = groupObligationsByDueDate(input.obligations, input.basis);
+  const deadlines = groupObligationsByDueDate(input.obligations, input.basis, input.departureDate);
 
   let remaining = input.availableUsd;
   let phaseStart = input.asOfDate;

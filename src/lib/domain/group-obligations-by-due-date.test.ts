@@ -18,6 +18,30 @@ describe("groupObligationsByDueDate", () => {
     expect(result).toEqual([{ dueDate: "2027-03-01", amountUsd: 500, description: "2 payments" }]);
   });
 
+  it("labels a multi-item group on the departure date as 'Before departure', not '2 payments'", () => {
+    const result = groupObligationsByDueDate(
+      [
+        { description: "Food", amountTargetUsd: 200, amountConservativeUsd: 280, dueDate: "2027-07-05" },
+        { description: "Insurance", amountTargetUsd: 40, amountConservativeUsd: 45, dueDate: "2027-07-05" },
+      ],
+      "target",
+      "2027-07-05",
+    );
+    expect(result[0].description).toBe("Before departure (2 items)");
+  });
+
+  it("still says '2 payments' for a same-date group that isn't the departure date", () => {
+    const result = groupObligationsByDueDate(
+      [
+        { description: "Food", amountTargetUsd: 200, amountConservativeUsd: 280, dueDate: "2027-07-05" },
+        { description: "Insurance", amountTargetUsd: 40, amountConservativeUsd: 45, dueDate: "2027-07-05" },
+      ],
+      "target",
+      "2027-09-01", // departure isn't this group's date
+    );
+    expect(result[0].description).toBe("2 payments");
+  });
+
   it("sorts ascending by due date and resolves the requested basis", () => {
     const result = groupObligationsByDueDate(
       [

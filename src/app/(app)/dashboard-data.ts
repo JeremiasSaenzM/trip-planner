@@ -146,6 +146,7 @@ export async function loadDashboardData(params: {
     availableUsd: obligationsResult.availableUsd,
     asOfDate,
     basis,
+    departureDate: competition?.startDate ?? null,
   });
 
   const parallelPlan = buildParallelSavingsPlan({
@@ -153,6 +154,7 @@ export async function loadDashboardData(params: {
     availableUsd: obligationsResult.availableUsd,
     asOfDate,
     basis,
+    departureDate: competition?.startDate ?? null,
   });
 
   return {

@@ -29,8 +29,11 @@ describe("buildParallelSavingsPlan", () => {
     ]);
 
     // Each period's total is the sum of every pot not yet closed -- a
-    // step down each time a pot's own deadline passes.
+    // step down each time a pot's own deadline passes. Periods are the
+    // gaps BETWEEN deadlines (2, then 3, then 4 months), not each pot's
+    // own months-from-today (2, 5, 9).
     expect(result.periods.map((p) => p.openPotCount)).toEqual([3, 2, 1]);
+    expect(result.periods.map((p) => p.monthsInPeriod)).toEqual([2, 3, 4]);
     expect(result.periods[0].totalMonthlySaving).toBeCloseTo(300 + 180 + 1200 / 9, 5);
     expect(result.periods[1].totalMonthlySaving).toBeCloseTo(180 + 1200 / 9, 5);
     expect(result.periods[2].totalMonthlySaving).toBeCloseTo(1200 / 9, 5);
@@ -74,7 +77,7 @@ describe("buildParallelSavingsPlan", () => {
     expect(overdue).toMatchObject({ isPastDue: true, monthsFromToday: null, monthlySaving: null, shortfallNow: 300 });
     expect(flight).toMatchObject({ availableShareUsd: 0, monthsFromToday: 2, monthlySaving: 150 });
     expect(result.periods).toEqual([
-      { fromDate: "2027-02-01", toDate: "2027-04-01", totalMonthlySaving: 150, openPotCount: 1 },
+      { fromDate: "2027-02-01", toDate: "2027-04-01", totalMonthlySaving: 150, openPotCount: 1, monthsInPeriod: 2 },
     ]);
   });
 

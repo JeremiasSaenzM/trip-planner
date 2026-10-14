@@ -40,7 +40,8 @@ async function Overview({ searchParams }: { searchParams: PageProps<"/">["search
     return <EmptyState>No scenario yet for this trip.</EmptyState>;
   }
 
-  const { rollup, savings, provisional, noDepartureDate, availableUsd, obligations, phasedPlan, parallelPlan } = data;
+  const { rollup, savings, provisional, noDepartureDate, availableUsd, obligations, phasedPlan, parallelPlan, competition } =
+    data;
   const binding = savings?.bindingRequirement[data.basis] ?? null;
 
   return (
@@ -117,6 +118,7 @@ async function Overview({ searchParams }: { searchParams: PageProps<"/">["search
             bindingRequirementUsd={binding}
             asOfDate={data.asOfDate}
             basis={data.basis}
+            departureDate={competition?.startDate ?? null}
           />
         </Card>
       )}
@@ -131,7 +133,7 @@ async function Overview({ searchParams }: { searchParams: PageProps<"/">["search
       {parallelPlan && (
         <Card>
           <CardLabel>One pot per payment</CardLabel>
-          <ParallelSavingsChart plan={parallelPlan} />
+          <ParallelSavingsChart plan={parallelPlan} availableUsd={availableUsd} asOfDate={data.asOfDate} />
         </Card>
       )}
     </div>

@@ -18,10 +18,17 @@ export type DeadlineGroup = {
  * their amounts (at the given basis) and combining their descriptions.
  * Sorted ascending by due date -- the shared starting point for both
  * buildPhasedSavingsPlan() and buildParallelSavingsPlan().
+ *
+ * departureDate (optional) is purely a labeling hint: a group of several
+ * obligations that all land on the departure date is buildObligations()'s
+ * "due at departure" bundle (one per budget line with nothing else to pin
+ * it to), so it reads as "Before departure (N items)" rather than the
+ * generic "N payments".
  */
 export function groupObligationsByDueDate(
   obligations: ObligationForGrouping[],
   basis: Basis,
+  departureDate?: string | null,
 ): DeadlineGroup[] {
   const byDate = new Map<string, ObligationForGrouping[]>();
   for (const obligation of obligations) {
@@ -37,7 +44,12 @@ export function groupObligationsByDueDate(
         (sum, o) => sum + (basis === "target" ? o.amountTargetUsd : o.amountConservativeUsd),
         0,
       ),
-      description: group.length === 1 ? group[0].description : `${group.length} payments`,
+      description:
+        group.length === 1
+          ? group[0].description
+          : dueDate === departureDate
+            ? `Before departure (${group.length} items)`
+            : `${group.length} payments`,
     }))
     .sort((a, b) => a.dueDate.localeCompare(b.dueDate));
 }

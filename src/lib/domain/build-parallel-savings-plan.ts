@@ -27,6 +27,9 @@ export type ParallelSavingsPeriod = {
   /** The combined monthly saving across every pot still open during this period. */
   totalMonthlySaving: number;
   openPotCount: number;
+  /** fromDate to toDate, in months (the same "shorter than a month counts
+   * as 1" clamp as everywhere else) -- how long this period's rate applies. */
+  monthsInPeriod: number;
 };
 
 export type BuildParallelSavingsPlanInput = {
@@ -36,6 +39,9 @@ export type BuildParallelSavingsPlanInput = {
   availableUsd: number;
   asOfDate: string;
   basis: Basis;
+  /** Labeling hint only, passed through to groupObligationsByDueDate() --
+   * see its own doc comment. */
+  departureDate?: string | null;
 };
 
 export type BuildParallelSavingsPlanResult = {
@@ -56,7 +62,7 @@ function monthsBetween(fromDate: string, toDate: string): number {
  * hasn't closed (been paid) yet.
  */
 export function buildParallelSavingsPlan(input: BuildParallelSavingsPlanInput): BuildParallelSavingsPlanResult {
-  const deadlines = groupObligationsByDueDate(input.obligations, input.basis);
+  const deadlines = groupObligationsByDueDate(input.obligations, input.basis, input.departureDate);
 
   let remaining = input.availableUsd;
   const pots: SavingsPot[] = [];
@@ -107,6 +113,7 @@ export function buildParallelSavingsPlan(input: BuildParallelSavingsPlanInput): 
       toDate: pot.dueDate,
       totalMonthlySaving: stillOpen.reduce((sum, candidate) => sum + (candidate.monthlySaving ?? 0), 0),
       openPotCount: stillOpen.length,
+      monthsInPeriod: monthsBetween(periodStart, pot.dueDate),
     };
   });
 
