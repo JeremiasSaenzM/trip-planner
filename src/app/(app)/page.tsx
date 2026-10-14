@@ -83,12 +83,21 @@ async function Overview({ searchParams }: { searchParams: PageProps<"/">["search
         </Caveat>
       )}
 
+      {data.missingPaymentRates.length > 0 && (
+        <Caveat>
+          {data.missingPaymentRates.length} payment{data.missingPaymentRates.length === 1 ? "" : "s"} missing an
+          FX rate, excluded from the figure below.
+        </Caveat>
+      )}
+
       <Card>
         <CardLabel>Required monthly saving ({data.basis})</CardLabel>
         {noDepartureDate ? (
           <p className="text-lg text-zinc-500 dark:text-zinc-400">No departure date yet.</p>
         ) : (
-          <p className="text-3xl font-semibold tracking-tight">{formatUsd(binding ?? 0)}</p>
+          <p data-testid="required-monthly-saving" className="text-3xl font-semibold tracking-tight">
+            {formatUsd(binding ?? 0)}
+          </p>
         )}
       </Card>
 
