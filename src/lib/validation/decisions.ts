@@ -1,6 +1,13 @@
 import { z } from "zod";
 
+import type { PaymentStatus } from "@/lib/data/types";
+
 import { id } from "./shared";
+
+const paymentStatus = z.enum(["planned", "committed", "paid", "cancelled"] satisfies [
+  PaymentStatus,
+  ...PaymentStatus[],
+]);
 
 // The "I accept this risk" path: when enforce_payment_acceptance_safeguard()
 // (supabase/migrations/20261012130900_payments.sql) blocks a commit/paid
@@ -23,6 +30,11 @@ export const acceptPaymentRiskInput = z.object({
   tripId: id,
   competitionId: id,
   rationale: z.string().trim().min(1, "Say why you're accepting this risk"),
+  // The status the original, blocked attempt was trying to reach --
+  // carried through as a hidden field so accepting the risk can retry
+  // that exact transition once the decision exists, instead of asking
+  // the person to choose it again.
+  targetStatus: paymentStatus,
 });
 
 export type AcceptPaymentRiskInput = z.infer<typeof acceptPaymentRiskInput>;

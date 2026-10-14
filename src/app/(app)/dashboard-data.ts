@@ -1,8 +1,8 @@
 import "server-only";
 
 import { dataSource } from "@/lib/data";
-import type { Competition, OpenItem, Payment, SavingsEntry, Scenario, Trip } from "@/lib/data/types";
-import { buildObligations, type BuiltObligation } from "@/lib/domain/build-obligations";
+import type { BudgetLine, Competition, OpenItem, Payment, SavingsEntry, Scenario, Trip } from "@/lib/data/types";
+import { buildObligations, type BuiltObligation, type MissingObligationRate } from "@/lib/domain/build-obligations";
 import { buildParallelSavingsPlan, type BuildParallelSavingsPlanResult } from "@/lib/domain/build-parallel-savings-plan";
 import { buildPhasedSavingsPlan, type BuildPhasedSavingsPlanResult } from "@/lib/domain/build-phased-savings-plan";
 import { calculateRequiredSavings, type CalculateRequiredSavingsResult } from "@/lib/domain/calculate-required-savings";
@@ -36,10 +36,22 @@ export type DashboardData =
       parallelPlan: BuildParallelSavingsPlanResult | null;
       /** Scenario-scoped: this scenario's own payments plus the trip's shared ones. */
       payments: Payment[];
+      /** Trip-wide, every scenario -- for the "does any other payment
+       * still reference this budget line" check before deleting one
+       * (see payment-actions.ts). */
+      tripPayments: Payment[];
+      /** Scenario-scoped, same rule as payments -- the "add a payment"
+       * form's existing-budget-line picker. */
+      budgetLines: BudgetLine[];
       /** Trip-scoped (open items aren't scenario-specific). */
       openItems: OpenItem[];
       /** Trip-scoped (money set aside isn't scenario-specific either). */
       savingsEntries: SavingsEntry[];
+      /** Payments buildObligations() couldn't convert to USD (no
+       * matching fx_rate) -- excluded from every savings figure above,
+       * same as rollup.missingRates is for budget lines. Always []
+       * when noDepartureDate, since buildObligations never ran. */
+      missingPaymentRates: MissingObligationRate[];
     };
 
 // The one place every dashboard page (Overview, Payments, Deadlines)
@@ -134,8 +146,11 @@ export async function loadDashboardData(params: {
       phasedPlan: null,
       parallelPlan: null,
       payments: scenarioPayments,
+      tripPayments,
+      budgetLines: scenarioBudgetLines,
       openItems: tripOpenItems,
       savingsEntries: tripSavingsEntries,
+      missingPaymentRates: [],
     };
   }
 
@@ -178,7 +193,10 @@ export async function loadDashboardData(params: {
     phasedPlan,
     parallelPlan,
     payments: scenarioPayments,
+    tripPayments,
+    budgetLines: scenarioBudgetLines,
     openItems: tripOpenItems,
     savingsEntries: tripSavingsEntries,
+    missingPaymentRates: obligationsResult.missingRates,
   };
 }

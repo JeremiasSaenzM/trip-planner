@@ -4,7 +4,7 @@ import type { BudgetCategory } from "@/lib/domain/types";
 
 import { changeReason, checkAmountOrder, checkConfirmedNeedsSource, currencyCode, id, infoState } from "./shared";
 
-const budgetCategory = z.enum(["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"] satisfies [
+export const budgetCategory = z.enum(["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"] satisfies [
   BudgetCategory,
   ...BudgetCategory[],
 ]);

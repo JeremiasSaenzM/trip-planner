@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { translatePostgresError } from "./error-messages";
+import { isAcceptanceSafeguardError, translatePostgresError } from "./error-messages";
 
 describe("translatePostgresError", () => {
   it("translates a known check-constraint violation", () => {
@@ -60,8 +60,43 @@ describe("translatePostgresError", () => {
     ).toBe("That date can't be in the future.");
   });
 
+  it("translates the payment-risk-acceptance constraints", () => {
+    expect(
+      translatePostgresError({
+        message: 'new row for relation "decisions" violates check constraint "decisions_payment_risk_needs_rationale"',
+      }),
+    ).toBe("Say why you're accepting this risk.");
+    expect(
+      translatePostgresError({
+        message: 'new row for relation "decisions" violates check constraint "decisions_accepted_currency_format"',
+      }),
+    ).toBe("Currency must be a 3-letter code (e.g. USD).");
+    expect(
+      translatePostgresError({
+        message: 'duplicate key value violates unique constraint "payments_risk_accepted_decision_id_unique"',
+      }),
+    ).toBe("That decision already covers a different payment.");
+  });
+
   it("falls back to the raw message for anything unmapped, instead of going blank", () => {
     const message = translatePostgresError({ message: "some brand-new constraint failed" });
     expect(message).toBe("some brand-new constraint failed");
+  });
+});
+
+describe("isAcceptanceSafeguardError", () => {
+  it("recognizes the acceptance safeguard's own raised exception", () => {
+    expect(
+      isAcceptanceSafeguardError({
+        message:
+          "Payment is a non-refundable/unknown, competition-related commitment (status committed) but the " +
+          "competition is not accepted and risk_accepted_decision_id does not point to a traveler decision for it.",
+      }),
+    ).toBe(true);
+  });
+
+  it("returns false for every other error", () => {
+    expect(isAcceptanceSafeguardError({ message: "Payment f0000000 not found (or not yours)" })).toBe(false);
+    expect(isAcceptanceSafeguardError({ message: "A reason is required for this change." })).toBe(false);
   });
 });

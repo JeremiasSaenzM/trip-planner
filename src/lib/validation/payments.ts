@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import type { PaymentStatus, PaymentTiming, Refundability } from "@/lib/data/types";
 
+import { budgetCategory } from "./budget-lines";
 import { changeReason, checkConfirmedNeedsSource, currencyCode, id, infoState } from "./shared";
 
 const paymentStatus = z.enum(["planned", "committed", "paid", "cancelled"] satisfies [
@@ -24,6 +25,41 @@ const refundability = z.enum([
   "non_refundable",
   "unknown",
 ] satisfies [Refundability, ...Refundability[]]);
+
+// Mirrors create_payment: either budgetLineId (attach to a line you
+// already have) or category (let the RPC create a new, auto_created
+// one) -- never neither, or the RPC itself would have to reject it,
+// one request too late. No reason: a fresh payment and (maybe) a fresh
+// budget line are both plain inserts.
+export const createPaymentInput = z
+  .object({
+    tripId: id,
+    scenarioId: id.optional(),
+    budgetLineId: id.optional(),
+    category: budgetCategory.optional(),
+    description: z.string().trim().min(1, "Describe this payment"),
+    currency: currencyCode,
+    totalAmount: z.number().positive(),
+    refundability,
+    cancellationDeadline: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use a YYYY-MM-DD date").optional(),
+    timingType: paymentTiming,
+    dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use a YYYY-MM-DD date").optional(),
+    competitionRelated: z.boolean(),
+  })
+  .superRefine((value, ctx) => {
+    if (!value.budgetLineId && !value.category) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["category"],
+        message: "Pick a budget category, or choose an existing budget line instead.",
+      });
+    }
+  });
+
+export const deletePaymentInput = z.object({
+  paymentId: id,
+  reason: changeReason,
+});
 
 // "Record a payment" adds to paid_amount -- it's how a partial payment
 // gets entered, not a status flip. payments_paid_not_over_total (paid
@@ -72,6 +108,8 @@ export const updatePaymentDetailsInput = z
     checkConfirmedNeedsSource(ctx, value.datesState, value.datesSourceId, ["datesSourceId"]);
   });
 
+export type CreatePaymentInput = z.infer<typeof createPaymentInput>;
+export type DeletePaymentInput = z.infer<typeof deletePaymentInput>;
 export type RecordPaymentInput = z.infer<typeof recordPaymentInput>;
 export type UpdatePaymentStatusInput = z.infer<typeof updatePaymentStatusInput>;
 export type UpdatePaymentDetailsInput = z.infer<typeof updatePaymentDetailsInput>;

@@ -21,23 +21,9 @@ import { groupObligationsByDueDate } from "@/lib/domain/group-obligations-by-due
 import type { CategoryTotals } from "@/lib/domain/roll-up-budget-by-scenario";
 import type { BudgetCategory } from "@/lib/domain/types";
 
+import { CATEGORY_LABELS, CATEGORY_ORDER } from "./category-labels";
 import type { Basis } from "./dashboard-data";
 import { formatUsd } from "./format";
-
-const CATEGORY_LABELS: Record<BudgetCategory, string> = {
-  A: "Competition",
-  B: "Transport",
-  C: "Lodging",
-  D: "Local transit",
-  E: "Food",
-  F: "Activities",
-  G: "Connectivity",
-  H: "Insurance",
-  I: "Pre-trip",
-  J: "Contingency",
-};
-
-const CATEGORY_ORDER: BudgetCategory[] = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"];
 
 function formatUsdTick(value: number): string {
   return `$${Math.round(value).toLocaleString()}`;

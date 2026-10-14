@@ -20,6 +20,9 @@ const CHECK_CONSTRAINT_MESSAGES: Record<string, string> = {
   fx_rates_currency_date_kind_unique: "There's already a rate for this currency, date and kind -- edit that one instead.",
   savings_entries_amount_positive: "The amount has to be more than zero.",
   savings_entries_recorded_on_not_future: "That date can't be in the future.",
+  decisions_payment_risk_needs_rationale: "Say why you're accepting this risk.",
+  decisions_accepted_currency_format: "Currency must be a 3-letter code (e.g. USD).",
+  payments_risk_accepted_decision_id_unique: "That decision already covers a different payment.",
 };
 
 const CHECK_CONSTRAINT_PATTERN = /violates (?:check|unique) constraint "([^"]+)"/;
@@ -45,6 +48,14 @@ const REASON_REQUIRED_MESSAGE = "Say why you're making this change -- a reason i
 // as a plain unknown id, so the message doesn't try to tell them apart.
 const NOT_FOUND_SUFFIX = "not found (or not yours)";
 const NOT_FOUND_MESSAGE = "That doesn't exist, or isn't yours.";
+
+// Lets a Server Action tell "this specific rule blocked the write" apart
+// from any other error, so it can offer "I accept this risk" specifically
+// rather than just showing a generic error message. See
+// payment-actions.ts's updatePaymentStatus.
+export function isAcceptanceSafeguardError(error: { message: string }): boolean {
+  return error.message.startsWith(ACCEPTANCE_SAFEGUARD_PREFIX);
+}
 
 export function translatePostgresError(error: { message: string }): string {
   if (error.message.startsWith(ACCEPTANCE_SAFEGUARD_PREFIX)) {

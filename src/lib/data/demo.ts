@@ -34,4 +34,10 @@ export const demoDataSource: DataSource = {
   recordSavingsEntry: async () => writesDisabledInDemoMode(),
   updateSavingsEntry: async () => writesDisabledInDemoMode(),
   deleteSavingsEntry: async () => writesDisabledInDemoMode(),
+  createPayment: async () => writesDisabledInDemoMode(),
+  recordPayment: async () => writesDisabledInDemoMode(),
+  updatePaymentStatus: async () => writesDisabledInDemoMode(),
+  updatePaymentDetails: async () => writesDisabledInDemoMode(),
+  deletePayment: async () => writesDisabledInDemoMode(),
+  createPaymentRiskDecision: async () => writesDisabledInDemoMode(),
 };
