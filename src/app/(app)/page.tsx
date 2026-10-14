@@ -8,6 +8,7 @@ import { DashboardControls } from "./dashboard-controls";
 import { loadDashboardData } from "./dashboard-data";
 import { Card, CardLabel, Caveat, EmptyState, RangeFigure } from "./dashboard-ui";
 import { formatUsd } from "./format";
+import { ParallelSavingsChart, PhasedSavingsChart } from "./savings-plan-charts";
 
 export const metadata: Metadata = { title: "Overview" };
 
@@ -39,7 +40,7 @@ async function Overview({ searchParams }: { searchParams: PageProps<"/">["search
     return <EmptyState>No scenario yet for this trip.</EmptyState>;
   }
 
-  const { rollup, savings, provisional, noDepartureDate, availableUsd } = data;
+  const { rollup, savings, provisional, noDepartureDate, availableUsd, obligations, phasedPlan, parallelPlan } = data;
   const binding = savings?.bindingRequirement[data.basis] ?? null;
 
   return (
@@ -111,11 +112,26 @@ async function Overview({ searchParams }: { searchParams: PageProps<"/">["search
           <CardLabel>Savings schedule</CardLabel>
           <SavingsScheduleChart
             schedule={savings.schedule}
+            obligations={obligations}
             availableUsd={availableUsd}
             bindingRequirementUsd={binding}
             asOfDate={data.asOfDate}
             basis={data.basis}
           />
+        </Card>
+      )}
+
+      {phasedPlan && (
+        <Card>
+          <CardLabel>One phase at a time</CardLabel>
+          <PhasedSavingsChart plan={phasedPlan} availableUsd={availableUsd} asOfDate={data.asOfDate} />
+        </Card>
+      )}
+
+      {parallelPlan && (
+        <Card>
+          <CardLabel>One pot per payment</CardLabel>
+          <ParallelSavingsChart plan={parallelPlan} />
         </Card>
       )}
     </div>
