@@ -46,6 +46,10 @@ A second Supabase project for previews isn't possible (free-tier project limit),
 - A visible "Demo data — not real" banner (`src/app/demo-banner.tsx`) shows on every page while `DEMO_MODE` is on.
 - Previews still use my real Supabase login (magic link); demo mode only swaps out the dashboard data, not auth.
 
+## Deploying a migration
+
+Any PR with a migration: after merge, run `supabase db push --dry-run`, show the list, wait for OK, push without `--include-seed`, then verify read-only.
+
 ## Domain rules the app must enforce
 
 These come from the planning system. Encode them in the schema and in tested functions in `src/lib/domain/`, not just in UI text.
