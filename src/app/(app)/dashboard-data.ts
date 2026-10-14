@@ -5,8 +5,9 @@ import type { Competition, OpenItem, Payment, Scenario, Trip } from "@/lib/data/
 import { buildObligations, type BuiltObligation } from "@/lib/domain/build-obligations";
 import { calculateRequiredSavings, type CalculateRequiredSavingsResult } from "@/lib/domain/calculate-required-savings";
 import { rollUpBudgetByScenario, type RollUpBudgetByScenarioResult } from "@/lib/domain/roll-up-budget-by-scenario";
+import type { Basis } from "@/lib/domain/types";
 
-export type Basis = "target" | "conservative";
+export type { Basis };
 
 export type DashboardData =
   | { status: "no_trip" }

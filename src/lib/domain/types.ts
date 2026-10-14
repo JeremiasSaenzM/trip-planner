@@ -11,6 +11,9 @@ export type BudgetCategory = "A" | "B" | "C" | "D" | "E" | "F" | "G" | "H" | "I"
 
 export type RateKind = "observed" | "planning_base" | "planning_conservative";
 
+/** Target is the planning reference; conservative is the financial-safety test. */
+export type Basis = "target" | "conservative";
+
 export type FlightBaggage = "included" | "paid_addon" | "not_allowed" | "unknown";
 
 export type ConstraintStatus = "pass" | "fail" | "unknown";
