@@ -222,10 +222,10 @@ select ok(has_function_privilege('authenticated', 'update_payment_status(uuid, p
 select ok(not has_function_privilege('anon', 'update_payment_status(uuid, payment_status, text, uuid)', 'EXECUTE'),
   'anon cannot execute update_payment_status');
 select ok(has_function_privilege('authenticated',
-  'update_payment_details(uuid, text, numeric, text, date, date, info_state, uuid, payment_timing, info_state, uuid, refundability, boolean, text)', 'EXECUTE'),
+  'update_payment_details(uuid, text, numeric, text, date, date, info_state, uuid, payment_timing, info_state, uuid, refundability, boolean, text, uuid)', 'EXECUTE'),
   'authenticated can execute update_payment_details');
 select ok(not has_function_privilege('anon',
-  'update_payment_details(uuid, text, numeric, text, date, date, info_state, uuid, payment_timing, info_state, uuid, refundability, boolean, text)', 'EXECUTE'),
+  'update_payment_details(uuid, text, numeric, text, date, date, info_state, uuid, payment_timing, info_state, uuid, refundability, boolean, text, uuid)', 'EXECUTE'),
   'anon cannot execute update_payment_details');
 select ok(has_function_privilege('authenticated', 'delete_payment(uuid, text)', 'EXECUTE'),
   'authenticated can execute delete_payment');

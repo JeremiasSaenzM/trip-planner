@@ -35,6 +35,15 @@ const ACCEPTANCE_SAFEGUARD_MESSAGE =
   "This is a non-refundable (or unknown-refundability) commitment, but the competition isn't accepted yet. " +
   "Use \"I accept this risk\" to record why, or leave it as Planned until the competition is accepted.";
 
+// enforce_payment_acceptance_safeguard() raises this one instead when a
+// risk-accepted decision names this exact payment but no longer covers
+// its current amount/currency (20261015100000) -- the amount was raised,
+// or the currency changed, after the risk was accepted.
+const AMOUNT_EXCEEDED_PREFIX = "Payment's amount exceeds what was risk-accepted for it";
+const AMOUNT_EXCEEDED_MESSAGE =
+  "This payment's amount or currency is now higher than, or different from, what you accepted the risk for. " +
+  "Use \"I accept this risk\" again to cover the new amount.";
+
 // change_log_capture()'s own reason requirement (change_log.sql) --
 // reached only if a write somehow skips the form's own changeReason
 // validation (shared.ts).
@@ -54,10 +63,13 @@ const NOT_FOUND_MESSAGE = "That doesn't exist, or isn't yours.";
 // rather than just showing a generic error message. See
 // payment-actions.ts's updatePaymentStatus.
 export function isAcceptanceSafeguardError(error: { message: string }): boolean {
-  return error.message.startsWith(ACCEPTANCE_SAFEGUARD_PREFIX);
+  return error.message.startsWith(ACCEPTANCE_SAFEGUARD_PREFIX) || error.message.startsWith(AMOUNT_EXCEEDED_PREFIX);
 }
 
 export function translatePostgresError(error: { message: string }): string {
+  if (error.message.startsWith(AMOUNT_EXCEEDED_PREFIX)) {
+    return AMOUNT_EXCEEDED_MESSAGE;
+  }
   if (error.message.startsWith(ACCEPTANCE_SAFEGUARD_PREFIX)) {
     return ACCEPTANCE_SAFEGUARD_MESSAGE;
   }

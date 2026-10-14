@@ -4,6 +4,7 @@ import { useActionState, useEffect, useState } from "react";
 
 import type { BudgetLine, Payment } from "@/lib/data/types";
 import { checkCanAcceptPaymentRisk } from "@/lib/validation/decisions";
+import type { UpdatePaymentDetailsInput } from "@/lib/validation/payments";
 
 import { CATEGORY_LABELS, CATEGORY_ORDER } from "./category-labels";
 import { formatAmount } from "./format";
@@ -14,10 +15,15 @@ import {
   labelClass,
   secondaryButtonClass,
 } from "./form-styles";
-import { initialFormActionState, initialPaymentStatusActionState } from "./form-action-state";
+import {
+  initialFormActionState,
+  initialPaymentStatusActionState,
+  initialUpdatePaymentDetailsActionState,
+} from "./form-action-state";
 import { REFUNDABILITY_LABELS, STATUS_LABELS, TIMING_LABELS } from "./payment-labels";
 import {
   acceptPaymentRisk,
+  acceptPaymentRiskForDetails,
   createPayment,
   deletePayment,
   recordPayment,
@@ -213,7 +219,15 @@ export function PaymentRowActions({
     );
   }
   if (mode === "edit") {
-    return <EditPaymentForm key={attempt} payment={payment} onDone={() => setMode("view")} />;
+    return (
+      <EditPaymentForm
+        key={attempt}
+        payment={payment}
+        tripId={tripId}
+        competitionId={competitionId}
+        onDone={() => setMode("view")}
+      />
+    );
   }
   if (mode === "delete") {
     return (
@@ -407,12 +421,44 @@ function AcceptRiskForm({
   );
 }
 
-function EditPaymentForm({ payment, onDone }: { payment: Payment; onDone: () => void }) {
-  const [state, formAction, pending] = useActionState(updatePaymentDetails, initialFormActionState);
+function EditPaymentForm({
+  payment,
+  tripId,
+  competitionId,
+  onDone,
+}: {
+  payment: Payment;
+  tripId: string;
+  competitionId: string | null;
+  onDone: () => void;
+}) {
+  const [state, formAction, pending] = useActionState(updatePaymentDetails, initialUpdatePaymentDetailsActionState);
 
   useEffect(() => {
     if (state.status === "success") onDone();
   }, [state, onDone]);
+
+  if (state.status === "blocked") {
+    const risk = checkCanAcceptPaymentRisk(competitionId);
+    return (
+      <div className="mt-2 space-y-2.5">
+        <FormError message={state.message} />
+        {risk.ok ? (
+          <AcceptRiskForDetailsForm
+            tripId={tripId}
+            competitionId={competitionId}
+            pending={state.pending}
+            onDone={onDone}
+          />
+        ) : (
+          <FormError message={risk.message} />
+        )}
+        <button type="button" onClick={onDone} className={secondaryButtonClass}>
+          Cancel
+        </button>
+      </div>
+    );
+  }
 
   return (
     <form action={formAction} className="mt-2 space-y-2.5">
@@ -512,6 +558,61 @@ function EditPaymentForm({ payment, onDone }: { payment: Payment; onDone: () => 
           Cancel
         </button>
       </div>
+    </form>
+  );
+}
+
+// Resubmits the blocked edit's already-validated fields (echoed back as
+// UpdatePaymentDetailsActionState's "pending") as hidden inputs, plus a
+// rationale -- the new amount being accepted only exists in this
+// not-yet-written pending data, not on the payment itself, so there's
+// nothing else to read it back from. See payment-actions.ts's
+// acceptPaymentRiskForDetails.
+function AcceptRiskForDetailsForm({
+  tripId,
+  competitionId,
+  pending,
+  onDone,
+}: {
+  tripId: string;
+  competitionId: string | null;
+  pending: UpdatePaymentDetailsInput;
+  onDone: () => void;
+}) {
+  const [state, formAction, submitting] = useActionState(acceptPaymentRiskForDetails, initialFormActionState);
+
+  useEffect(() => {
+    if (state.status === "success") onDone();
+  }, [state, onDone]);
+
+  return (
+    <form action={formAction} className="space-y-2.5 rounded-lg border border-amber-300 p-2.5 dark:border-amber-800">
+      <input type="hidden" name="paymentId" value={pending.paymentId} />
+      <input type="hidden" name="tripId" value={tripId} />
+      <input type="hidden" name="competitionId" value={competitionId ?? ""} />
+      <input type="hidden" name="description" value={pending.description} />
+      <input type="hidden" name="totalAmount" value={pending.totalAmount} />
+      <input type="hidden" name="currency" value={pending.currency} />
+      <input type="hidden" name="dueDate" value={pending.dueDate ?? ""} />
+      <input type="hidden" name="cancellationDeadline" value={pending.cancellationDeadline ?? ""} />
+      <input type="hidden" name="datesState" value={pending.datesState} />
+      <input type="hidden" name="datesSourceId" value={pending.datesSourceId ?? ""} />
+      <input type="hidden" name="timingType" value={pending.timingType} />
+      <input type="hidden" name="informationState" value={pending.informationState} />
+      <input type="hidden" name="sourceId" value={pending.sourceId ?? ""} />
+      <input type="hidden" name="refundability" value={pending.refundability} />
+      <input type="hidden" name="competitionRelated" value={pending.competitionRelated ? "on" : ""} />
+      <input
+        name="rationale"
+        required
+        aria-label="Why you're accepting this risk"
+        placeholder="Why you're accepting this risk"
+        className={inputClass}
+      />
+      {state.status === "error" && <FormError message={state.message} />}
+      <button type="submit" disabled={submitting} className={buttonClass}>
+        {submitting ? "Accepting…" : "I accept this risk"}
+      </button>
     </form>
   );
 }

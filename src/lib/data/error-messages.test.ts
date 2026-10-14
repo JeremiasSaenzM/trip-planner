@@ -78,6 +78,15 @@ describe("translatePostgresError", () => {
     ).toBe("That decision already covers a different payment.");
   });
 
+  it("translates the amount-exceeded variant of the acceptance safeguard's raised exception", () => {
+    const message = translatePostgresError({
+      message:
+        "Payment's amount exceeds what was risk-accepted for it (accepted 100 EUR, now 150 EUR) -- accept the " +
+        "risk again at the new amount.",
+    });
+    expect(message).toMatch(/I accept this risk/);
+  });
+
   it("falls back to the raw message for anything unmapped, instead of going blank", () => {
     const message = translatePostgresError({ message: "some brand-new constraint failed" });
     expect(message).toBe("some brand-new constraint failed");
@@ -91,6 +100,14 @@ describe("isAcceptanceSafeguardError", () => {
         message:
           "Payment is a non-refundable/unknown, competition-related commitment (status committed) but the " +
           "competition is not accepted and risk_accepted_decision_id does not point to a traveler decision for it.",
+      }),
+    ).toBe(true);
+  });
+
+  it("also recognizes the amount-exceeded variant", () => {
+    expect(
+      isAcceptanceSafeguardError({
+        message: "Payment's amount exceeds what was risk-accepted for it (accepted 100 EUR, now 150 EUR) -- accept the risk again at the new amount.",
       }),
     ).toBe(true);
   });

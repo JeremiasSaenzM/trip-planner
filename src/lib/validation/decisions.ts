@@ -25,11 +25,18 @@ const paymentStatus = z.enum(["planned", "committed", "paid", "cancelled"] satis
 // case checkCanAcceptPaymentRisk() below blocks before this form even
 // shows. There is no scenario where a null competitionId here leads to
 // a decision that unblocks anything.
-export const acceptPaymentRiskInput = z.object({
+// Shared by both retry paths below: a status-change retry
+// (acceptPaymentRiskInput) and a details-edit retry (payment-actions.ts's
+// acceptPaymentRiskForDetails), which otherwise need different extra
+// fields to know what to retry.
+export const acceptRiskBaseInput = z.object({
   paymentId: id,
   tripId: id,
   competitionId: id,
   rationale: z.string().trim().min(1, "Say why you're accepting this risk"),
+});
+
+export const acceptPaymentRiskInput = acceptRiskBaseInput.extend({
   // The status the original, blocked attempt was trying to reach --
   // carried through as a hidden field so accepting the risk can retry
   // that exact transition once the decision exists, instead of asking
