@@ -15,11 +15,14 @@ import {
   YAxis,
 } from "recharts";
 
+import type { BuiltObligation } from "@/lib/domain/build-obligations";
 import type { ScheduleEntry } from "@/lib/domain/calculate-required-savings";
+import { groupObligationsByDueDate } from "@/lib/domain/group-obligations-by-due-date";
 import type { CategoryTotals } from "@/lib/domain/roll-up-budget-by-scenario";
 import type { BudgetCategory } from "@/lib/domain/types";
 
 import type { Basis } from "./dashboard-data";
+import { formatUsd } from "./format";
 
 const CATEGORY_LABELS: Record<BudgetCategory, string> = {
   A: "Competition",
@@ -76,12 +79,14 @@ function formatDateTick(timestamp: number): string {
 
 export function SavingsScheduleChart({
   schedule,
+  obligations,
   availableUsd,
   bindingRequirementUsd,
   asOfDate,
   basis,
 }: {
   schedule: ScheduleEntry[];
+  obligations: BuiltObligation[];
   availableUsd: number;
   bindingRequirementUsd: number;
   asOfDate: string;
@@ -96,62 +101,84 @@ export function SavingsScheduleChart({
   const cumulativeField = basis === "target" ? "cumulativeTarget" : "cumulativeConservative";
   const requiredField = basis === "target" ? "requiredMonthlyTarget" : "requiredMonthlyConservative";
 
+  // schedule entries carry only amounts/dates -- the obligation's own
+  // description (what the tooltip names) has to be looked up by due date.
+  const deadlineNames = new Map(
+    groupObligationsByDueDate(obligations, basis).map((group) => [group.dueDate, group.description]),
+  );
+
   const asOfTs = toTimestamp(asOfDate);
   const data = [
-    { timestamp: asOfTs, cumulativeRequired: 0, projectedSavings: availableUsd },
+    { timestamp: asOfTs, cumulativeRequired: 0, projectedSavings: availableUsd, payment: null as string | null },
     ...future.map((entry) => {
       const months = DateTime.fromISO(entry.dueDate).diff(DateTime.fromISO(asOfDate), "months").months;
       return {
         timestamp: toTimestamp(entry.dueDate),
         cumulativeRequired: entry[cumulativeField],
         projectedSavings: availableUsd + bindingRequirementUsd * months,
+        payment: deadlineNames.get(entry.dueDate) ?? null,
       };
     }),
   ];
 
   const tightest = future.reduce((best, entry) => ((entry[requiredField] ?? 0) > (best[requiredField] ?? 0) ? entry : best));
+  const savingsLabel = `Your savings at ${formatUsd(bindingRequirementUsd)}/month`;
 
   return (
-    <ResponsiveContainer width="100%" height={240}>
-      <LineChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
-        <XAxis
-          dataKey="timestamp"
-          type="number"
-          domain={["dataMin", "dataMax"]}
-          tickFormatter={formatDateTick}
-          tick={{ fontSize: 11 }}
-        />
-        <YAxis tick={{ fontSize: 11 }} width={44} tickFormatter={formatUsdTick} />
-        <Tooltip
-          labelFormatter={(value) => formatDateTick(Number(value))}
-          formatter={(value) => formatUsdTick(Number(value))}
-        />
-        <Legend wrapperStyle={{ fontSize: 12 }} />
-        <ReferenceLine
-          x={toTimestamp(tightest.dueDate)}
-          stroke="var(--chart-neutral)"
-          strokeDasharray="3 3"
-          label={{ value: "Tightest deadline", position: "insideTopRight", fontSize: 11, fill: "var(--chart-neutral)" }}
-        />
-        <Line
-          type="stepAfter"
-          dataKey="cumulativeRequired"
-          name="Cumulative required"
-          stroke="var(--chart-target)"
-          strokeWidth={2}
-          dot={{ r: 3 }}
-        />
-        <Line
-          type="linear"
-          dataKey="projectedSavings"
-          name="Projected savings"
-          stroke="var(--chart-neutral)"
-          strokeWidth={2}
-          strokeDasharray="4 2"
-          dot={false}
-        />
-      </LineChart>
-    </ResponsiveContainer>
+    <div>
+      <ResponsiveContainer width="100%" height={240}>
+        <LineChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
+          <XAxis
+            dataKey="timestamp"
+            type="number"
+            domain={["dataMin", "dataMax"]}
+            tickFormatter={formatDateTick}
+            tick={{ fontSize: 11 }}
+          />
+          <YAxis tick={{ fontSize: 11 }} width={44} tickFormatter={formatUsdTick} />
+          <Tooltip
+            labelFormatter={(value) => formatDateTick(Number(value))}
+            formatter={(value, name, item) => {
+              const payment = (item.payload as { payment: string | null }).payment;
+              const amount = formatUsdTick(Number(value));
+              return payment && name === "Money needed by this date" ? `${amount} -- ${payment}` : amount;
+            }}
+          />
+          <Legend wrapperStyle={{ fontSize: 12 }} />
+          <ReferenceLine
+            x={toTimestamp(tightest.dueDate)}
+            stroke="var(--chart-neutral)"
+            strokeDasharray="3 3"
+            label={{
+              value: "Departure: tightest deadline",
+              position: "insideTopRight",
+              fontSize: 11,
+              fill: "var(--chart-neutral)",
+            }}
+          />
+          <Line
+            type="stepAfter"
+            dataKey="cumulativeRequired"
+            name="Money needed by this date"
+            stroke="var(--chart-target)"
+            strokeWidth={2}
+            dot={{ r: 3 }}
+          />
+          <Line
+            type="linear"
+            dataKey="projectedSavings"
+            name={savingsLabel}
+            stroke="var(--chart-neutral)"
+            strokeWidth={2}
+            strokeDasharray="4 2"
+            dot={false}
+          />
+        </LineChart>
+      </ResponsiveContainer>
+      <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+        You&apos;re on track as long as the dashed line stays above the steps.
+      </p>
+    </div>
   );
 }

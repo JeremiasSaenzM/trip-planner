@@ -3,6 +3,8 @@ import "server-only";
 import { dataSource } from "@/lib/data";
 import type { Competition, OpenItem, Payment, Scenario, Trip } from "@/lib/data/types";
 import { buildObligations, type BuiltObligation } from "@/lib/domain/build-obligations";
+import { buildParallelSavingsPlan, type BuildParallelSavingsPlanResult } from "@/lib/domain/build-parallel-savings-plan";
+import { buildPhasedSavingsPlan, type BuildPhasedSavingsPlanResult } from "@/lib/domain/build-phased-savings-plan";
 import { calculateRequiredSavings, type CalculateRequiredSavingsResult } from "@/lib/domain/calculate-required-savings";
 import { rollUpBudgetByScenario, type RollUpBudgetByScenarioResult } from "@/lib/domain/roll-up-budget-by-scenario";
 import type { Basis } from "@/lib/domain/types";
@@ -29,6 +31,9 @@ export type DashboardData =
       /** Savings minus everything already paid. 0 when noDepartureDate
        * (buildObligations never ran, so there's nothing to report). */
       availableUsd: number;
+      /** null when noDepartureDate -- there are no obligations to plan against. */
+      phasedPlan: BuildPhasedSavingsPlanResult | null;
+      parallelPlan: BuildParallelSavingsPlanResult | null;
       /** Scenario-scoped: this scenario's own payments plus the trip's shared ones. */
       payments: Payment[];
       /** Trip-scoped (open items aren't scenario-specific). */
@@ -123,6 +128,8 @@ export async function loadDashboardData(params: {
       provisional: false,
       obligations: [],
       availableUsd: 0,
+      phasedPlan: null,
+      parallelPlan: null,
       payments: scenarioPayments,
       openItems: tripOpenItems,
     };
@@ -132,6 +139,20 @@ export async function loadDashboardData(params: {
     asOfDate,
     savingsEntries: [{ amountUsd: obligationsResult.availableUsd, recordedOn: asOfDate }],
     obligations: obligationsResult.obligations,
+  });
+
+  const phasedPlan = buildPhasedSavingsPlan({
+    obligations: obligationsResult.obligations,
+    availableUsd: obligationsResult.availableUsd,
+    asOfDate,
+    basis,
+  });
+
+  const parallelPlan = buildParallelSavingsPlan({
+    obligations: obligationsResult.obligations,
+    availableUsd: obligationsResult.availableUsd,
+    asOfDate,
+    basis,
   });
 
   return {
@@ -148,6 +169,8 @@ export async function loadDashboardData(params: {
     provisional: obligationsResult.provisional,
     obligations: obligationsResult.obligations,
     availableUsd: obligationsResult.availableUsd,
+    phasedPlan,
+    parallelPlan,
     payments: scenarioPayments,
     openItems: tripOpenItems,
   };
