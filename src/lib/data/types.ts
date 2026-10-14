@@ -69,6 +69,10 @@ export type Decision = {
   id: string;
   tripId: string;
   competitionId: string | null;
+  /** The one payment this decision unblocks, if any -- see
+   * enforce_payment_acceptance_safeguard()'s d.payment_id = new.id
+   * check. null for every decision that isn't a payment risk acceptance. */
+  paymentId: string | null;
   title: string;
   rationale: string | null;
   decidedOn: string;
@@ -76,6 +80,11 @@ export type Decision = {
   reversible: boolean;
   supersededBy: string | null;
   sourceId: string | null;
+  /** Frozen snapshot of what was actually agreed to when paymentId was
+   * set -- independent of the payment's own amount/currency, which can
+   * change later. null when paymentId is null. */
+  acceptedAmount: number | null;
+  acceptedCurrency: string | null;
   createdAt: string;
 };
 
@@ -92,6 +101,9 @@ export type BudgetLine = {
   informationState: InfoState;
   sourceId: string | null;
   notes: string | null;
+  /** True only for a line create_payment made for a payment that had
+   * none to attach to -- see delete_payment's cleanup rule. */
+  autoCreated: boolean;
   createdAt: string;
   updatedAt: string;
 };
@@ -227,6 +239,60 @@ export type RecordSavingsEntryWrite = { tripId: string; amount: number; recorded
 export type UpdateSavingsEntryWrite = { id: string; amount: number; recordedOn: string; note?: string; reason: string };
 export type DeleteSavingsEntryWrite = { id: string; reason: string };
 
+export type CreatePaymentWrite = {
+  tripId: string;
+  scenarioId?: string;
+  budgetLineId?: string;
+  category?: BudgetCategory;
+  description: string;
+  currency: string;
+  totalAmount: number;
+  refundability: Refundability;
+  cancellationDeadline?: string;
+  timingType: PaymentTiming;
+  dueDate?: string;
+  competitionRelated: boolean;
+};
+export type DeletePaymentWrite = { paymentId: string; reason: string };
+export type RecordPaymentWrite = { paymentId: string; amount: number; reason: string };
+export type UpdatePaymentStatusWrite = {
+  paymentId: string;
+  status: PaymentStatus;
+  reason: string;
+  riskAcceptedDecisionId?: string;
+};
+export type UpdatePaymentDetailsWrite = {
+  paymentId: string;
+  description: string;
+  totalAmount: number;
+  currency: string;
+  dueDate?: string;
+  cancellationDeadline?: string;
+  datesState: InfoState;
+  datesSourceId?: string;
+  timingType: PaymentTiming;
+  informationState: InfoState;
+  sourceId?: string;
+  refundability: Refundability;
+  competitionRelated: boolean;
+  reason: string;
+};
+
+// Not a Zod-validated shape passed straight through like the others --
+// paymentDescription/acceptedAmount/acceptedCurrency are derived
+// server-side from the payment being risk-accepted
+// (src/app/(app)/payment-actions.ts), never typed in by the person, so
+// this is assembled by hand there.
+export type CreatePaymentRiskDecisionWrite = {
+  tripId: string;
+  competitionId: string;
+  paymentId: string;
+  paymentDescription: string;
+  rationale: string;
+  acceptedAmount: number;
+  acceptedCurrency: string;
+};
+
 // One data-access layer, two implementations (src/lib/data/real.ts, the
 // real Supabase-backed one, and src/lib/data/demo.ts, typed fixture data)
 // -- chosen by src/lib/data/index.ts, the only place that calls
@@ -258,4 +324,10 @@ export type DataSource = {
   recordSavingsEntry(input: RecordSavingsEntryWrite): Promise<SavingsEntry>;
   updateSavingsEntry(input: UpdateSavingsEntryWrite): Promise<SavingsEntry>;
   deleteSavingsEntry(input: DeleteSavingsEntryWrite): Promise<void>;
+  createPayment(input: CreatePaymentWrite): Promise<Payment>;
+  recordPayment(input: RecordPaymentWrite): Promise<Payment>;
+  updatePaymentStatus(input: UpdatePaymentStatusWrite): Promise<Payment>;
+  updatePaymentDetails(input: UpdatePaymentDetailsWrite): Promise<Payment>;
+  deletePayment(input: DeletePaymentWrite): Promise<void>;
+  createPaymentRiskDecision(input: CreatePaymentRiskDecisionWrite): Promise<Decision>;
 };

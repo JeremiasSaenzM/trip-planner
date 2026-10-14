@@ -156,6 +156,11 @@ export const decisions: Decision[] = [
     id: "60000000-0000-0000-0000-000000000001",
     tripId: "20000000-0000-0000-0000-000000000001",
     competitionId: "40000000-0000-0000-0000-000000000001",
+    // None of the demo payments below are actually non-refundable under
+    // a still-pending competition (see the payments comment), so this
+    // stays a general, unlinked decision -- paymentId/accepted* null,
+    // same as every decision that isn't a payment risk acceptance.
+    paymentId: null,
     title: "Accepted risk: deposit paid for Candidate B before acceptance",
     rationale: "Fictional example: holding a rehearsal-space deposit for the still-pending candidate.",
     decidedOn: "2026-10-01",
@@ -163,12 +168,16 @@ export const decisions: Decision[] = [
     reversible: false,
     supersededBy: null,
     sourceId: null,
+    acceptedAmount: null,
+    acceptedCurrency: null,
     createdAt: "2026-10-01T00:00:00Z",
   },
 ];
 
 // Deliberately not all the same currency: A/C/E/F/J in EUR, B/H in GBP,
 // D/G/I in USD. Each line's amountMin <= amountTarget <= amountConservative.
+// None of these were created by create_payment, so autoCreated is
+// false throughout -- they're all hand-authored demo data.
 export const budgetLines: BudgetLine[] = [
   {
     id: "70000000-0000-0000-0000-000000000001",
@@ -183,6 +192,7 @@ export const budgetLines: BudgetLine[] = [
     informationState: "confirmed",
     sourceId: "30000000-0000-0000-0000-000000000001",
     notes: null,
+    autoCreated: false,
     createdAt: "2026-09-20T00:00:00Z",
     updatedAt: "2026-09-20T00:00:00Z",
   },
@@ -199,6 +209,7 @@ export const budgetLines: BudgetLine[] = [
     informationState: "estimate",
     sourceId: null,
     notes: null,
+    autoCreated: false,
     createdAt: "2026-10-05T00:00:00Z",
     updatedAt: "2026-10-05T00:00:00Z",
   },
@@ -215,6 +226,7 @@ export const budgetLines: BudgetLine[] = [
     informationState: "estimate",
     sourceId: null,
     notes: null,
+    autoCreated: false,
     createdAt: "2026-10-01T00:00:00Z",
     updatedAt: "2026-10-01T00:00:00Z",
   },
@@ -231,6 +243,7 @@ export const budgetLines: BudgetLine[] = [
     informationState: "assumption",
     sourceId: null,
     notes: null,
+    autoCreated: false,
     createdAt: "2026-09-25T00:00:00Z",
     updatedAt: "2026-09-25T00:00:00Z",
   },
@@ -247,6 +260,7 @@ export const budgetLines: BudgetLine[] = [
     informationState: "assumption",
     sourceId: null,
     notes: null,
+    autoCreated: false,
     createdAt: "2026-09-25T00:00:00Z",
     updatedAt: "2026-09-25T00:00:00Z",
   },
@@ -263,6 +277,7 @@ export const budgetLines: BudgetLine[] = [
     informationState: "estimate",
     sourceId: null,
     notes: null,
+    autoCreated: false,
     createdAt: "2026-10-01T00:00:00Z",
     updatedAt: "2026-10-01T00:00:00Z",
   },
@@ -279,6 +294,7 @@ export const budgetLines: BudgetLine[] = [
     informationState: "confirmed",
     sourceId: "30000000-0000-0000-0000-000000000003",
     notes: null,
+    autoCreated: false,
     createdAt: "2026-10-05T00:00:00Z",
     updatedAt: "2026-10-05T00:00:00Z",
   },
@@ -295,6 +311,7 @@ export const budgetLines: BudgetLine[] = [
     informationState: "confirmed",
     sourceId: "30000000-0000-0000-0000-000000000002",
     notes: null,
+    autoCreated: false,
     createdAt: "2026-10-02T00:00:00Z",
     updatedAt: "2026-10-02T00:00:00Z",
   },
@@ -311,6 +328,7 @@ export const budgetLines: BudgetLine[] = [
     informationState: "assumption",
     sourceId: null,
     notes: null,
+    autoCreated: false,
     createdAt: "2026-09-25T00:00:00Z",
     updatedAt: "2026-09-25T00:00:00Z",
   },
@@ -327,6 +345,7 @@ export const budgetLines: BudgetLine[] = [
     informationState: "assumption",
     sourceId: null,
     notes: null,
+    autoCreated: false,
     createdAt: "2026-09-25T00:00:00Z",
     updatedAt: "2026-09-25T00:00:00Z",
   },

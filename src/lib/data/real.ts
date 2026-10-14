@@ -78,6 +78,70 @@ function mapSavingsEntryRow(row: Record<string, unknown>): SavingsEntry {
   };
 }
 
+function mapDecisionRow(row: Record<string, unknown>): Decision {
+  return {
+    id: row.id as string,
+    tripId: row.trip_id as string,
+    competitionId: row.competition_id as string | null,
+    paymentId: row.payment_id as string | null,
+    title: row.title as string,
+    rationale: row.rationale as string | null,
+    decidedOn: row.decided_on as string,
+    decidedBy: row.decided_by as Decision["decidedBy"],
+    reversible: row.reversible as boolean,
+    supersededBy: row.superseded_by as string | null,
+    sourceId: row.source_id as string | null,
+    acceptedAmount: row.accepted_amount as number | null,
+    acceptedCurrency: row.accepted_currency as string | null,
+    createdAt: row.created_at as string,
+  };
+}
+
+function mapBudgetLineRow(row: Record<string, unknown>): BudgetLine {
+  return {
+    id: row.id as string,
+    tripId: row.trip_id as string,
+    scenarioId: row.scenario_id as string | null,
+    category: row.category as BudgetLine["category"],
+    description: row.description as string,
+    amountMin: row.amount_min as number,
+    amountTarget: row.amount_target as number,
+    amountConservative: row.amount_conservative as number,
+    currency: row.currency as string,
+    informationState: row.information_state as BudgetLine["informationState"],
+    sourceId: row.source_id as string | null,
+    notes: row.notes as string | null,
+    autoCreated: row.auto_created as boolean,
+    createdAt: row.created_at as string,
+    updatedAt: row.updated_at as string,
+  };
+}
+
+function mapPaymentRow(row: Record<string, unknown>): Payment {
+  return {
+    id: row.id as string,
+    budgetLineId: row.budget_line_id as string,
+    scenarioId: row.scenario_id as string | null,
+    description: row.description as string,
+    totalAmount: row.total_amount as number,
+    paidAmount: row.paid_amount as number,
+    currency: row.currency as string,
+    dueDate: row.due_date as string | null,
+    cancellationDeadline: row.cancellation_deadline as string | null,
+    datesState: row.dates_state as Payment["datesState"],
+    datesSourceId: row.dates_source_id as string | null,
+    timingType: row.timing_type as Payment["timingType"],
+    status: row.status as Payment["status"],
+    informationState: row.information_state as Payment["informationState"],
+    sourceId: row.source_id as string | null,
+    refundability: row.refundability as Payment["refundability"],
+    competitionRelated: row.competition_related as boolean,
+    riskAcceptedDecisionId: row.risk_accepted_decision_id as string | null,
+    createdAt: row.created_at as string,
+    updatedAt: row.updated_at as string,
+  };
+}
+
 // Real implementation: queries Supabase directly. Every table has an
 // "owner_all" RLS policy, so these never add their own owner filter --
 // the signed-in user's rows are already all Postgres will return.
@@ -130,75 +194,21 @@ export const realDataSource: DataSource = {
     const supabase = await createClient();
     const { data, error } = await supabase.from("decisions").select("*");
     if (error) throw error;
-    return (data ?? []).map(
-      (row): Decision => ({
-        id: row.id,
-        tripId: row.trip_id,
-        competitionId: row.competition_id,
-        title: row.title,
-        rationale: row.rationale,
-        decidedOn: row.decided_on,
-        decidedBy: row.decided_by,
-        reversible: row.reversible,
-        supersededBy: row.superseded_by,
-        sourceId: row.source_id,
-        createdAt: row.created_at,
-      }),
-    );
+    return (data ?? []).map(mapDecisionRow);
   },
 
   async getBudgetLines() {
     const supabase = await createClient();
     const { data, error } = await supabase.from("budget_lines").select("*");
     if (error) throw error;
-    return (data ?? []).map(
-      (row): BudgetLine => ({
-        id: row.id,
-        tripId: row.trip_id,
-        scenarioId: row.scenario_id,
-        category: row.category,
-        description: row.description,
-        amountMin: row.amount_min,
-        amountTarget: row.amount_target,
-        amountConservative: row.amount_conservative,
-        currency: row.currency,
-        informationState: row.information_state,
-        sourceId: row.source_id,
-        notes: row.notes,
-        createdAt: row.created_at,
-        updatedAt: row.updated_at,
-      }),
-    );
+    return (data ?? []).map(mapBudgetLineRow);
   },
 
   async getPayments() {
     const supabase = await createClient();
     const { data, error } = await supabase.from("payments").select("*");
     if (error) throw error;
-    return (data ?? []).map(
-      (row): Payment => ({
-        id: row.id,
-        budgetLineId: row.budget_line_id,
-        scenarioId: row.scenario_id,
-        description: row.description,
-        totalAmount: row.total_amount,
-        paidAmount: row.paid_amount,
-        currency: row.currency,
-        dueDate: row.due_date,
-        cancellationDeadline: row.cancellation_deadline,
-        datesState: row.dates_state,
-        datesSourceId: row.dates_source_id,
-        timingType: row.timing_type,
-        status: row.status,
-        informationState: row.information_state,
-        sourceId: row.source_id,
-        refundability: row.refundability,
-        competitionRelated: row.competition_related,
-        riskAcceptedDecisionId: row.risk_accepted_decision_id,
-        createdAt: row.created_at,
-        updatedAt: row.updated_at,
-      }),
-    );
+    return (data ?? []).map(mapPaymentRow);
   },
 
   async getSavingsEntries() {
@@ -393,5 +403,114 @@ export const realDataSource: DataSource = {
       p_reason: input.reason,
     });
     if (error) throw error;
+  },
+
+  // create_payment (20261015093000_payments_writes.sql) does both
+  // inserts (the payment, and -- when no budgetLineId is given -- its
+  // new budget line) in one call, so they succeed or fail together.
+  async createPayment(input) {
+    assertWritesAllowed();
+    const supabase = await createClient();
+    const { data, error } = await supabase.rpc("create_payment", {
+      p_trip_id: input.tripId,
+      p_scenario_id: input.scenarioId ?? null,
+      p_budget_line_id: input.budgetLineId ?? null,
+      p_category: input.category ?? null,
+      p_description: input.description,
+      p_currency: input.currency,
+      p_total_amount: input.totalAmount,
+      p_refundability: input.refundability,
+      p_cancellation_deadline: input.cancellationDeadline ?? null,
+      p_timing_type: input.timingType,
+      p_due_date: input.dueDate ?? null,
+      p_competition_related: input.competitionRelated,
+    });
+    if (error) throw error;
+    return mapPaymentRow(data as Record<string, unknown>);
+  },
+
+  async recordPayment(input) {
+    assertWritesAllowed();
+    const supabase = await createClient();
+    const { data, error } = await supabase.rpc("record_payment", {
+      p_payment_id: input.paymentId,
+      p_amount: input.amount,
+      p_reason: input.reason,
+    });
+    if (error) throw error;
+    return mapPaymentRow(data as Record<string, unknown>);
+  },
+
+  async updatePaymentStatus(input) {
+    assertWritesAllowed();
+    const supabase = await createClient();
+    const { data, error } = await supabase.rpc("update_payment_status", {
+      p_payment_id: input.paymentId,
+      p_status: input.status,
+      p_reason: input.reason,
+      p_risk_accepted_decision_id: input.riskAcceptedDecisionId ?? null,
+    });
+    if (error) throw error;
+    return mapPaymentRow(data as Record<string, unknown>);
+  },
+
+  async updatePaymentDetails(input) {
+    assertWritesAllowed();
+    const supabase = await createClient();
+    const { data, error } = await supabase.rpc("update_payment_details", {
+      p_payment_id: input.paymentId,
+      p_description: input.description,
+      p_total_amount: input.totalAmount,
+      p_currency: input.currency,
+      p_due_date: input.dueDate ?? null,
+      p_cancellation_deadline: input.cancellationDeadline ?? null,
+      p_dates_state: input.datesState,
+      p_dates_source_id: input.datesSourceId ?? null,
+      p_timing_type: input.timingType,
+      p_information_state: input.informationState,
+      p_source_id: input.sourceId ?? null,
+      p_refundability: input.refundability,
+      p_competition_related: input.competitionRelated,
+      p_reason: input.reason,
+    });
+    if (error) throw error;
+    return mapPaymentRow(data as Record<string, unknown>);
+  },
+
+  async deletePayment(input) {
+    assertWritesAllowed();
+    const supabase = await createClient();
+    const { error } = await supabase.rpc("delete_payment", {
+      p_payment_id: input.paymentId,
+      p_reason: input.reason,
+    });
+    if (error) throw error;
+  },
+
+  // A plain insert (decisions' own change_log trigger needs no reason
+  // for one) -- paymentDescription/acceptedAmount/acceptedCurrency are
+  // the frozen snapshot the payment-risk migration added; the caller
+  // (payment-actions.ts) is the one that reads them off the live
+  // payment before calling this, so the title names what was actually
+  // agreed to even if the payment's own fields change later.
+  async createPaymentRiskDecision(input) {
+    assertWritesAllowed();
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("decisions")
+      .insert({
+        trip_id: input.tripId,
+        competition_id: input.competitionId,
+        payment_id: input.paymentId,
+        title: `Accepted risk: ${input.paymentDescription} (${input.acceptedAmount} ${input.acceptedCurrency})`,
+        rationale: input.rationale,
+        decided_by: "traveler",
+        accepted_amount: input.acceptedAmount,
+        accepted_currency: input.acceptedCurrency,
+      })
+      .select("*")
+      .single();
+    if (error) throw error;
+    return mapDecisionRow(data);
   },
 };

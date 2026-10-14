@@ -86,5 +86,62 @@ describe("demoDataSource writes", () => {
         reason: "Test",
       }),
     ).rejects.toThrow(/disabled in demo mode/);
+    await expect(
+      demoDataSource.createPayment({
+        tripId: "20000000-0000-0000-0000-000000000001",
+        category: "A",
+        description: "Test",
+        currency: "USD",
+        totalAmount: 100,
+        refundability: "refundable",
+        timingType: "due_on_date",
+        competitionRelated: false,
+      }),
+    ).rejects.toThrow(/disabled in demo mode/);
+    await expect(
+      demoDataSource.recordPayment({
+        paymentId: "80000000-0000-0000-0000-000000000001",
+        amount: 50,
+        reason: "Test",
+      }),
+    ).rejects.toThrow(/disabled in demo mode/);
+    await expect(
+      demoDataSource.updatePaymentStatus({
+        paymentId: "80000000-0000-0000-0000-000000000001",
+        status: "committed",
+        reason: "Test",
+      }),
+    ).rejects.toThrow(/disabled in demo mode/);
+    await expect(
+      demoDataSource.updatePaymentDetails({
+        paymentId: "80000000-0000-0000-0000-000000000001",
+        description: "Test",
+        totalAmount: 100,
+        currency: "USD",
+        datesState: "estimate",
+        timingType: "due_on_date",
+        informationState: "estimate",
+        refundability: "refundable",
+        competitionRelated: false,
+        reason: "Test",
+      }),
+    ).rejects.toThrow(/disabled in demo mode/);
+    await expect(
+      demoDataSource.deletePayment({
+        paymentId: "80000000-0000-0000-0000-000000000001",
+        reason: "Test",
+      }),
+    ).rejects.toThrow(/disabled in demo mode/);
+    await expect(
+      demoDataSource.createPaymentRiskDecision({
+        tripId: "20000000-0000-0000-0000-000000000001",
+        competitionId: "40000000-0000-0000-0000-000000000001",
+        paymentId: "80000000-0000-0000-0000-000000000001",
+        paymentDescription: "Test",
+        rationale: "Test",
+        acceptedAmount: 100,
+        acceptedCurrency: "USD",
+      }),
+    ).rejects.toThrow(/disabled in demo mode/);
   });
 });
