@@ -3,10 +3,11 @@ import { Suspense } from "react";
 
 import { getCurrentUser } from "@/lib/auth";
 
+import { AddCompetitionForm, CreateScenarioForm, CreateTripForm } from "./bootstrap-forms";
 import { BudgetByCategoryChart, SavingsScheduleChart } from "./charts";
 import { DashboardControls } from "./dashboard-controls";
 import { loadDashboardData } from "./dashboard-data";
-import { Card, CardLabel, Caveat, EmptyState, RangeFigure } from "./dashboard-ui";
+import { Card, CardLabel, Caveat, RangeFigure } from "./dashboard-ui";
 import { formatUsd } from "./format";
 import { ParallelSavingsChart, PhasedSavingsChart } from "./savings-plan-charts";
 
@@ -34,10 +35,14 @@ async function Overview({ searchParams }: { searchParams: PageProps<"/">["search
   });
 
   if (data.status === "no_trip") {
-    return <EmptyState>No trip yet.</EmptyState>;
+    return <CreateTripForm />;
   }
   if (data.status === "no_scenario") {
-    return <EmptyState>No scenario yet for this trip.</EmptyState>;
+    return data.competitions.length === 0 ? (
+      <AddCompetitionForm tripId={data.trip.id} />
+    ) : (
+      <CreateScenarioForm tripId={data.trip.id} competitions={data.competitions} />
+    );
   }
 
   const { rollup, savings, provisional, noDepartureDate, availableUsd, obligations, phasedPlan, parallelPlan, competition } =

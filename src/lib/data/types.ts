@@ -193,18 +193,48 @@ export type FlightSegment = {
   isTechnicalStop: boolean;
 };
 
+// Write-method inputs. Deliberately plain, hand-written types rather than
+// importing the Zod-inferred types from src/lib/validation -- those
+// modules import PaymentStatus/PaymentTiming/Refundability etc. from
+// *this* file, so importing back from them would be circular. The
+// validated value a Server Action gets back from a schema in
+// src/lib/validation is structurally identical to the matching type
+// below, so it's passed straight through with no mapping step.
+export type CreateTripWrite = { name: string };
+
+export type CreateCompetitionWrite = {
+  tripId: string;
+  name: string;
+  city: string;
+  country: string;
+  venue?: string;
+  startDate: string;
+  endDate: string;
+  timezone: string;
+  datesState: InfoState;
+  datesSourceId?: string;
+};
+
+export type CreateScenarioWrite = {
+  tripId: string;
+  name: string;
+  competitionId?: string;
+  includesExtension: boolean;
+  notes?: string;
+};
+
 // One data-access layer, two implementations (src/lib/data/real.ts, the
 // real Supabase-backed one, and src/lib/data/demo.ts, typed fixture data)
 // -- chosen by src/lib/data/index.ts, the only place that calls
 // isDemoMode(). Pages and components import only from src/lib/data/index.ts
 // and never know which implementation answered.
 //
-// Phase 5 will add write methods here: recording savings, marking a
-// payment paid, editing a budget line, and so on. Every one of them MUST
-// call assertWritesAllowed() (src/lib/demo-mode.ts) as its first line, so
-// a form submitted while DEMO_MODE is on throws instead of silently doing
-// nothing, or worse, writing fixture-derived data into a real trip. See
-// CLAUDE.md's "Demo mode" rule.
+// Phase 5 is adding write methods here one at a time: this is the first
+// batch (the bootstrap flow -- create a trip, a competition, a scenario).
+// Every one of them MUST call assertWritesAllowed() (src/lib/demo-mode.ts)
+// as its first line, so a form submitted while DEMO_MODE is on throws
+// instead of silently doing nothing, or worse, writing fixture-derived
+// data into a real trip. See CLAUDE.md's "Demo mode" rule.
 export type DataSource = {
   getTrips(): Promise<Trip[]>;
   getSources(): Promise<Source[]>;
@@ -218,4 +248,7 @@ export type DataSource = {
   getOpenItems(): Promise<OpenItem[]>;
   getFlightOptions(): Promise<FlightOption[]>;
   getFlightSegments(): Promise<FlightSegment[]>;
+  createTrip(input: CreateTripWrite): Promise<Trip>;
+  createCompetition(input: CreateCompetitionWrite): Promise<Competition>;
+  createScenario(input: CreateScenarioWrite): Promise<Scenario>;
 };

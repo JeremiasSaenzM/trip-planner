@@ -1,5 +1,17 @@
+import { assertWritesAllowed } from "@/lib/demo-mode";
+
 import * as fixtures from "./fixtures";
 import type { DataSource } from "./types";
+
+// demoDataSource only ever runs while isDemoMode() is true (that's the
+// one switch in ./index.ts), so assertWritesAllowed() always throws here
+// -- the throw after it is dead code at runtime, there only because
+// TypeScript can't see that assertWritesAllowed() is unconditional in
+// this particular caller, and still needs every path to return or throw.
+function writesDisabledInDemoMode(): never {
+  assertWritesAllowed();
+  throw new Error("unreachable: assertWritesAllowed() always throws in demo mode");
+}
 
 // Demo implementation: returns the same typed fixture data every time,
 // wrapped in a resolved promise so its signatures match ./real exactly.
@@ -16,4 +28,7 @@ export const demoDataSource: DataSource = {
   getOpenItems: async () => fixtures.openItems,
   getFlightOptions: async () => fixtures.flightOptions,
   getFlightSegments: async () => fixtures.flightSegments,
+  createTrip: async () => writesDisabledInDemoMode(),
+  createCompetition: async () => writesDisabledInDemoMode(),
+  createScenario: async () => writesDisabledInDemoMode(),
 };

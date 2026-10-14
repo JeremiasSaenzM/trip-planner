@@ -13,7 +13,7 @@ export type { Basis };
 
 export type DashboardData =
   | { status: "no_trip" }
-  | { status: "no_scenario"; trip: Trip }
+  | { status: "no_scenario"; trip: Trip; competitions: Competition[] }
   | {
       status: "ready";
       trip: Trip;
@@ -64,9 +64,11 @@ export async function loadDashboardData(params: {
   const trip = trips[0];
   if (!trip) return { status: "no_trip" };
 
+  const tripCompetitions = competitions.filter((c) => c.tripId === trip.id);
+
   const tripScenarios = scenarios.filter((s) => s.tripId === trip.id);
   const scenario = tripScenarios.find((s) => s.id === params.scenarioId) ?? tripScenarios[0];
-  if (!scenario) return { status: "no_scenario", trip };
+  if (!scenario) return { status: "no_scenario", trip, competitions: tripCompetitions };
 
   const basis: Basis = params.basis === "conservative" ? "conservative" : "target";
   const asOfDate = new Date().toISOString().slice(0, 10);
