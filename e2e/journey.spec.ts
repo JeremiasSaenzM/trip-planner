@@ -74,7 +74,10 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await page.getByLabel("Timing").selectOption("due_on_date");
     await page.getByLabel("Due date (optional)").fill("2027-02-01");
     await page.getByRole("button", { name: "Add payment" }).click();
-    await expect(page.getByText("Registration fee")).toBeVisible();
+    // exact: true -- a substring match would also hit the budget-line
+    // picker's new option for this same line ("Registration fee (A) —
+    // $300.00"), now that it exists to be picked for a later payment.
+    await expect(page.getByText("Registration fee", { exact: true })).toBeVisible();
 
     await page.goto("/");
     const required = parseUsd(await requiredMonthlySaving.innerText());
@@ -133,7 +136,10 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await page.getByLabel("Due date (optional)").fill("2027-03-01");
     await page.getByLabel(/tied to the competition itself/i).check();
     await page.getByRole("button", { name: "Add payment" }).click();
-    await expect(page.getByText("Accommodation deposit")).toBeVisible();
+    // exact: true -- same reason as "Registration fee" above: a
+    // substring match would also hit this line's own new option in
+    // the budget-line picker.
+    await expect(page.getByText("Accommodation deposit", { exact: true })).toBeVisible();
   });
 
   await test.step("hit the acceptance safeguard, then accept the risk", async () => {
