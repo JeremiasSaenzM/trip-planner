@@ -91,17 +91,20 @@ export function AddCompetitionForm({ tripId }: { tripId: string }) {
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
             <label htmlFor="competition-start" className={labelClass}>
-              First festival day
+              Official festival dates: first day
             </label>
             <input id="competition-start" name="startDate" type="date" required className={inputClass} />
           </div>
           <div className="space-y-1.5">
             <label htmlFor="competition-end" className={labelClass}>
-              Last festival day
+              Official festival dates: final day
             </label>
             <input id="competition-end" name="endDate" type="date" required className={inputClass} />
           </div>
         </div>
+        <p className="text-xs text-zinc-500 dark:text-zinc-400">
+          These start out pending. You can mark them confirmed later, once you add a source for them.
+        </p>
         <div className="space-y-1.5">
           <label htmlFor="competition-timezone" className={labelClass}>
             Time zone

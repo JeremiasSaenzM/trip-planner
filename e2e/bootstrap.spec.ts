@@ -32,8 +32,8 @@ test("create trip -> competition -> scenario, starting from a signed-out, empty 
     await page.getByLabel("Name").fill("Llangollen International Musical Eisteddfod");
     await page.getByLabel("City").fill("Llangollen");
     await page.getByLabel("Country").fill("United Kingdom");
-    await page.getByLabel("First festival day").fill("2027-07-06");
-    await page.getByLabel("Last festival day").fill("2027-07-11");
+    await page.getByLabel("Official festival dates: first day").fill("2027-07-06");
+    await page.getByLabel("Official festival dates: final day").fill("2027-07-11");
     await page.getByLabel("Time zone").fill("Europe/London");
     await page.getByRole("button", { name: "Add competition" }).click();
     await expect(page.getByText("Create a scenario")).toBeVisible();
