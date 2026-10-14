@@ -25,7 +25,7 @@ select is(
 
 select is(
   (select (new_data ->> 'amount')::numeric from change_log where table_name = 'savings_entries' and row_id = '90000000-0000-0000-0000-000000000099'),
-  123,
+  123::numeric,
   'the logged new_data carries the inserted amount'
 );
 
@@ -45,7 +45,7 @@ select throws_like(
 
 select is(
   (select amount from savings_entries where id = '90000000-0000-0000-0000-000000000001'),
-  300,
+  300::numeric,
   'the entry is unchanged after both rejected reasons'
 );
 
@@ -57,7 +57,7 @@ select lives_ok(
 
 select is(
   (select amount from savings_entries where id = '90000000-0000-0000-0000-000000000001'),
-  400,
+  400::numeric,
   'the amount was actually updated'
 );
 
@@ -108,7 +108,7 @@ select set_config('request.jwt.claim.sub', '10000000-0000-0000-0000-000000000001
 
 select is(
   (select amount from savings_entries where id = '90000000-0000-0000-0000-000000000001'),
-  400,
+  400::numeric,
   'the entry is unchanged after the other account''s attempts'
 );
 
