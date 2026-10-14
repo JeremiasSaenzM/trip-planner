@@ -39,7 +39,15 @@ export async function GET(request: NextRequest) {
 
   // Session cookies set by the Supabase client above are attached to this
   // response automatically, because they were written through next/headers cookies().
-  const target = request.nextUrl.clone();
+  //
+  // Built from request.url, not request.nextUrl: self-hosted (next start,
+  // no reverse proxy in front), nextUrl's origin doesn't reliably track
+  // the Host header actually used for this request -- it was observed
+  // rewriting a request to http://127.0.0.1:3000 into a redirect to
+  // http://localhost:3000, a different origin with no session cookie,
+  // which bounced straight back to /login. request.url doesn't have
+  // that problem.
+  const target = new URL(request.url);
   target.search = "";
   target.pathname = ok ? "/" : "/login";
   if (!ok) target.searchParams.set("error", "link");
