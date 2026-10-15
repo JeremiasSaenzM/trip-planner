@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 
 import { getCurrentUser } from "@/lib/auth";
-import type { BudgetLine, Payment } from "@/lib/data/types";
+import type { BudgetLine, Payment, Source } from "@/lib/data/types";
 
 import { DashboardControls } from "../dashboard-controls";
 import { loadDashboardData } from "../dashboard-data";
@@ -35,7 +35,7 @@ async function PaymentsScreen({ searchParams }: { searchParams: PageProps<"/paym
   if (data.status === "no_trip") return <EmptyState>No trip yet.</EmptyState>;
   if (data.status === "no_scenario") return <EmptyState>No scenario yet for this trip.</EmptyState>;
 
-  const { payments, competition, asOfDate, trip, scenario, budgetLines, tripPayments } = data;
+  const { payments, competition, asOfDate, trip, scenario, budgetLines, tripPayments, sources } = data;
   const competitionId = competition?.id ?? null;
 
   const addForm = <AddPaymentForm tripId={trip.id} scenarioId={scenario.id} budgetLines={budgetLines} />;
@@ -86,6 +86,7 @@ async function PaymentsScreen({ searchParams }: { searchParams: PageProps<"/paym
         competitionId={competitionId}
         budgetLines={budgetLines}
         tripPayments={tripPayments}
+        sources={sources}
       />
       {canSplit && (
         <PaymentGroup
@@ -96,6 +97,7 @@ async function PaymentsScreen({ searchParams }: { searchParams: PageProps<"/paym
           competitionId={competitionId}
           budgetLines={budgetLines}
           tripPayments={tripPayments}
+          sources={sources}
         />
       )}
     </div>
@@ -110,6 +112,7 @@ function PaymentGroup({
   competitionId,
   budgetLines,
   tripPayments,
+  sources,
 }: {
   title: string;
   payments: Payment[];
@@ -118,6 +121,7 @@ function PaymentGroup({
   competitionId: string | null;
   budgetLines: BudgetLine[];
   tripPayments: Payment[];
+  sources: Source[];
 }) {
   if (payments.length === 0) return null;
 
@@ -136,6 +140,7 @@ function PaymentGroup({
             competitionId={competitionId}
             budgetLines={budgetLines}
             tripPayments={tripPayments}
+            sources={sources}
           />
         ))}
       </div>
@@ -150,6 +155,7 @@ function PaymentRow({
   competitionId,
   budgetLines,
   tripPayments,
+  sources,
 }: {
   payment: Payment;
   asOfDate: string;
@@ -157,6 +163,7 @@ function PaymentRow({
   competitionId: string | null;
   budgetLines: BudgetLine[];
   tripPayments: Payment[];
+  sources: Source[];
 }) {
   const dueLater = payment.totalAmount - payment.paidAmount;
   const cancellationSoon =
@@ -211,6 +218,7 @@ function PaymentRow({
         competitionId={competitionId}
         budgetLineAutoCreated={budgetLine?.autoCreated ?? false}
         otherPaymentsOnBudgetLine={otherPaymentsOnBudgetLine}
+        sources={sources}
       />
     </Card>
   );

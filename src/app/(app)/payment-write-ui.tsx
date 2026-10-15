@@ -2,7 +2,8 @@
 
 import { useActionState, useEffect, useState } from "react";
 
-import type { BudgetLine, Payment } from "@/lib/data/types";
+import type { BudgetLine, Payment, Source } from "@/lib/data/types";
+import type { InfoState } from "@/lib/domain/types";
 import { checkCanAcceptPaymentRisk } from "@/lib/validation/decisions";
 import type { UpdatePaymentDetailsInput } from "@/lib/validation/payments";
 
@@ -20,6 +21,7 @@ import {
   initialPaymentStatusActionState,
   initialUpdatePaymentDetailsActionState,
 } from "./form-action-state";
+import { INFO_STATE_LABELS, INFO_STATE_ORDER } from "./info-state-labels";
 import { REFUNDABILITY_LABELS, STATUS_LABELS, TIMING_LABELS } from "./payment-labels";
 import {
   acceptPaymentRisk,
@@ -30,6 +32,7 @@ import {
   updatePaymentDetails,
   updatePaymentStatus,
 } from "./payment-actions";
+import { SourcePicker } from "./source-picker";
 
 // No currency field hidden conditionally in JS: the category picker
 // and the existing-budget-line picker are mutually exclusive (one
@@ -189,12 +192,14 @@ export function PaymentRowActions({
   competitionId,
   budgetLineAutoCreated,
   otherPaymentsOnBudgetLine,
+  sources,
 }: {
   payment: Payment;
   tripId: string;
   competitionId: string | null;
   budgetLineAutoCreated: boolean;
   otherPaymentsOnBudgetLine: number;
+  sources: Source[];
 }) {
   const [mode, setMode] = useState<RowMode>("view");
   const [attempt, setAttempt] = useState(0);
@@ -225,6 +230,7 @@ export function PaymentRowActions({
         payment={payment}
         tripId={tripId}
         competitionId={competitionId}
+        sources={sources}
         onDone={() => setMode("view")}
       />
     );
@@ -425,14 +431,22 @@ function EditPaymentForm({
   payment,
   tripId,
   competitionId,
+  sources,
   onDone,
 }: {
   payment: Payment;
   tripId: string;
   competitionId: string | null;
+  sources: Source[];
   onDone: () => void;
 }) {
   const [state, formAction, pending] = useActionState(updatePaymentDetails, initialUpdatePaymentDetailsActionState);
+
+  const [informationState, setInformationState] = useState<InfoState>(payment.informationState);
+  const [sourceChoice, setSourceChoice] = useState(payment.sourceId ?? "");
+  const [datesState, setDatesState] = useState<InfoState>(payment.datesState);
+  const [datesSourceChoice, setDatesSourceChoice] = useState(payment.datesSourceId ?? "");
+  const [clientError, setClientError] = useState<string | null>(null);
 
   useEffect(() => {
     if (state.status === "success") onDone();
@@ -460,8 +474,22 @@ function EditPaymentForm({
     );
   }
 
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    if (informationState === "confirmed" && sourceChoice === "") {
+      event.preventDefault();
+      setClientError("Confirmed needs a source -- add one, or set this back to an estimate.");
+      return;
+    }
+    if (datesState === "confirmed" && datesSourceChoice === "") {
+      event.preventDefault();
+      setClientError("A confirmed date needs a source -- add one, or set the date back to an estimate.");
+      return;
+    }
+    setClientError(null);
+  }
+
   return (
-    <form action={formAction} className="mt-2 space-y-2.5">
+    <form action={formAction} onSubmit={handleSubmit} className="mt-2 space-y-2.5">
       <input type="hidden" name="paymentId" value={payment.id} />
       <input
         name="description"
@@ -526,13 +554,60 @@ function EditPaymentForm({
           className={inputClass}
         />
       </div>
-      {/* Carries the row's current state/source pairs through unchanged
-          -- this form doesn't offer editing them yet, but the RPC
-          still needs a value for every column it sets. */}
-      <input type="hidden" name="datesState" value={payment.datesState} />
-      <input type="hidden" name="datesSourceId" value={payment.datesSourceId ?? ""} />
-      <input type="hidden" name="informationState" value={payment.informationState} />
-      <input type="hidden" name="sourceId" value={payment.sourceId ?? ""} />
+      <div className="space-y-1.5">
+        <label htmlFor="payment-edit-information-state" className={labelClass}>
+          Information state (the payment itself)
+        </label>
+        <select
+          id="payment-edit-information-state"
+          name="informationState"
+          value={informationState}
+          onChange={(event) => setInformationState(event.target.value as InfoState)}
+          className={inputClass}
+        >
+          {INFO_STATE_ORDER.map((value) => (
+            <option key={value} value={value}>
+              {INFO_STATE_LABELS[value]}
+            </option>
+          ))}
+        </select>
+      </div>
+      <SourcePicker
+        name="source"
+        label="Source (the payment itself)"
+        sources={sources}
+        required={false}
+        value={sourceChoice}
+        onChange={setSourceChoice}
+      />
+
+      <div className="space-y-1.5">
+        <label htmlFor="payment-edit-dates-state" className={labelClass}>
+          Information state (when it&apos;s due)
+        </label>
+        <select
+          id="payment-edit-dates-state"
+          name="datesState"
+          value={datesState}
+          onChange={(event) => setDatesState(event.target.value as InfoState)}
+          className={inputClass}
+        >
+          {INFO_STATE_ORDER.map((value) => (
+            <option key={value} value={value}>
+              {INFO_STATE_LABELS[value]}
+            </option>
+          ))}
+        </select>
+      </div>
+      <SourcePicker
+        name="datesSource"
+        label="Source (when it's due)"
+        sources={sources}
+        required={false}
+        value={datesSourceChoice}
+        onChange={setDatesSourceChoice}
+      />
+
       <label className="flex items-center gap-2 text-sm">
         <input
           type="checkbox"
@@ -549,6 +624,7 @@ function EditPaymentForm({
         placeholder="Reason for this change"
         className={inputClass}
       />
+      {clientError && <FormError message={clientError} />}
       {state.status === "error" && <FormError message={state.message} />}
       <div className="flex gap-2">
         <button type="submit" disabled={pending} className={buttonClass}>
