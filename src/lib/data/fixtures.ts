@@ -1,5 +1,6 @@
 import type {
   BudgetLine,
+  ChangeLogEntry,
   Competition,
   Decision,
   FlightOption,
@@ -736,5 +737,36 @@ export const flightSegments: FlightSegment[] = [
     departAt: "2027-07-12T22:00:00-04:00",
     arriveAt: "2027-07-13T11:30:00+02:00",
     isTechnicalStop: false,
+  },
+];
+
+// A small taste of the audit trail every write leaves behind -- real
+// change_log rows carry a full before/after snapshot (to_jsonb(old)/
+// to_jsonb(new)), so these fakes do the same at a smaller scale rather
+// than leaving oldData/newData null.
+export const changeLog: ChangeLogEntry[] = [
+  {
+    id: "e0000000-0000-0000-0000-000000000001",
+    tableName: "payments",
+    rowId: "80000000-0000-0000-0000-000000000003",
+    action: "update",
+    oldData: { status: "planned", paid_amount: 0 },
+    newData: { status: "committed", paid_amount: 100 },
+    reason: "Fictional example: paid the hotel deposit",
+    actor: "app",
+    changedAt: "2026-10-01T00:00:00Z",
+    changedBy: "10000000-0000-0000-0000-000000000001",
+  },
+  {
+    id: "e0000000-0000-0000-0000-000000000002",
+    tableName: "savings_entries",
+    rowId: "90000000-0000-0000-0000-000000000002",
+    action: "insert",
+    oldData: null,
+    newData: { amount: 250, currency: "USD", recorded_on: "2026-09-01" },
+    reason: null,
+    actor: "app",
+    changedAt: "2026-09-01T00:00:00Z",
+    changedBy: "10000000-0000-0000-0000-000000000001",
   },
 ];

@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 
 import type {
   BudgetLine,
+  ChangeLogEntry,
   Competition,
   DataSource,
   Decision,
@@ -325,6 +326,29 @@ export const realDataSource: DataSource = {
         departAt: row.depart_at,
         arriveAt: row.arrive_at,
         isTechnicalStop: row.is_technical_stop,
+      }),
+    );
+  },
+
+  // Read-only: change_log has no owner write policy at all (only the
+  // SECURITY DEFINER trigger writes it) -- this exists purely for the
+  // export feature.
+  async getChangeLog() {
+    const supabase = await createClient();
+    const { data, error } = await supabase.from("change_log").select("*");
+    if (error) throw error;
+    return (data ?? []).map(
+      (row): ChangeLogEntry => ({
+        id: row.id,
+        tableName: row.table_name,
+        rowId: row.row_id,
+        action: row.action,
+        oldData: row.old_data,
+        newData: row.new_data,
+        reason: row.reason,
+        actor: row.actor,
+        changedAt: row.changed_at,
+        changedBy: row.changed_by,
       }),
     );
   },

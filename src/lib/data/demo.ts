@@ -28,6 +28,7 @@ export const demoDataSource: DataSource = {
   getOpenItems: async () => fixtures.openItems,
   getFlightOptions: async () => fixtures.flightOptions,
   getFlightSegments: async () => fixtures.flightSegments,
+  getChangeLog: async () => fixtures.changeLog,
   createTrip: async () => writesDisabledInDemoMode(),
   createCompetition: async () => writesDisabledInDemoMode(),
   createScenario: async () => writesDisabledInDemoMode(),
