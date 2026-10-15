@@ -306,7 +306,7 @@ test("the full first-run journey, starting from a signed-out, empty account", as
 
   await test.step("export my data and check its contents", async () => {
     await page.goto("/");
-    await page.getByRole("link", { name: "Export my data" }).click();
+    await page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Export" }).click();
     await expect(page).toHaveURL("/export");
 
     const downloadPromise = page.waitForEvent("download");

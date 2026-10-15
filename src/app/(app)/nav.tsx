@@ -9,6 +9,7 @@ const NAV_ITEMS = [
   { href: "/budget-lines", label: "Budget", icon: ListIcon },
   { href: "/payments", label: "Payments", icon: ReceiptIcon },
   { href: "/deadlines", label: "Deadlines", icon: CalendarIcon },
+  { href: "/export", label: "Export", icon: DownloadIcon },
 ];
 
 // Client Component because it needs usePathname() to highlight the current section.
@@ -125,6 +126,23 @@ function CalendarIcon() {
     >
       <rect x="3" y="5" width="18" height="16" rx="2" />
       <path d="M8 3v4M16 3v4M3 10h18" />
+    </svg>
+  );
+}
+
+function DownloadIcon() {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 24 24"
+      className="size-6"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.75}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M12 3v12m0 0-4-4m4 4 4-4M5 19h14" />
     </svg>
   );
 }
