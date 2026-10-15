@@ -10,11 +10,24 @@ export function CardLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function RangeFigure({ label, value, emphasize }: { label: string; value: number; emphasize?: boolean }) {
+export function RangeFigure({
+  label,
+  value,
+  emphasize,
+  testId,
+}: {
+  label: string;
+  value: number;
+  emphasize?: boolean;
+  testId?: string;
+}) {
   return (
     <div>
       <p className="text-xs text-zinc-500 dark:text-zinc-400">{label}</p>
-      <p className={emphasize ? "text-2xl font-semibold" : "text-lg text-zinc-600 dark:text-zinc-400"}>
+      <p
+        data-testid={testId}
+        className={emphasize ? "text-2xl font-semibold" : "text-lg text-zinc-600 dark:text-zinc-400"}
+      >
         {formatUsd(value)}
       </p>
     </div>

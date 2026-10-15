@@ -119,7 +119,7 @@ async function Overview({ searchParams }: { searchParams: PageProps<"/">["search
         <CardLabel>Trip cost range</CardLabel>
         <div className="mt-1 flex items-start gap-4">
           <RangeFigure label="Min" value={rollup.totals.min} />
-          <RangeFigure label="Target" value={rollup.totals.target} emphasize />
+          <RangeFigure label="Target" value={rollup.totals.target} emphasize testId="trip-cost-range-target" />
           <RangeFigure label="Conservative" value={rollup.totals.conservative} />
         </div>
         {rollup.missingRates.length > 0 && (

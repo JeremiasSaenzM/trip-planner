@@ -30,6 +30,10 @@ export type Source = {
   tier: number;
   url: string | null;
   observedOn: string;
+  /** Parsed from the DB's applicable_period daterange -- either side can
+   * be null (an open-ended period), and the whole thing is null when no
+   * period was given at all. */
+  applicablePeriod: { start: string | null; end: string | null } | null;
   notes: string | null;
   createdAt: string;
 };
@@ -283,6 +287,57 @@ export type UpdatePaymentDetailsWrite = {
   riskAcceptedDecisionId?: string;
 };
 
+export type CreateSourceWrite = {
+  provider: string;
+  tier: number;
+  url?: string;
+  observedOn: string;
+  applicablePeriodStart?: string;
+  applicablePeriodEnd?: string;
+  notes?: string;
+};
+
+export type CreateBudgetLineWrite = {
+  tripId: string;
+  scenarioId?: string;
+  category: BudgetCategory;
+  description: string;
+  amountMin: number;
+  amountTarget: number;
+  amountConservative: number;
+  currency: string;
+  informationState: InfoState;
+  sourceId?: string;
+  notes?: string;
+};
+// scenarioId is deliberately not editable here -- only set at creation
+// (CreateBudgetLineWrite above). update_budget_line's own RPC signature
+// has no p_scenario_id for the same reason.
+export type UpdateBudgetLineWrite = {
+  id: string;
+  category: BudgetCategory;
+  description: string;
+  amountMin: number;
+  amountTarget: number;
+  amountConservative: number;
+  currency: string;
+  informationState: InfoState;
+  sourceId?: string;
+  notes?: string;
+  reason: string;
+};
+export type DeleteBudgetLineWrite = { id: string; reason: string };
+
+export type CreateFxRateWrite = {
+  currency: string;
+  rateToUsd: number;
+  rateDate: string;
+  rateKind: RateKind;
+  informationState: InfoState;
+  sourceId: string;
+};
+export type UpdateFxRateWrite = CreateFxRateWrite & { id: string; reason: string };
+
 // Not a Zod-validated shape passed straight through like the others --
 // paymentDescription/acceptedAmount/acceptedCurrency are derived
 // server-side from the payment being risk-accepted
@@ -335,4 +390,10 @@ export type DataSource = {
   updatePaymentDetails(input: UpdatePaymentDetailsWrite): Promise<Payment>;
   deletePayment(input: DeletePaymentWrite): Promise<void>;
   createPaymentRiskDecision(input: CreatePaymentRiskDecisionWrite): Promise<Decision>;
+  createSource(input: CreateSourceWrite): Promise<Source>;
+  createBudgetLine(input: CreateBudgetLineWrite): Promise<BudgetLine>;
+  updateBudgetLine(input: UpdateBudgetLineWrite): Promise<BudgetLine>;
+  deleteBudgetLine(input: DeleteBudgetLineWrite): Promise<void>;
+  createFxRate(input: CreateFxRateWrite): Promise<FxRate>;
+  updateFxRate(input: UpdateFxRateWrite): Promise<FxRate>;
 };

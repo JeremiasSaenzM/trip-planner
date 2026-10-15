@@ -50,5 +50,14 @@ export const updateBudgetLineInput = budgetLineFields
   })
   .superRefine(refineBudgetLine);
 
+// delete_budget_line (20261015110000_budget_lines_fx_rates_writes.sql)
+// refuses while any payment still references the line -- see its own
+// comment for why -- so this schema only has to rule out a blank reason.
+export const deleteBudgetLineInput = z.object({
+  id,
+  reason: changeReason,
+});
+
 export type CreateBudgetLineInput = z.infer<typeof createBudgetLineInput>;
 export type UpdateBudgetLineInput = z.infer<typeof updateBudgetLineInput>;
+export type DeleteBudgetLineInput = z.infer<typeof deleteBudgetLineInput>;

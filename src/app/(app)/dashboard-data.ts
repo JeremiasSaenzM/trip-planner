@@ -1,11 +1,12 @@
 import "server-only";
 
 import { dataSource } from "@/lib/data";
-import type { BudgetLine, Competition, OpenItem, Payment, SavingsEntry, Scenario, Trip } from "@/lib/data/types";
+import type { BudgetLine, Competition, FxRate, OpenItem, Payment, SavingsEntry, Scenario, Source, Trip } from "@/lib/data/types";
 import { buildObligations, type BuiltObligation, type MissingObligationRate } from "@/lib/domain/build-obligations";
 import { buildParallelSavingsPlan, type BuildParallelSavingsPlanResult } from "@/lib/domain/build-parallel-savings-plan";
 import { buildPhasedSavingsPlan, type BuildPhasedSavingsPlanResult } from "@/lib/domain/build-phased-savings-plan";
 import { calculateRequiredSavings, type CalculateRequiredSavingsResult } from "@/lib/domain/calculate-required-savings";
+import { findMissingFxRates, type MissingFxRate } from "@/lib/domain/find-missing-fx-rates";
 import { rollUpBudgetByScenario, type RollUpBudgetByScenarioResult } from "@/lib/domain/roll-up-budget-by-scenario";
 import type { Basis } from "@/lib/domain/types";
 
@@ -52,6 +53,15 @@ export type DashboardData =
        * same as rollup.missingRates is for budget lines. Always []
        * when noDepartureDate, since buildObligations never ran. */
       missingPaymentRates: MissingObligationRate[];
+      /** Global -- sources have no trip_id of their own (see
+       * supabase/migrations/20261012130400_sources.sql). */
+      sources: Source[];
+      /** Global, same reasoning as sources. */
+      fxRates: FxRate[];
+      /** Trip-wide (every scenario's budget lines, plus every scenario's
+       * payments) -- the Budget Lines page's FX section renders this
+       * directly, see findMissingFxRates(). */
+      missingFxRates: MissingFxRate[];
     };
 
 // The one place every dashboard page (Overview, Payments, Deadlines)
@@ -63,7 +73,7 @@ export async function loadDashboardData(params: {
   scenarioId?: string;
   basis?: string;
 }): Promise<DashboardData> {
-  const [trips, scenarios, competitions, budgetLines, payments, savingsEntries, rates, openItems] =
+  const [trips, scenarios, competitions, budgetLines, payments, savingsEntries, rates, openItems, sources] =
     await Promise.all([
       dataSource.getTrips(),
       dataSource.getScenarios(),
@@ -73,6 +83,7 @@ export async function loadDashboardData(params: {
       dataSource.getSavingsEntries(),
       dataSource.getFxRates(),
       dataSource.getOpenItems(),
+      dataSource.getSources(),
     ]);
 
   const trip = trips[0];
@@ -101,6 +112,12 @@ export async function loadDashboardData(params: {
   const scenarioPayments = tripPayments.filter((payment) =>
     scenarioBudgetLines.some((line) => line.id === payment.budgetLineId),
   );
+
+  const missingFxRates = findMissingFxRates({
+    currencies: [...tripBudgetLines.map((line) => line.currency), ...tripPayments.map((payment) => payment.currency)],
+    rates,
+    asOfDate,
+  });
 
   const rollup = rollUpBudgetByScenario({
     tripId: trip.id,
@@ -151,6 +168,9 @@ export async function loadDashboardData(params: {
       openItems: tripOpenItems,
       savingsEntries: tripSavingsEntries,
       missingPaymentRates: [],
+      sources,
+      fxRates: rates,
+      missingFxRates,
     };
   }
 
@@ -198,5 +218,8 @@ export async function loadDashboardData(params: {
     openItems: tripOpenItems,
     savingsEntries: tripSavingsEntries,
     missingPaymentRates: obligationsResult.missingRates,
+    sources,
+    fxRates: rates,
+    missingFxRates,
   };
 }

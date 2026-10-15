@@ -24,6 +24,31 @@ function paymentRow(page: Page, description: string) {
 // back to a usable state.
 const TEST_EMAIL = process.env.E2E_TEST_EMAIL ?? "e2e-test@example.com";
 
+// /budget-lines always renders both AddBudgetLineForm and AddFxRateForm
+// at once -- each has its own "Currency" label, so every lookup below
+// is scoped to one form or the other rather than relying on there being
+// only one match.
+function budgetLineAddForm(page: Page) {
+  return page.locator("form").filter({ has: page.getByRole("button", { name: "Add budget line" }) });
+}
+
+function fxRateAddForm(page: Page) {
+  return page.locator("form").filter({ hasText: "Add an FX rate" });
+}
+
+// Same reasoning as paymentRow() above: scopes to the one Card whose
+// text includes the given budget line's own description.
+function budgetLineRow(page: Page, description: string) {
+  return page.locator("div.rounded-xl").filter({ hasText: description });
+}
+
+// A missing-rate row names its currency and which kind it's missing --
+// scoping by the kind's own label text is enough since this suite only
+// ever has one non-USD currency in play at a time.
+function missingRateRow(page: Page, rateKindLabel: string) {
+  return page.locator("li").filter({ hasText: rateKindLabel });
+}
+
 test("the full first-run journey, starting from a signed-out, empty account", async ({ page }) => {
   await test.step("log in via the magic link", async () => {
     await page.goto("/login");
@@ -178,5 +203,89 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     // exact: true -- a substring match would also hit the "$500.00 due
     // later" line (paidAmount is still 0, so dueLater equals the new total).
     await expect(row.getByText("$500.00", { exact: true })).toBeVisible();
+  });
+
+  const tripCostRangeTarget = page.getByTestId("trip-cost-range-target");
+
+  await test.step("add a non-USD budget line and see the missing-rate caveat", async () => {
+    await page.goto("/");
+    const targetBefore = parseUsd(await tripCostRangeTarget.innerText());
+
+    await page.goto("/budget-lines");
+    const addForm = budgetLineAddForm(page);
+    await addForm.getByLabel("Description").fill("Flight deposit");
+    await addForm.getByLabel("Budget category").selectOption("B");
+    await addForm.getByLabel("Minimum").fill("90");
+    await addForm.getByLabel("Target").fill("100");
+    await addForm.getByLabel("Conservative").fill("120");
+    await addForm.getByLabel("Currency").fill("EUR");
+    await addForm.getByRole("button", { name: "Add budget line" }).click();
+
+    await expect(budgetLineRow(page, "Flight deposit")).toBeVisible();
+    await expect(missingRateRow(page, "Planning (base)")).toBeVisible();
+    await expect(missingRateRow(page, "Planning (conservative)")).toBeVisible();
+
+    // Excluded from the cost range while its rate is missing -- adding
+    // the line alone must not move the figure yet.
+    await page.goto("/");
+    const targetStillExcluded = parseUsd(await tripCostRangeTarget.innerText());
+    expect(targetStillExcluded).toBe(targetBefore);
+  });
+
+  await test.step("add the matching FX rates and watch the caveat clear and the cost range change", async () => {
+    await page.goto("/");
+    const targetWhileMissing = parseUsd(await tripCostRangeTarget.innerText());
+
+    await page.goto("/budget-lines");
+    for (const kindLabel of ["Planning (base)", "Planning (conservative)"]) {
+      await missingRateRow(page, kindLabel).getByRole("button", { name: "Add this rate" }).click();
+
+      const fxForm = fxRateAddForm(page);
+      await fxForm.getByLabel("Rate to USD").fill("1.1");
+      await fxForm.getByLabel("Date").fill("2024-01-01");
+      await fxForm.getByLabel("Source").selectOption("__new__");
+      await fxForm.getByLabel("Source: new source provider").fill("Fictional FX source");
+      await fxForm.getByLabel("Source: new source tier").selectOption("6");
+      await fxForm.getByLabel("Source: new source observation date").fill("2024-01-01");
+      await fxForm.getByRole("button", { name: "Add rate" }).click();
+
+      await expect(missingRateRow(page, kindLabel)).toHaveCount(0);
+    }
+
+    await expect(page.getByText("Missing rates")).not.toBeVisible();
+
+    await page.goto("/");
+    const targetAfter = parseUsd(await tripCostRangeTarget.innerText());
+    expect(targetAfter).toBeGreaterThan(targetWhileMissing);
+  });
+
+  await test.step("edit the budget line with a reason", async () => {
+    await page.goto("/budget-lines");
+    const row = budgetLineRow(page, "Flight deposit");
+
+    await row.getByRole("button", { name: "Edit" }).click();
+    // Stays within min (90) <= target <= conservative (120) --
+    // budget_lines_amount_order is enforced client-side too (see
+    // amountsInOrder in budget-line-write-ui.tsx), so a save that broke
+    // it would never even reach the server to prove anything.
+    await row.getByLabel("New target").fill("110");
+    await row.getByLabel("Reason for this change").fill("Flight price went up");
+    await row.getByRole("button", { name: "Save" }).click();
+
+    await expect(row.getByText("€110.00")).toBeVisible();
+  });
+
+  await test.step("try \"confirmed\" with no source and see it refused", async () => {
+    const row = budgetLineRow(page, "Flight deposit");
+
+    await row.getByRole("button", { name: "Edit" }).click();
+    await row.getByLabel("New information state").selectOption("confirmed");
+    await row.getByLabel("Reason for this change").fill("Trying to confirm with no source");
+    await row.getByRole("button", { name: "Save" }).click();
+
+    await expect(row.getByText("Confirmed needs a source")).toBeVisible();
+    // Refused client-side -- the row is still showing the edit form,
+    // never submitted, so the line itself is unchanged.
+    await expect(row.getByRole("button", { name: "Save" })).toBeVisible();
   });
 });

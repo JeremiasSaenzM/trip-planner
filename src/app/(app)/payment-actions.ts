@@ -20,6 +20,7 @@ import {
   type UpdatePaymentDetailsActionState,
 } from "./form-action-state";
 import { firstIssueMessage, optionalText } from "./server-action-helpers";
+import { resolveSourceId } from "./source-actions";
 
 // Server Actions behind /payments (see payment-write-ui.tsx). Creating a
 // payment is a plain insert, done through the create_payment RPC only
@@ -109,6 +110,17 @@ export async function updatePaymentDetails(
   _previous: UpdatePaymentDetailsActionState,
   formData: FormData,
 ): Promise<UpdatePaymentDetailsActionState> {
+  let sourceId: string | undefined;
+  let datesSourceId: string | undefined;
+  try {
+    [sourceId, datesSourceId] = await Promise.all([
+      resolveSourceId(formData, "source"),
+      resolveSourceId(formData, "datesSource"),
+    ]);
+  } catch (error) {
+    return { status: "error", message: (error as Error).message };
+  }
+
   const parsed = updatePaymentDetailsInput.safeParse({
     paymentId: formData.get("paymentId"),
     description: formData.get("description"),
@@ -117,10 +129,10 @@ export async function updatePaymentDetails(
     dueDate: optionalText(formData.get("dueDate")),
     cancellationDeadline: optionalText(formData.get("cancellationDeadline")),
     datesState: formData.get("datesState"),
-    datesSourceId: optionalText(formData.get("datesSourceId")),
+    datesSourceId,
     timingType: formData.get("timingType"),
     informationState: formData.get("informationState"),
-    sourceId: optionalText(formData.get("sourceId")),
+    sourceId,
     refundability: formData.get("refundability"),
     competitionRelated: formData.get("competitionRelated") === "on",
     reason: formData.get("reason"),

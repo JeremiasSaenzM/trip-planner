@@ -44,6 +44,13 @@ const AMOUNT_EXCEEDED_MESSAGE =
   "This payment's amount or currency is now higher than, or different from, what you accepted the risk for. " +
   "Use \"I accept this risk\" again to cover the new amount.";
 
+// delete_budget_line() raises this with a dynamic id interpolated in
+// (20261015110000_budget_lines_fx_rates_writes.sql), matched by its
+// stable suffix rather than the full text.
+const BUDGET_LINE_HAS_PAYMENTS_SUFFIX = "still has payments attached -- delete or reassign them first.";
+const BUDGET_LINE_HAS_PAYMENTS_MESSAGE =
+  "This budget line still has payments attached -- delete or reassign them first.";
+
 // change_log_capture()'s own reason requirement (change_log.sql) --
 // reached only if a write somehow skips the form's own changeReason
 // validation (shared.ts).
@@ -75,6 +82,9 @@ export function translatePostgresError(error: { message: string }): string {
   }
   if (error.message.startsWith(REASON_REQUIRED_PREFIX)) {
     return REASON_REQUIRED_MESSAGE;
+  }
+  if (error.message.endsWith(BUDGET_LINE_HAS_PAYMENTS_SUFFIX)) {
+    return BUDGET_LINE_HAS_PAYMENTS_MESSAGE;
   }
   if (error.message.includes(NOT_FOUND_SUFFIX)) {
     return NOT_FOUND_MESSAGE;

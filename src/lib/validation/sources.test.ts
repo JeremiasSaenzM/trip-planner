@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { createSourceInput } from "./sources";
 
-const VALID = { provider: "Choir festival website", tier: 2, observedOn: "2027-01-01" };
+const VALID = { provider: "Choir festival website", tier: 2, observedOn: "2026-01-01" };
 
 describe("createSourceInput", () => {
   it("accepts a valid source", () => {
@@ -20,5 +20,23 @@ describe("createSourceInput", () => {
 
   it("rejects a malformed observation date", () => {
     expect(createSourceInput.safeParse({ ...VALID, observedOn: "01/01/2027" }).success).toBe(false);
+  });
+
+  it("rejects an observation date in the future", () => {
+    expect(createSourceInput.safeParse({ ...VALID, observedOn: "2099-01-01" }).success).toBe(false);
+  });
+
+  it("accepts an optional, open-ended applicable period", () => {
+    const result = createSourceInput.safeParse({ ...VALID, applicablePeriodStart: "2027-01-01" });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects an applicable period that ends before it starts", () => {
+    const result = createSourceInput.safeParse({
+      ...VALID,
+      applicablePeriodStart: "2027-02-01",
+      applicablePeriodEnd: "2027-01-01",
+    });
+    expect(result.success).toBe(false);
   });
 });

@@ -143,5 +143,65 @@ describe("demoDataSource writes", () => {
         acceptedCurrency: "USD",
       }),
     ).rejects.toThrow(/disabled in demo mode/);
+    await expect(
+      demoDataSource.createSource({
+        provider: "Test",
+        tier: 1,
+        observedOn: "2026-01-01",
+      }),
+    ).rejects.toThrow(/disabled in demo mode/);
+    await expect(
+      demoDataSource.createBudgetLine({
+        tripId: "20000000-0000-0000-0000-000000000001",
+        category: "A",
+        description: "Test",
+        amountMin: 100,
+        amountTarget: 100,
+        amountConservative: 100,
+        currency: "USD",
+        informationState: "estimate",
+      }),
+    ).rejects.toThrow(/disabled in demo mode/);
+    await expect(
+      demoDataSource.updateBudgetLine({
+        id: "70000000-0000-0000-0000-000000000001",
+        category: "A",
+        description: "Test",
+        amountMin: 100,
+        amountTarget: 100,
+        amountConservative: 100,
+        currency: "USD",
+        informationState: "estimate",
+        reason: "Test",
+      }),
+    ).rejects.toThrow(/disabled in demo mode/);
+    await expect(
+      demoDataSource.deleteBudgetLine({
+        id: "70000000-0000-0000-0000-000000000001",
+        reason: "Test",
+      }),
+    ).rejects.toThrow(/disabled in demo mode/);
+    await expect(
+      demoDataSource.createFxRate({
+        currency: "EUR",
+        rateToUsd: 1.1,
+        rateDate: "2026-01-01",
+        rateKind: "planning_base",
+        informationState: "estimate",
+        sourceId: "30000000-0000-0000-0000-000000000006",
+      }),
+    ).rejects.toThrow(/disabled in demo mode/);
+    await expect(
+      demoDataSource.updateFxRate({
+        id: "a0000000-0000-0000-0000-000000000001",
+        currency: "EUR",
+        rateToUsd: 1.1,
+        rateDate: "2026-01-01",
+        rateKind: "planning_base",
+        informationState: "estimate",
+        sourceId: "30000000-0000-0000-0000-000000000006",
+        reason: "Test",
+      }),
+    ).rejects.toThrow(/disabled in demo mode/);
   });
 });
