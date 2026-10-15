@@ -244,7 +244,10 @@ test("the full first-run journey, starting from a signed-out, empty account", as
 
       const fxForm = fxRateAddForm(page);
       await fxForm.getByLabel("Rate to USD").fill("1.1");
-      await fxForm.getByLabel("Date").fill("2024-01-01");
+      // exact: true -- with no sources yet the new-source fields are
+      // already showing, and "Source: new source observation date" is a
+      // case-insensitive substring match for plain "Date" otherwise.
+      await fxForm.getByLabel("Date", { exact: true }).fill("2024-01-01");
       if (index === 0) {
         // Regression check: no source exists yet on this account, so the
         // new-source fields must already be showing, with no selectOption
