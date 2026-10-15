@@ -65,4 +65,29 @@ describe("buildExportPayload", () => {
     expect(parsed.data.trips).toEqual(fixtures.trips);
     expect(parsed.schemaVersion).toBe(EXPORT_SCHEMA_VERSION);
   });
+
+  it("still produces a valid payload when every table is empty", () => {
+    const result = buildExportPayload({
+      exportedAt: "2026-10-15T12:00:00.000Z",
+      trips: [],
+      competitions: [],
+      scenarios: [],
+      sources: [],
+      budgetLines: [],
+      payments: [],
+      savingsEntries: [],
+      fxRates: [],
+      decisions: [],
+      openItems: [],
+      flightOptions: [],
+      flightSegments: [],
+      changeLog: [],
+    });
+
+    expect(result.exportedAt).toBe("2026-10-15T12:00:00.000Z");
+    expect(result.schemaVersion).toBe(EXPORT_SCHEMA_VERSION);
+    for (const table of Object.values(result.data)) {
+      expect(table).toEqual([]);
+    }
+  });
 });
