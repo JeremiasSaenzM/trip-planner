@@ -239,13 +239,30 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     const targetWhileMissing = parseUsd(await tripCostRangeTarget.innerText());
 
     await page.goto("/budget-lines");
-    for (const kindLabel of ["Planning (base)", "Planning (conservative)"]) {
+    for (const [index, kindLabel] of ["Planning (base)", "Planning (conservative)"].entries()) {
       await missingRateRow(page, kindLabel).getByRole("button", { name: "Add this rate" }).click();
 
       const fxForm = fxRateAddForm(page);
       await fxForm.getByLabel("Rate to USD").fill("1.1");
       await fxForm.getByLabel("Date").fill("2024-01-01");
-      await fxForm.getByLabel("Source").selectOption("__new__");
+      if (index === 0) {
+        // Regression check: no source exists yet on this account, so the
+        // new-source fields must already be showing, with no selectOption
+        // first. selectOption("__new__") would hide the bug -- Playwright
+        // fires a change event even when the value doesn't change, while
+        // a real browser doesn't, and "Add a new source…" used to be the
+        // option the browser already showed as selected.
+        await expect(fxForm.getByLabel("Source: new source provider")).toBeVisible();
+        await expect(fxForm.getByLabel("Source: new source tier")).toBeVisible();
+        await expect(fxForm.getByLabel("Source: new source URL")).toBeVisible();
+        await expect(fxForm.getByLabel("Source: new source observation date")).toBeVisible();
+      } else {
+        // The first iteration's source now exists, so the picker starts
+        // on its "Choose a source" placeholder and picking "Add a new
+        // source…" is a real change.
+        await expect(fxForm.getByLabel("Source: new source provider")).toHaveCount(0);
+        await fxForm.getByLabel("Source", { exact: true }).selectOption("__new__");
+      }
       await fxForm.getByLabel("Source: new source provider").fill("Fictional FX source");
       await fxForm.getByLabel("Source: new source tier").selectOption("6");
       await fxForm.getByLabel("Source: new source observation date").fill("2024-01-01");
