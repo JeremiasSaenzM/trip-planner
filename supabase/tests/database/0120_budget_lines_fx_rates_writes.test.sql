@@ -52,12 +52,12 @@ insert into payments (
 
 insert into fx_rates (id, owner_id, currency, rate_to_usd, rate_date, rate_kind, source_id) values (
   'e0000000-0000-0000-0000-000000000007', '10000000-0000-0000-0000-000000000001',
-  'EUR', 1.1, '2026-10-01', 'planning_base', 'e0000000-0000-0000-0000-000000000003'
+  'JPY', 1.1, '2026-10-01', 'planning_base', 'e0000000-0000-0000-0000-000000000003'
 );
 -- A second rate the update-to-collide test will try to overwrite onto.
 insert into fx_rates (id, owner_id, currency, rate_to_usd, rate_date, rate_kind, source_id) values (
   'e0000000-0000-0000-0000-000000000008', '10000000-0000-0000-0000-000000000001',
-  'EUR', 1.3, '2026-10-01', 'planning_conservative', 'e0000000-0000-0000-0000-000000000003'
+  'JPY', 1.3, '2026-10-01', 'planning_conservative', 'e0000000-0000-0000-0000-000000000003'
 );
 
 -- update_budget_line
@@ -153,7 +153,7 @@ select set_config('request.jwt.claim.sub', '10000000-0000-0000-0000-000000000001
 
 select throws_like(
   $$ select update_fx_rate(
-       'e0000000-0000-0000-0000-000000000007', 'EUR', 1.12, '2026-10-02', 'planning_base', 'estimate',
+       'e0000000-0000-0000-0000-000000000007', 'JPY', 1.12, '2026-10-02', 'planning_base', 'estimate',
        'e0000000-0000-0000-0000-000000000003', ''
      ) $$,
   '%reason is required%',
@@ -162,7 +162,7 @@ select throws_like(
 
 select lives_ok(
   $$ select update_fx_rate(
-       'e0000000-0000-0000-0000-000000000007', 'EUR', 1.12, '2026-10-02', 'planning_base', 'estimate',
+       'e0000000-0000-0000-0000-000000000007', 'JPY', 1.12, '2026-10-02', 'planning_base', 'estimate',
        'e0000000-0000-0000-0000-000000000003', 'pgTAP: refreshing the rate'
      ) $$,
   'update_fx_rate succeeds with a real reason'
@@ -176,7 +176,7 @@ select is(
 
 select throws_like(
   $$ select update_fx_rate(
-       'e0000000-0000-0000-0000-000000000007', 'EUR', 1.3, '2026-10-01', 'planning_conservative', 'estimate',
+       'e0000000-0000-0000-0000-000000000007', 'JPY', 1.3, '2026-10-01', 'planning_conservative', 'estimate',
        'e0000000-0000-0000-0000-000000000003', 'pgTAP: colliding on purpose'
      ) $$,
   '%fx_rates_currency_date_kind_unique%',

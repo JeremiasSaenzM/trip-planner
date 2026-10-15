@@ -1,5 +1,7 @@
 "use client";
 
+import { useId } from "react";
+
 import type { Source } from "@/lib/data/types";
 import { todayUtc } from "@/lib/validation/shared";
 
@@ -35,15 +37,23 @@ export function SourcePicker({
   label?: string;
 }) {
   const sorted = [...sources].sort((a, b) => b.observedOn.localeCompare(a.observedOn));
+  // `name` only has to be unique within one <form> (it's a field name);
+  // two SourcePickers with the same `name` can easily render on the
+  // same page at once (e.g. the budget-line and FX-rate add forms both
+  // use name="source"). A DOM id has to be unique page-wide, or the
+  // <label>'s htmlFor pairs with whichever element happens to come
+  // first in the DOM -- useId() gives each instance its own, regardless
+  // of how many share the same `name`.
+  const domId = useId();
 
   return (
     <div className="space-y-2 rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
-      <label htmlFor={`${name}-choice`} className={labelClass}>
+      <label htmlFor={domId} className={labelClass}>
         {label}
         {required ? "" : " (optional)"}
       </label>
       <select
-        id={`${name}-choice`}
+        id={domId}
         name={`${name}Choice`}
         value={value}
         onChange={(event) => onChange(event.target.value)}
