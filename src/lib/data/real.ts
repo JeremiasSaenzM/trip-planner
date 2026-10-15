@@ -53,6 +53,49 @@ function mapCompetitionRow(row: Record<string, unknown>): Competition {
   };
 }
 
+// Postgres sends a daterange column back as its literal text form, e.g.
+// "[2027-01-01,2027-02-01)" -- either bound can be empty (unbounded), and
+// the whole value can be null (no period given at all).
+function parseDateRange(value: string | null): Source["applicablePeriod"] {
+  if (!value) return null;
+  const match = /^[[(]([^,]*),([^,]*)[\])]$/.exec(value);
+  if (!match) return null;
+  return { start: match[1] || null, end: match[2] || null };
+}
+
+// The inverse, for writing: composes whichever of start/end were given
+// into the same literal form Postgres expects on insert. Both empty
+// means "no period at all" (null), not an empty range.
+function composeDateRange(start: string | undefined, end: string | undefined): string | null {
+  if (!start && !end) return null;
+  return `[${start ?? ""},${end ?? ""})`;
+}
+
+function mapSourceRow(row: Record<string, unknown>): Source {
+  return {
+    id: row.id as string,
+    provider: row.provider as string,
+    tier: row.tier as number,
+    url: row.url as string | null,
+    observedOn: row.observed_on as string,
+    applicablePeriod: parseDateRange(row.applicable_period as string | null),
+    notes: row.notes as string | null,
+    createdAt: row.created_at as string,
+  };
+}
+
+function mapFxRateRow(row: Record<string, unknown>): FxRate {
+  return {
+    id: row.id as string,
+    currency: row.currency as string,
+    rateToUsd: row.rate_to_usd as number,
+    rateDate: row.rate_date as string,
+    rateKind: row.rate_kind as FxRate["rateKind"],
+    informationState: row.information_state as FxRate["informationState"],
+    sourceId: row.source_id as string,
+  };
+}
+
 function mapScenarioRow(row: Record<string, unknown>): Scenario {
   return {
     id: row.id as string,
@@ -163,17 +206,7 @@ export const realDataSource: DataSource = {
     const supabase = await createClient();
     const { data, error } = await supabase.from("sources").select("*");
     if (error) throw error;
-    return (data ?? []).map(
-      (row): Source => ({
-        id: row.id,
-        provider: row.provider,
-        tier: row.tier,
-        url: row.url,
-        observedOn: row.observed_on,
-        notes: row.notes,
-        createdAt: row.created_at,
-      }),
-    );
+    return (data ?? []).map(mapSourceRow);
   },
 
   async getCompetitions() {
@@ -222,17 +255,7 @@ export const realDataSource: DataSource = {
     const supabase = await createClient();
     const { data, error } = await supabase.from("fx_rates").select("*");
     if (error) throw error;
-    return (data ?? []).map(
-      (row): FxRate => ({
-        id: row.id,
-        currency: row.currency,
-        rateToUsd: row.rate_to_usd,
-        rateDate: row.rate_date,
-        rateKind: row.rate_kind,
-        informationState: row.information_state,
-        sourceId: row.source_id,
-      }),
-    );
+    return (data ?? []).map(mapFxRateRow);
   },
 
   async getOpenItems() {
@@ -513,5 +536,120 @@ export const realDataSource: DataSource = {
       .single();
     if (error) throw error;
     return mapDecisionRow(data);
+  },
+
+  // A plain insert (sources' own change_log trigger needs no reason for
+  // one, and there's no edit/delete RPC for sources yet -- see
+  // CLAUDE.md's Phase 7 backlog). composeDateRange turns whichever of
+  // start/end were given into the daterange literal the column expects.
+  async createSource(input) {
+    assertWritesAllowed();
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("sources")
+      .insert({
+        provider: input.provider,
+        tier: input.tier,
+        url: input.url ?? null,
+        observed_on: input.observedOn,
+        applicable_period: composeDateRange(input.applicablePeriodStart, input.applicablePeriodEnd),
+        notes: input.notes ?? null,
+      })
+      .select("*")
+      .single();
+    if (error) throw error;
+    return mapSourceRow(data);
+  },
+
+  // Also a plain insert -- unlike create_payment, there's no second
+  // table involved, so no RPC is needed just for atomicity.
+  async createBudgetLine(input) {
+    assertWritesAllowed();
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("budget_lines")
+      .insert({
+        trip_id: input.tripId,
+        scenario_id: input.scenarioId ?? null,
+        category: input.category,
+        description: input.description,
+        amount_min: input.amountMin,
+        amount_target: input.amountTarget,
+        amount_conservative: input.amountConservative,
+        currency: input.currency,
+        information_state: input.informationState,
+        source_id: input.sourceId ?? null,
+        notes: input.notes ?? null,
+      })
+      .select("*")
+      .single();
+    if (error) throw error;
+    return mapBudgetLineRow(data);
+  },
+
+  async updateBudgetLine(input) {
+    assertWritesAllowed();
+    const supabase = await createClient();
+    const { data, error } = await supabase.rpc("update_budget_line", {
+      p_id: input.id,
+      p_category: input.category,
+      p_description: input.description,
+      p_amount_min: input.amountMin,
+      p_amount_target: input.amountTarget,
+      p_amount_conservative: input.amountConservative,
+      p_currency: input.currency,
+      p_information_state: input.informationState,
+      p_source_id: input.sourceId ?? null,
+      p_notes: input.notes ?? null,
+      p_reason: input.reason,
+    });
+    if (error) throw error;
+    return mapBudgetLineRow(data as Record<string, unknown>);
+  },
+
+  async deleteBudgetLine(input) {
+    assertWritesAllowed();
+    const supabase = await createClient();
+    const { error } = await supabase.rpc("delete_budget_line", {
+      p_id: input.id,
+      p_reason: input.reason,
+    });
+    if (error) throw error;
+  },
+
+  async createFxRate(input) {
+    assertWritesAllowed();
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("fx_rates")
+      .insert({
+        currency: input.currency,
+        rate_to_usd: input.rateToUsd,
+        rate_date: input.rateDate,
+        rate_kind: input.rateKind,
+        information_state: input.informationState,
+        source_id: input.sourceId,
+      })
+      .select("*")
+      .single();
+    if (error) throw error;
+    return mapFxRateRow(data);
+  },
+
+  async updateFxRate(input) {
+    assertWritesAllowed();
+    const supabase = await createClient();
+    const { data, error } = await supabase.rpc("update_fx_rate", {
+      p_id: input.id,
+      p_currency: input.currency,
+      p_rate_to_usd: input.rateToUsd,
+      p_rate_date: input.rateDate,
+      p_rate_kind: input.rateKind,
+      p_information_state: input.informationState,
+      p_source_id: input.sourceId,
+      p_reason: input.reason,
+    });
+    if (error) throw error;
+    return mapFxRateRow(data as Record<string, unknown>);
   },
 };
