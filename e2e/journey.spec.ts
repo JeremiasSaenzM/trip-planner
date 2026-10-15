@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+
 import { expect, test, type Page } from "@playwright/test";
 
 import { getLatestMagicLink } from "./mailpit";
@@ -287,5 +289,44 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     // Refused client-side -- the row is still showing the edit form,
     // never submitted, so the line itself is unchanged.
     await expect(row.getByRole("button", { name: "Save" })).toBeVisible();
+  });
+
+  // The journey's only savings entry so far was recorded, edited, and
+  // then deleted earlier (see "delete the entry with a reason") -- a
+  // fresh one here is what the export step below actually checks for,
+  // rather than relying on something this run already deleted.
+  await test.step("record a fresh savings entry for the export check", async () => {
+    await page.goto("/");
+    await page.getByLabel("Amount (USD)").fill("75");
+    await page.getByLabel("Date", { exact: true }).fill("2026-02-01");
+    await page.getByLabel("Note (optional)").fill("For the export check");
+    await page.getByRole("button", { name: "Record" }).click();
+    await expect(page.getByText("For the export check")).toBeVisible();
+  });
+
+  await test.step("export my data and check its contents", async () => {
+    await page.goto("/");
+    await page.getByRole("link", { name: "Export my data" }).click();
+    await expect(page).toHaveURL("/export");
+
+    const downloadPromise = page.waitForEvent("download");
+    await page.getByRole("link", { name: "Download my data" }).click();
+    const download = await downloadPromise;
+
+    expect(download.suggestedFilename()).toMatch(/^trip-planner-export-\d{4}-\d{2}-\d{2}\.json$/);
+
+    const path = await download.path();
+    const exported = JSON.parse(readFileSync(path!, "utf-8"));
+
+    expect(typeof exported.exportedAt).toBe("string");
+    expect(exported.schemaVersion).toBe(1);
+
+    expect(
+      exported.data.savingsEntries.some((entry: { note: string | null }) => entry.note === "For the export check"),
+    ).toBe(true);
+    expect(
+      exported.data.payments.some((payment: { description: string }) => payment.description === "Registration fee"),
+    ).toBe(true);
+    expect(exported.data.changeLog.length).toBeGreaterThan(0);
   });
 });

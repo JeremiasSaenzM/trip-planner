@@ -15,6 +15,8 @@ export type Refundability = "refundable" | "partially_refundable" | "non_refunda
 export type OpenItemCategory = "deadline" | "task" | "question";
 export type OpenItemStatus = "open" | "done" | "dismissed";
 export type FlightDirection = "outbound" | "return";
+export type ChangeAction = "insert" | "update" | "delete";
+export type ChangeLogActor = "app" | "seed" | "claude";
 
 export type Trip = {
   id: string;
@@ -209,6 +211,24 @@ export type FlightSegment = {
   isTechnicalStop: boolean;
 };
 
+// The append-only audit trail every tracked table writes to
+// (supabase/migrations/20261012131400_change_log.sql) -- read-only from
+// the app's side (there is no owner write policy on this table at all,
+// only the SECURITY DEFINER trigger that writes it). Exists in this
+// file purely to be read, by the export feature.
+export type ChangeLogEntry = {
+  id: string;
+  tableName: string;
+  rowId: string;
+  action: ChangeAction;
+  oldData: unknown;
+  newData: unknown;
+  reason: string | null;
+  actor: ChangeLogActor;
+  changedAt: string;
+  changedBy: string | null;
+};
+
 // Write-method inputs. Deliberately plain, hand-written types rather than
 // importing the Zod-inferred types from src/lib/validation -- those
 // modules import PaymentStatus/PaymentTiming/Refundability etc. from
@@ -378,6 +398,7 @@ export type DataSource = {
   getOpenItems(): Promise<OpenItem[]>;
   getFlightOptions(): Promise<FlightOption[]>;
   getFlightSegments(): Promise<FlightSegment[]>;
+  getChangeLog(): Promise<ChangeLogEntry[]>;
   createTrip(input: CreateTripWrite): Promise<Trip>;
   createCompetition(input: CreateCompetitionWrite): Promise<Competition>;
   createScenario(input: CreateScenarioWrite): Promise<Scenario>;

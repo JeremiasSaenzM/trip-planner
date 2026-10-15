@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Suspense } from "react";
 
 import { getCurrentUser } from "@/lib/auth";
@@ -175,6 +176,12 @@ async function Overview({ searchParams }: { searchParams: PageProps<"/">["search
           <ParallelSavingsChart plan={parallelPlan} availableUsd={availableUsd} asOfDate={data.asOfDate} />
         </Card>
       )}
+
+      <p className="text-center text-sm">
+        <Link href="/export" className="text-zinc-500 underline dark:text-zinc-400">
+          Export my data
+        </Link>
+      </p>
     </div>
   );
 }
