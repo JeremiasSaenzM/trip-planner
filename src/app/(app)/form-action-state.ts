@@ -1,3 +1,5 @@
+import type { UpdatePaymentDetailsInput } from "@/lib/validation/payments";
+
 // Shared between the "use server" action files (which can only export
 // async functions -- not this type or constant) and the client form
 // components that call those actions through useActionState.
@@ -21,3 +23,19 @@ export const initialFormActionState: FormActionState = { status: "idle" };
 export type PaymentStatusActionState = FormActionState | { status: "blocked"; message: string };
 
 export const initialPaymentStatusActionState: PaymentStatusActionState = { status: "idle" };
+
+// updatePaymentDetails's own state: raising total_amount (or changing
+// currency) past what a risk-accepted decision covers blocks the same
+// way a status change can (20261015100000_payment_risk_amount_check.sql)
+// -- but the retry here needs every edited field, not just a target
+// status, since accepting the risk at the new amount and re-saving the
+// edit happen together. "pending" is the already-Zod-validated input the
+// blocked attempt tried to write, so the retry form can resubmit it as
+// hidden fields without the client needing its own copy of the form
+// state. See payment-actions.ts's updatePaymentDetails/
+// acceptPaymentRiskForDetails.
+export type UpdatePaymentDetailsActionState =
+  | FormActionState
+  | { status: "blocked"; message: string; pending: UpdatePaymentDetailsInput };
+
+export const initialUpdatePaymentDetailsActionState: UpdatePaymentDetailsActionState = { status: "idle" };

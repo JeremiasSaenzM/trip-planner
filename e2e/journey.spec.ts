@@ -161,4 +161,22 @@ test("the full first-run journey, starting from a signed-out, empty account", as
 
     await expect(row.getByText("Committed")).toBeVisible();
   });
+
+  await test.step("raise the committed payment's amount past what was accepted, then accept the new amount", async () => {
+    const row = paymentRow(page, "Accommodation deposit");
+
+    await row.getByRole("button", { name: "Edit" }).click();
+    await row.getByLabel("New total amount").fill("500");
+    await row.getByLabel("Reason for this change").fill("Deposit turned out to be higher");
+    await row.getByRole("button", { name: "Save" }).click();
+
+    await expect(row.getByRole("button", { name: "I accept this risk" })).toBeVisible();
+
+    await row.getByLabel("Why you're accepting this risk").fill("Still worth it at the new amount");
+    await row.getByRole("button", { name: "I accept this risk" }).click();
+
+    // exact: true -- a substring match would also hit the "$500.00 due
+    // later" line (paidAmount is still 0, so dueLater equals the new total).
+    await expect(row.getByText("$500.00", { exact: true })).toBeVisible();
+  });
 });

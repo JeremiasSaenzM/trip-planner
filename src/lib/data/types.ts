@@ -276,6 +276,11 @@ export type UpdatePaymentDetailsWrite = {
   refundability: Refundability;
   competitionRelated: boolean;
   reason: string;
+  // Only ever set by the "I accept this risk" retry after a details
+  // edit was blocked for raising total_amount past what a decision
+  // covers (src/app/(app)/payment-actions.ts) -- never a plain form
+  // field. Mirrors UpdatePaymentStatusWrite's own field of the same name.
+  riskAcceptedDecisionId?: string;
 };
 
 // Not a Zod-validated shape passed straight through like the others --

@@ -472,6 +472,7 @@ export const realDataSource: DataSource = {
       p_refundability: input.refundability,
       p_competition_related: input.competitionRelated,
       p_reason: input.reason,
+      p_risk_accepted_decision_id: input.riskAcceptedDecisionId ?? null,
     });
     if (error) throw error;
     return mapPaymentRow(data as Record<string, unknown>);
