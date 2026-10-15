@@ -207,23 +207,6 @@ export function BudgetLineList({ budgetLines, sources }: { budgetLines: BudgetLi
 }
 
 function BudgetLineRow({ line, sources }: { line: BudgetLine; sources: Source[] }) {
-  const [mode, setMode] = useState<"view" | "edit" | "delete">("view");
-  const [attempt, setAttempt] = useState(0);
-
-  function startMode(next: "edit" | "delete") {
-    setAttempt((value) => value + 1);
-    setMode(next);
-  }
-
-  if (mode === "edit") {
-    return (
-      <EditBudgetLineForm key={attempt} line={line} sources={sources} onDone={() => setMode("view")} />
-    );
-  }
-  if (mode === "delete") {
-    return <DeleteBudgetLineForm key={attempt} line={line} onDone={() => setMode("view")} />;
-  }
-
   const source = line.sourceId ? sources.find((candidate) => candidate.id === line.sourceId) : null;
 
   return (
@@ -246,14 +229,39 @@ function BudgetLineRow({ line, sources }: { line: BudgetLine; sources: Source[] 
           </p>
         </div>
       </div>
-      <div className="mt-2 flex flex-wrap gap-3 text-sm">
-        <button type="button" onClick={() => startMode("edit")} className="text-zinc-600 underline dark:text-zinc-400">
-          Edit
-        </button>
-        <button type="button" onClick={() => startMode("delete")} className="text-red-600 underline dark:text-red-400">
-          Delete
-        </button>
-      </div>
+      <BudgetLineRowActions line={line} sources={sources} />
+    </div>
+  );
+}
+
+// A stable outer Card (BudgetLineRow above) with only this footer
+// region swapping between view/edit/delete -- same split as
+// PaymentRowActions in payment-write-ui.tsx, so a row can be found by
+// its description and stay findable while editing or deleting it.
+function BudgetLineRowActions({ line, sources }: { line: BudgetLine; sources: Source[] }) {
+  const [mode, setMode] = useState<"view" | "edit" | "delete">("view");
+  const [attempt, setAttempt] = useState(0);
+
+  function startMode(next: "edit" | "delete") {
+    setAttempt((value) => value + 1);
+    setMode(next);
+  }
+
+  if (mode === "edit") {
+    return <EditBudgetLineForm key={attempt} line={line} sources={sources} onDone={() => setMode("view")} />;
+  }
+  if (mode === "delete") {
+    return <DeleteBudgetLineForm key={attempt} line={line} onDone={() => setMode("view")} />;
+  }
+
+  return (
+    <div className="mt-2 flex flex-wrap gap-3 text-sm">
+      <button type="button" onClick={() => startMode("edit")} className="text-zinc-600 underline dark:text-zinc-400">
+        Edit
+      </button>
+      <button type="button" onClick={() => startMode("delete")} className="text-red-600 underline dark:text-red-400">
+        Delete
+      </button>
     </div>
   );
 }
@@ -299,11 +307,7 @@ function EditBudgetLineForm({
   }
 
   return (
-    <form
-      action={formAction}
-      onSubmit={handleSubmit}
-      className="space-y-2.5 rounded-xl border border-zinc-200 p-4 dark:border-zinc-800"
-    >
+    <form action={formAction} onSubmit={handleSubmit} className="mt-2 space-y-2.5">
       <input type="hidden" name="id" value={line.id} />
       <input name="description" required defaultValue={line.description} aria-label="New description" className={inputClass} />
       <select name="category" required defaultValue={line.category} aria-label="New category" className={inputClass}>
@@ -402,10 +406,7 @@ function DeleteBudgetLineForm({ line, onDone }: { line: BudgetLine; onDone: () =
   const [state, formAction, pending] = useActionState(deleteBudgetLine, initialFormActionState);
 
   return (
-    <form
-      action={formAction}
-      className="space-y-2.5 rounded-xl border border-zinc-200 p-4 dark:border-zinc-800"
-    >
+    <form action={formAction} className="mt-2 space-y-2.5">
       <input type="hidden" name="id" value={line.id} />
       <p className="text-sm">
         Delete {line.category} — {line.description}?
