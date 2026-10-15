@@ -45,6 +45,15 @@ export function SourcePicker({
   // first in the DOM -- useId() gives each instance its own, regardless
   // of how many share the same `name`.
   const domId = useId();
+  // A required picker with no sources to pick from has exactly one
+  // path: create one. Without this, the select's only option is "Add a
+  // new source…", the browser shows it as selected while `value` is
+  // still "", and choosing it again is no change at all -- no onChange,
+  // so the new-source fields below never appear. Derived here rather
+  // than in each parent's initial state, so it also holds for every
+  // caller at once.
+  const mustCreate = required && sorted.length === 0;
+  const selected = mustCreate ? "__new__" : value;
 
   return (
     <div className="space-y-2 rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
@@ -55,11 +64,23 @@ export function SourcePicker({
       <select
         id={domId}
         name={`${name}Choice`}
-        value={value}
+        value={selected}
         onChange={(event) => onChange(event.target.value)}
+        required={required}
         className={inputClass}
       >
-        {!required && <option value="">No source</option>}
+        {/* Every state `value` can start in ("") has a matching option,
+            so what the select shows is always what React thinks is
+            picked -- and picking any real option is a real change. A
+            required picker's placeholder is disabled, so the browser's
+            own required-field check refuses to submit it. */}
+        {required ? (
+          <option value="" disabled>
+            Choose a source
+          </option>
+        ) : (
+          <option value="">No source</option>
+        )}
         {sorted.map((source) => (
           <option key={source.id} value={source.id}>
             {source.provider} — tier {source.tier} ({formatDate(source.observedOn)})
@@ -68,7 +89,7 @@ export function SourcePicker({
         <option value="__new__">Add a new source…</option>
       </select>
 
-      {value === "__new__" && (
+      {selected === "__new__" && (
         <div className="space-y-2.5 border-t border-zinc-200 pt-2.5 dark:border-zinc-800">
           <input
             name={`${name}NewProvider`}
