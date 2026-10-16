@@ -245,7 +245,7 @@ test("the full first-run journey, starting from a signed-out, empty account", as
       const fxForm = fxRateAddForm(page);
       await fxForm.getByLabel("Rate to USD").fill("1.1");
       // exact: true -- with no sources yet the new-source fields are
-      // already showing, and "Source: new source observation date" is a
+      // already showing, and "Source Observation date" is a
       // case-insensitive substring match for plain "Date" otherwise.
       await fxForm.getByLabel("Date", { exact: true }).fill("2024-01-01");
       if (index === 0) {
@@ -255,20 +255,28 @@ test("the full first-run journey, starting from a signed-out, empty account", as
         // fires a change event even when the value doesn't change, while
         // a real browser doesn't, and "Add a new source…" used to be the
         // option the browser already showed as selected.
-        await expect(fxForm.getByLabel("Source: new source provider")).toBeVisible();
-        await expect(fxForm.getByLabel("Source: new source tier")).toBeVisible();
-        await expect(fxForm.getByLabel("Source: new source URL")).toBeVisible();
-        await expect(fxForm.getByLabel("Source: new source observation date")).toBeVisible();
+        await expect(fxForm.getByLabel("Source Provider")).toBeVisible();
+        await expect(fxForm.getByLabel("Source Tier")).toBeVisible();
+        await expect(fxForm.getByLabel("Source URL (optional)")).toBeVisible();
+        await expect(fxForm.getByLabel("Source Observation date")).toBeVisible();
+        await expect(fxForm.getByLabel("Source Applicable period (optional) From")).toBeVisible();
+        await expect(fxForm.getByLabel("Source Applicable period (optional) To")).toBeVisible();
+        // Visible labels, not just accessible names -- the three date
+        // inputs used to render side by side with nothing on screen to
+        // tell the observation date from the applicable period.
+        for (const text of ["Provider", "Tier", "URL (optional)", "Observation date", "Applicable period (optional)"]) {
+          await expect(fxForm.getByText(text, { exact: true })).toBeVisible();
+        }
       } else {
         // The first iteration's source now exists, so the picker starts
         // on its "Choose a source" placeholder and picking "Add a new
         // source…" is a real change.
-        await expect(fxForm.getByLabel("Source: new source provider")).toHaveCount(0);
+        await expect(fxForm.getByLabel("Source Provider")).toHaveCount(0);
         await fxForm.getByLabel("Source", { exact: true }).selectOption("__new__");
       }
-      await fxForm.getByLabel("Source: new source provider").fill("Fictional FX source");
-      await fxForm.getByLabel("Source: new source tier").selectOption("6");
-      await fxForm.getByLabel("Source: new source observation date").fill("2024-01-01");
+      await fxForm.getByLabel("Source Provider").fill("Fictional FX source");
+      await fxForm.getByLabel("Source Tier").selectOption("6");
+      await fxForm.getByLabel("Source Observation date").fill("2024-01-01");
       await fxForm.getByRole("button", { name: "Add rate" }).click();
 
       await expect(missingRateRow(page, kindLabel)).toHaveCount(0);
