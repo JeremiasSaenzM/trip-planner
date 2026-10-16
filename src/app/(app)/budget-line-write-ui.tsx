@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useId, useState } from "react";
 
 import type { BudgetLine, Source } from "@/lib/data/types";
 import type { InfoState } from "@/lib/domain/types";
@@ -276,6 +276,7 @@ function EditBudgetLineForm({
   onDone: () => void;
 }) {
   const [state, formAction, pending] = useActionState(updateBudgetLine, initialFormActionState);
+  const formId = useId();
 
   const [amountMin, setAmountMin] = useState(String(line.amountMin));
   const [amountTarget, setAmountTarget] = useState(String(line.amountTarget));
@@ -309,66 +310,107 @@ function EditBudgetLineForm({
   return (
     <form action={formAction} onSubmit={handleSubmit} className="mt-2 space-y-2.5">
       <input type="hidden" name="id" value={line.id} />
-      <input name="description" required defaultValue={line.description} aria-label="New description" className={inputClass} />
-      <select name="category" required defaultValue={line.category} aria-label="New category" className={inputClass}>
-        {CATEGORY_ORDER.map((category) => (
-          <option key={category} value={category}>
-            {category} — {CATEGORY_LABELS[category]}
-          </option>
-        ))}
-      </select>
-
-      <div className="grid grid-cols-3 gap-2.5">
+      <div className="space-y-1.5">
+        <label htmlFor={`${formId}-description`} className={labelClass}>
+          New description
+        </label>
         <input
-          name="amountMin"
-          type="number"
-          step="0.01"
-          min="0"
+          id={`${formId}-description`}
+          name="description"
           required
-          value={amountMin}
-          onChange={(event) => setAmountMin(event.target.value)}
-          aria-label="New minimum"
-          className={inputClass}
-        />
-        <input
-          name="amountTarget"
-          type="number"
-          step="0.01"
-          min="0"
-          required
-          value={amountTarget}
-          onChange={(event) => setAmountTarget(event.target.value)}
-          aria-label="New target"
-          className={inputClass}
-        />
-        <input
-          name="amountConservative"
-          type="number"
-          step="0.01"
-          min="0"
-          required
-          value={amountConservative}
-          onChange={(event) => setAmountConservative(event.target.value)}
-          aria-label="New conservative"
+          defaultValue={line.description}
           className={inputClass}
         />
       </div>
+      <div className="space-y-1.5">
+        <label htmlFor={`${formId}-category`} className={labelClass}>
+          New category
+        </label>
+        <select id={`${formId}-category`} name="category" required defaultValue={line.category} className={inputClass}>
+          {CATEGORY_ORDER.map((category) => (
+            <option key={category} value={category}>
+              {category} — {CATEGORY_LABELS[category]}
+            </option>
+          ))}
+        </select>
+      </div>
 
-      <input name="currency" required defaultValue={line.currency} aria-label="New currency" className={inputClass} />
+      <div className="grid grid-cols-3 gap-2.5">
+        <div className="space-y-1.5">
+          <label htmlFor={`${formId}-amountMin`} className={labelClass}>
+            New minimum
+          </label>
+          <input
+            id={`${formId}-amountMin`}
+            name="amountMin"
+            type="number"
+            step="0.01"
+            min="0"
+            required
+            value={amountMin}
+            onChange={(event) => setAmountMin(event.target.value)}
+            className={inputClass}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <label htmlFor={`${formId}-amountTarget`} className={labelClass}>
+            New target
+          </label>
+          <input
+            id={`${formId}-amountTarget`}
+            name="amountTarget"
+            type="number"
+            step="0.01"
+            min="0"
+            required
+            value={amountTarget}
+            onChange={(event) => setAmountTarget(event.target.value)}
+            className={inputClass}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <label htmlFor={`${formId}-amountConservative`} className={labelClass}>
+            New conservative
+          </label>
+          <input
+            id={`${formId}-amountConservative`}
+            name="amountConservative"
+            type="number"
+            step="0.01"
+            min="0"
+            required
+            value={amountConservative}
+            onChange={(event) => setAmountConservative(event.target.value)}
+            className={inputClass}
+          />
+        </div>
+      </div>
 
-      <select
-        name="informationState"
-        value={informationState}
-        onChange={(event) => setInformationState(event.target.value as InfoState)}
-        aria-label="New information state"
-        className={inputClass}
-      >
-        {INFO_STATE_ORDER.map((value) => (
-          <option key={value} value={value}>
-            {INFO_STATE_LABELS[value]}
-          </option>
-        ))}
-      </select>
+      <div className="space-y-1.5">
+        <label htmlFor={`${formId}-currency`} className={labelClass}>
+          New currency
+        </label>
+        <input id={`${formId}-currency`} name="currency" required defaultValue={line.currency} className={inputClass} />
+      </div>
+
+      <div className="space-y-1.5">
+        <label htmlFor={`${formId}-informationState`} className={labelClass}>
+          New information state
+        </label>
+        <select
+          id={`${formId}-informationState`}
+          name="informationState"
+          value={informationState}
+          onChange={(event) => setInformationState(event.target.value as InfoState)}
+          className={inputClass}
+        >
+          {INFO_STATE_ORDER.map((value) => (
+            <option key={value} value={value}>
+              {INFO_STATE_LABELS[value]}
+            </option>
+          ))}
+        </select>
+      </div>
 
       <SourcePicker
         name="source"
@@ -378,15 +420,24 @@ function EditBudgetLineForm({
         onChange={setSourceChoice}
       />
 
-      <input name="notes" defaultValue={line.notes ?? ""} aria-label="New notes" className={inputClass} />
+      <div className="space-y-1.5">
+        <label htmlFor={`${formId}-notes`} className={labelClass}>
+          New notes
+        </label>
+        <input id={`${formId}-notes`} name="notes" defaultValue={line.notes ?? ""} className={inputClass} />
+      </div>
 
-      <input
-        name="reason"
-        required
-        aria-label="Reason for this change"
-        placeholder="Reason for this change"
-        className={inputClass}
-      />
+      <div className="space-y-1.5">
+        <label htmlFor={`${formId}-reason`} className={labelClass}>
+          Reason for this change
+        </label>
+        <input
+          id={`${formId}-reason`}
+          name="reason"
+          required
+          className={inputClass}
+        />
+      </div>
 
       {clientError && <FormError message={clientError} />}
       {state.status === "error" && <FormError message={state.message} />}
@@ -404,6 +455,7 @@ function EditBudgetLineForm({
 
 function DeleteBudgetLineForm({ line, onDone }: { line: BudgetLine; onDone: () => void }) {
   const [state, formAction, pending] = useActionState(deleteBudgetLine, initialFormActionState);
+  const formId = useId();
 
   return (
     <form action={formAction} className="mt-2 space-y-2.5">
@@ -411,13 +463,17 @@ function DeleteBudgetLineForm({ line, onDone }: { line: BudgetLine; onDone: () =
       <p className="text-sm">
         Delete {line.category} — {line.description}?
       </p>
-      <input
-        name="reason"
-        required
-        aria-label="Reason for deleting this"
-        placeholder="Reason for deleting this"
-        className={inputClass}
-      />
+      <div className="space-y-1.5">
+        <label htmlFor={`${formId}-reason`} className={labelClass}>
+          Reason for deleting this
+        </label>
+        <input
+          id={`${formId}-reason`}
+          name="reason"
+          required
+          className={inputClass}
+        />
+      </div>
       {state.status === "error" && <FormError message={state.message} />}
       <div className="flex gap-2">
         <button type="submit" disabled={pending} className={buttonClass}>
