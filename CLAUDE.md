@@ -98,7 +98,14 @@ Each phase ends with something working, committed, and pushed.
 6. **Claude bridge** — Supabase MCP (project-scoped) so research sessions can update data; migrate real numbers from the Project files; the Project's budget file then points to the database.
 6.5. **Flights** — Record flight options and their segments, with a source for every fare. Run the existing domain checks against each option and show the result: no US/Canada stop (territories count as US), at the destination before the first official festival day begins, departure only after the final festival day ends, baggage allows one checked bag of about 23 kg. Show Effective Flight Cost and Total Itinerary Cost. Never rank or score by flight duration, number of connections, or which cities/airports a route passes through — those stay descriptive only.
    - Open question to solve first: there is no automated source of real fares available to this project. Fares are entered by hand from research until that changes.
+   - Booked itinerary: once a ticket exists, record what was actually booked, not only the candidates — flight numbers, dates, times, airports, booking reference.
+6.6. **Accommodation** — Same shape as 6.5: candidates first, then what was booked.
+   - Candidate stays: name, city, price in its own currency, source, cancellation terms, payment timing, nights covered. One candidate can be marked as the one feeding its budget line.
+   - Booked stay: name, address, check-in and check-out dates, confirmation number, contact details.
+   - The festival-period arrangement is flagged as choir-organised, with my individual cost possibly pending. The app records it; it does not plan the choir's arrangements (see Scope boundaries).
+   - Never rank on descriptive attributes. The hard constraints and cost rules (planning-system files 04 and 07, restated under Domain rules above) apply as they do elsewhere.
 7. **Reports and polish** — Printable budget summary, payment calendar, README with screenshots and the story of the project.
+   - Printable trip sheet, readable on a phone: where I sleep each night, how I get between places, flight and booking references, emergency contacts.
    - Saving-method selector: choose flat / one phase at a time / one pot per payment; show only that chart, and make the headline number follow the choice (e.g. "Amount to save during current phase = X").
 
 ## Current phase
