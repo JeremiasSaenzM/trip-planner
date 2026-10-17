@@ -55,10 +55,19 @@ export function SourcePicker({
   const mustCreate = required && sorted.length === 0;
   const selected = mustCreate ? "__new__" : value;
 
+  // Each new-source field's accessible name is the picker's own label
+  // plus the field's visible one ("Source Provider", "Source (when it's
+  // due) Provider"), via aria-labelledby -- EditPaymentForm renders two
+  // SourcePickers in one form, so a bare "Provider" twice over wouldn't
+  // say which source it belongs to.
+  const nameId = `${domId}-name`;
+  const fieldId = (field: string) => `${domId}-${field}`;
+  const labelledBy = (...fields: string[]) => [nameId, ...fields.map((field) => `${fieldId(field)}-label`)].join(" ");
+
   return (
     <div className="space-y-2 rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
       <label htmlFor={domId} className={labelClass}>
-        {label}
+        <span id={nameId}>{label}</span>
         {required ? "" : " (optional)"}
       </label>
       <select
@@ -91,67 +100,120 @@ export function SourcePicker({
 
       {selected === "__new__" && (
         <div className="space-y-2.5 border-t border-zinc-200 pt-2.5 dark:border-zinc-800">
-          <input
-            name={`${name}NewProvider`}
-            required
-            placeholder="Provider"
-            aria-label={`${label}: new source provider`}
-            className={inputClass}
-          />
-          <select
-            name={`${name}NewTier`}
-            required
-            defaultValue=""
-            aria-label={`${label}: new source tier`}
-            className={inputClass}
-          >
-            <option value="" disabled>
-              Tier
-            </option>
-            {SOURCE_TIER_ORDER.map((tier) => (
-              <option key={tier} value={tier}>
-                {tier} — {SOURCE_TIER_LABELS[tier]}
-              </option>
-            ))}
-          </select>
-          <input
-            name={`${name}NewUrl`}
-            type="url"
-            placeholder="URL (optional)"
-            aria-label={`${label}: new source URL`}
-            className={inputClass}
-          />
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="space-y-1.5">
+            <label id={`${fieldId("provider")}-label`} htmlFor={fieldId("provider")} className={labelClass}>
+              Provider
+            </label>
             <input
-              name={`${name}NewObservedOn`}
-              type="date"
+              id={fieldId("provider")}
+              name={`${name}NewProvider`}
               required
-              max={todayUtc()}
-              aria-label={`${label}: new source observation date`}
+              aria-labelledby={labelledBy("provider")}
               className={inputClass}
             />
+          </div>
+          <div className="space-y-1.5">
+            <label id={`${fieldId("tier")}-label`} htmlFor={fieldId("tier")} className={labelClass}>
+              Tier
+            </label>
+            <select
+              id={fieldId("tier")}
+              name={`${name}NewTier`}
+              required
+              defaultValue=""
+              aria-labelledby={labelledBy("tier")}
+              className={inputClass}
+            >
+              <option value="" disabled>
+                Choose a tier
+              </option>
+              {SOURCE_TIER_ORDER.map((tier) => (
+                <option key={tier} value={tier}>
+                  {tier} — {SOURCE_TIER_LABELS[tier]}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-1.5">
+            <label id={`${fieldId("url")}-label`} htmlFor={fieldId("url")} className={labelClass}>
+              URL (optional)
+            </label>
             <input
-              name={`${name}NewNotes`}
-              placeholder="Notes (optional)"
-              aria-label={`${label}: new source notes`}
+              id={fieldId("url")}
+              name={`${name}NewUrl`}
+              type="url"
+              aria-labelledby={labelledBy("url")}
               className={inputClass}
             />
           </div>
           <div className="grid grid-cols-2 gap-2.5">
-            <input
-              name={`${name}NewApplicablePeriodStart`}
-              type="date"
-              placeholder="Applies from"
-              aria-label={`${label}: new source applies from`}
-              className={inputClass}
-            />
-            <input
-              name={`${name}NewApplicablePeriodEnd`}
-              type="date"
-              placeholder="Applies until"
-              aria-label={`${label}: new source applies until`}
-              className={inputClass}
-            />
+            <div className="space-y-1.5">
+              <label id={`${fieldId("observedOn")}-label`} htmlFor={fieldId("observedOn")} className={labelClass}>
+                Observation date
+              </label>
+              <input
+                id={fieldId("observedOn")}
+                name={`${name}NewObservedOn`}
+                type="date"
+                required
+                max={todayUtc()}
+                aria-labelledby={labelledBy("observedOn")}
+                className={inputClass}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label id={`${fieldId("notes")}-label`} htmlFor={fieldId("notes")} className={labelClass}>
+                Notes (optional)
+              </label>
+              <input
+                id={fieldId("notes")}
+                name={`${name}NewNotes`}
+                aria-labelledby={labelledBy("notes")}
+                className={inputClass}
+              />
+            </div>
+          </div>
+          {/* One visible heading over the two period dates, so they read
+              as a pair and never get mistaken for the observation date
+              next to them. */}
+          <div className="space-y-1.5">
+            <p id={`${fieldId("period")}-label`} className={labelClass}>
+              Applicable period (optional)
+            </p>
+            <div className="grid grid-cols-2 gap-2.5">
+              <div className="space-y-1">
+                <label
+                  id={`${fieldId("periodStart")}-label`}
+                  htmlFor={fieldId("periodStart")}
+                  className="block text-xs text-zinc-600 dark:text-zinc-400"
+                >
+                  From
+                </label>
+                <input
+                  id={fieldId("periodStart")}
+                  name={`${name}NewApplicablePeriodStart`}
+                  type="date"
+                  aria-labelledby={labelledBy("period", "periodStart")}
+                  className={inputClass}
+                />
+              </div>
+              <div className="space-y-1">
+                <label
+                  id={`${fieldId("periodEnd")}-label`}
+                  htmlFor={fieldId("periodEnd")}
+                  className="block text-xs text-zinc-600 dark:text-zinc-400"
+                >
+                  To
+                </label>
+                <input
+                  id={fieldId("periodEnd")}
+                  name={`${name}NewApplicablePeriodEnd`}
+                  type="date"
+                  aria-labelledby={labelledBy("period", "periodEnd")}
+                  className={inputClass}
+                />
+              </div>
+            </div>
           </div>
         </div>
       )}

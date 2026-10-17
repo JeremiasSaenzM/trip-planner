@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useId, useState } from "react";
 
 import type { SavingsEntry } from "@/lib/data/types";
 
@@ -77,6 +77,7 @@ type RowMode = "view" | "edit" | "delete";
 function SavingsEntryRow({ entry }: { entry: SavingsEntry }) {
   const [mode, setMode] = useState<RowMode>("view");
   const [deleteState, deleteAction, deletePending] = useActionState(deleteSavingsEntry, initialFormActionState);
+  const formId = useId();
 
   // entry.id stays the same across an edit, so this row never remounts
   // on its own -- editAttempt is bumped on every "Edit" click purely so
@@ -101,13 +102,17 @@ function SavingsEntryRow({ entry }: { entry: SavingsEntry }) {
           <p className="text-sm">
             Delete {formatUsd(entry.amount)} recorded {formatDate(entry.recordedOn)}?
           </p>
-          <input
-            name="reason"
-            required
-            placeholder="Reason for deleting this"
-            aria-label="Reason for deleting this"
-            className={inputClass}
-          />
+          <div className="space-y-1.5">
+            <label htmlFor={`${formId}-reason`} className={labelClass}>
+              Reason for deleting this
+            </label>
+            <input
+              id={`${formId}-reason`}
+              name="reason"
+              required
+              className={inputClass}
+            />
+          </div>
           {deleteState.status === "error" && <FormError message={deleteState.message} />}
           <div className="flex gap-2">
             <button type="submit" disabled={deletePending} className={buttonClass}>
@@ -167,6 +172,7 @@ function EditEntryForm({
   onSaved: () => void;
 }) {
   const [editState, editAction, editPending] = useActionState(updateSavingsEntry, initialFormActionState);
+  const formId = useId();
 
   useEffect(() => {
     if (editState.status === "success") {
@@ -179,33 +185,52 @@ function EditEntryForm({
       <form action={editAction} className="space-y-2.5">
         <input type="hidden" name="id" value={entry.id} />
         <div className="grid grid-cols-2 gap-2.5">
+          <div className="space-y-1.5">
+            <label htmlFor={`${formId}-amount`} className={labelClass}>
+              New amount (USD)
+            </label>
+            <input
+              id={`${formId}-amount`}
+              name="amount"
+              type="number"
+              step="0.01"
+              min="0.01"
+              required
+              defaultValue={entry.amount}
+              className={inputClass}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label htmlFor={`${formId}-recordedOn`} className={labelClass}>
+              New date
+            </label>
+            <input
+              id={`${formId}-recordedOn`}
+              name="recordedOn"
+              type="date"
+              required
+              defaultValue={entry.recordedOn}
+              className={inputClass}
+            />
+          </div>
+        </div>
+        <div className="space-y-1.5">
+          <label htmlFor={`${formId}-note`} className={labelClass}>
+            New note
+          </label>
+          <input id={`${formId}-note`} name="note" defaultValue={entry.note ?? ""} className={inputClass} />
+        </div>
+        <div className="space-y-1.5">
+          <label htmlFor={`${formId}-reason`} className={labelClass}>
+            Reason for this change
+          </label>
           <input
-            name="amount"
-            type="number"
-            step="0.01"
-            min="0.01"
+            id={`${formId}-reason`}
+            name="reason"
             required
-            defaultValue={entry.amount}
-            aria-label="New amount (USD)"
-            className={inputClass}
-          />
-          <input
-            name="recordedOn"
-            type="date"
-            required
-            defaultValue={entry.recordedOn}
-            aria-label="New date"
             className={inputClass}
           />
         </div>
-        <input name="note" defaultValue={entry.note ?? ""} aria-label="New note" className={inputClass} />
-        <input
-          name="reason"
-          required
-          placeholder="Reason for this change"
-          aria-label="Reason for this change"
-          className={inputClass}
-        />
         {editState.status === "error" && <FormError message={editState.message} />}
         <div className="flex gap-2">
           <button type="submit" disabled={editPending} className={buttonClass}>

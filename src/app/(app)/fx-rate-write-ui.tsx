@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useId, useState } from "react";
 
 import type { FxRate, Source } from "@/lib/data/types";
 import type { MissingFxRate } from "@/lib/domain/find-missing-fx-rates";
@@ -273,6 +273,7 @@ function EditFxRateForm({
   onDone: () => void;
 }) {
   const [state, formAction, pending] = useActionState(updateFxRate, initialFormActionState);
+  const formId = useId();
   const [sourceChoice, setSourceChoice] = useState(rate.sourceId);
 
   useEffect(() => {
@@ -283,50 +284,98 @@ function EditFxRateForm({
     <form action={formAction} className="space-y-2.5 rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
       <input type="hidden" name="id" value={rate.id} />
       <div className="grid grid-cols-2 gap-2.5">
-        <input name="currency" required defaultValue={rate.currency} aria-label="New currency" className={inputClass} />
-        <select name="rateKind" required defaultValue={rate.rateKind} aria-label="New kind" className={inputClass}>
-          {RATE_KIND_ORDER.map((kind) => (
-            <option key={kind} value={kind}>
-              {RATE_KIND_LABELS[kind]}
+        <div className="space-y-1.5">
+          <label htmlFor={`${formId}-currency`} className={labelClass}>
+            New currency
+          </label>
+          <input
+            id={`${formId}-currency`}
+            name="currency"
+            required
+            defaultValue={rate.currency}
+            className={inputClass}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <label htmlFor={`${formId}-rateKind`} className={labelClass}>
+            New kind
+          </label>
+          <select
+            id={`${formId}-rateKind`}
+            name="rateKind"
+            required
+            defaultValue={rate.rateKind}
+            className={inputClass}
+          >
+            {RATE_KIND_ORDER.map((kind) => (
+              <option key={kind} value={kind}>
+                {RATE_KIND_LABELS[kind]}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-2.5">
+        <div className="space-y-1.5">
+          <label htmlFor={`${formId}-rateToUsd`} className={labelClass}>
+            New rate to USD
+          </label>
+          <input
+            id={`${formId}-rateToUsd`}
+            name="rateToUsd"
+            type="number"
+            step="0.000001"
+            min="0.000001"
+            required
+            defaultValue={rate.rateToUsd}
+            className={inputClass}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <label htmlFor={`${formId}-rateDate`} className={labelClass}>
+            New date
+          </label>
+          <input
+            id={`${formId}-rateDate`}
+            name="rateDate"
+            type="date"
+            required
+            defaultValue={rate.rateDate}
+            className={inputClass}
+          />
+        </div>
+      </div>
+      <div className="space-y-1.5">
+        <label htmlFor={`${formId}-informationState`} className={labelClass}>
+          New information state
+        </label>
+        <select
+          id={`${formId}-informationState`}
+          name="informationState"
+          defaultValue={rate.informationState}
+          className={inputClass}
+        >
+          {INFO_STATE_ORDER.map((value) => (
+            <option key={value} value={value as InfoState}>
+              {INFO_STATE_LABELS[value]}
             </option>
           ))}
         </select>
       </div>
-      <div className="grid grid-cols-2 gap-2.5">
-        <input
-          name="rateToUsd"
-          type="number"
-          step="0.000001"
-          min="0.000001"
-          required
-          defaultValue={rate.rateToUsd}
-          aria-label="New rate to USD"
-          className={inputClass}
-        />
-        <input name="rateDate" type="date" required defaultValue={rate.rateDate} aria-label="New date" className={inputClass} />
-      </div>
-      <select
-        name="informationState"
-        defaultValue={rate.informationState}
-        aria-label="New information state"
-        className={inputClass}
-      >
-        {INFO_STATE_ORDER.map((value) => (
-          <option key={value} value={value as InfoState}>
-            {INFO_STATE_LABELS[value]}
-          </option>
-        ))}
-      </select>
 
       <SourcePicker name="source" sources={sources} required value={sourceChoice} onChange={setSourceChoice} />
 
-      <input
-        name="reason"
-        required
-        aria-label="Reason for this change"
-        placeholder="Reason for this change"
-        className={inputClass}
-      />
+      <div className="space-y-1.5">
+        <label htmlFor={`${formId}-reason`} className={labelClass}>
+          Reason for this change
+        </label>
+        <input
+          id={`${formId}-reason`}
+          name="reason"
+          required
+          className={inputClass}
+        />
+      </div>
 
       {state.status === "error" && <FormError message={state.message} />}
       <div className="flex gap-2">

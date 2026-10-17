@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useId, useState } from "react";
 
 import type { BudgetLine, Payment, Source } from "@/lib/data/types";
 import type { InfoState } from "@/lib/domain/types";
@@ -267,6 +267,7 @@ export function PaymentRowActions({
 
 function RecordPaymentForm({ payment, onDone }: { payment: Payment; onDone: () => void }) {
   const [state, formAction, pending] = useActionState(recordPayment, initialFormActionState);
+  const formId = useId();
 
   useEffect(() => {
     if (state.status === "success") onDone();
@@ -280,23 +281,31 @@ function RecordPaymentForm({ payment, onDone }: { payment: Payment; onDone: () =
       <p className="text-sm text-zinc-600 dark:text-zinc-400">
         {formatAmount(dueLater, payment.currency)} still due.
       </p>
-      <input
-        name="amount"
-        type="number"
-        step="0.01"
-        min="0.01"
-        required
-        aria-label="Amount paid"
-        placeholder="Amount paid"
-        className={inputClass}
-      />
-      <input
-        name="reason"
-        required
-        aria-label="Reason for this change"
-        placeholder="Reason for this change"
-        className={inputClass}
-      />
+      <div className="space-y-1.5">
+        <label htmlFor={`${formId}-amount`} className={labelClass}>
+          Amount paid
+        </label>
+        <input
+          id={`${formId}-amount`}
+          name="amount"
+          type="number"
+          step="0.01"
+          min="0.01"
+          required
+          className={inputClass}
+        />
+      </div>
+      <div className="space-y-1.5">
+        <label htmlFor={`${formId}-reason`} className={labelClass}>
+          Reason for this change
+        </label>
+        <input
+          id={`${formId}-reason`}
+          name="reason"
+          required
+          className={inputClass}
+        />
+      </div>
       {state.status === "error" && <FormError message={state.message} />}
       <div className="flex gap-2">
         <button type="submit" disabled={pending} className={buttonClass}>
@@ -322,6 +331,7 @@ function ChangeStatusForm({
   onDone: () => void;
 }) {
   const [state, formAction, pending] = useActionState(updatePaymentStatus, initialPaymentStatusActionState);
+  const formId = useId();
   const [targetStatus, setTargetStatus] = useState(payment.status);
 
   useEffect(() => {
@@ -354,26 +364,35 @@ function ChangeStatusForm({
   return (
     <form action={formAction} className="mt-2 space-y-2.5">
       <input type="hidden" name="paymentId" value={payment.id} />
-      <select
-        name="status"
-        aria-label="New status"
-        value={targetStatus}
-        onChange={(event) => setTargetStatus(event.target.value as Payment["status"])}
-        className={inputClass}
-      >
-        {Object.entries(STATUS_LABELS).map(([value, label]) => (
-          <option key={value} value={value}>
-            {label}
-          </option>
-        ))}
-      </select>
-      <input
-        name="reason"
-        required
-        aria-label="Reason for this change"
-        placeholder="Reason for this change"
-        className={inputClass}
-      />
+      <div className="space-y-1.5">
+        <label htmlFor={`${formId}-status`} className={labelClass}>
+          New status
+        </label>
+        <select
+          id={`${formId}-status`}
+          name="status"
+          value={targetStatus}
+          onChange={(event) => setTargetStatus(event.target.value as Payment["status"])}
+          className={inputClass}
+        >
+          {Object.entries(STATUS_LABELS).map(([value, label]) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="space-y-1.5">
+        <label htmlFor={`${formId}-reason`} className={labelClass}>
+          Reason for this change
+        </label>
+        <input
+          id={`${formId}-reason`}
+          name="reason"
+          required
+          className={inputClass}
+        />
+      </div>
       {state.status === "error" && <FormError message={state.message} />}
       <div className="flex gap-2">
         <button type="submit" disabled={pending} className={buttonClass}>
@@ -401,6 +420,7 @@ function AcceptRiskForm({
   onDone: () => void;
 }) {
   const [state, formAction, pending] = useActionState(acceptPaymentRisk, initialFormActionState);
+  const formId = useId();
 
   useEffect(() => {
     if (state.status === "success") onDone();
@@ -412,13 +432,17 @@ function AcceptRiskForm({
       <input type="hidden" name="tripId" value={tripId} />
       <input type="hidden" name="competitionId" value={competitionId ?? ""} />
       <input type="hidden" name="targetStatus" value={targetStatus} />
-      <input
-        name="rationale"
-        required
-        aria-label="Why you're accepting this risk"
-        placeholder="Why you're accepting this risk"
-        className={inputClass}
-      />
+      <div className="space-y-1.5">
+        <label htmlFor={`${formId}-rationale`} className={labelClass}>
+          Why you&apos;re accepting this risk
+        </label>
+        <input
+          id={`${formId}-rationale`}
+          name="rationale"
+          required
+          className={inputClass}
+        />
+      </div>
       {state.status === "error" && <FormError message={state.message} />}
       <button type="submit" disabled={pending} className={buttonClass}>
         {pending ? "Accepting…" : "I accept this risk"}
@@ -441,6 +465,7 @@ function EditPaymentForm({
   onDone: () => void;
 }) {
   const [state, formAction, pending] = useActionState(updatePaymentDetails, initialUpdatePaymentDetailsActionState);
+  const formId = useId();
 
   const [informationState, setInformationState] = useState<InfoState>(payment.informationState);
   const [sourceChoice, setSourceChoice] = useState(payment.sourceId ?? "");
@@ -491,68 +516,108 @@ function EditPaymentForm({
   return (
     <form action={formAction} onSubmit={handleSubmit} className="mt-2 space-y-2.5">
       <input type="hidden" name="paymentId" value={payment.id} />
-      <input
-        name="description"
-        required
-        defaultValue={payment.description}
-        aria-label="New description"
-        className={inputClass}
-      />
-      <div className="grid grid-cols-2 gap-2.5">
+      <div className="space-y-1.5">
+        <label htmlFor={`${formId}-description`} className={labelClass}>
+          New description
+        </label>
         <input
-          name="totalAmount"
-          type="number"
-          step="0.01"
-          min="0"
+          id={`${formId}-description`}
+          name="description"
           required
-          defaultValue={payment.totalAmount}
-          aria-label="New total amount"
-          className={inputClass}
-        />
-        <input
-          name="currency"
-          required
-          defaultValue={payment.currency}
-          aria-label="New currency"
+          defaultValue={payment.description}
           className={inputClass}
         />
       </div>
       <div className="grid grid-cols-2 gap-2.5">
-        <select
-          name="refundability"
-          defaultValue={payment.refundability}
-          aria-label="New refundability"
-          className={inputClass}
-        >
-          {Object.entries(REFUNDABILITY_LABELS).map(([value, label]) => (
-            <option key={value} value={value}>
-              {label}
-            </option>
-          ))}
-        </select>
-        <select name="timingType" defaultValue={payment.timingType} aria-label="New timing" className={inputClass}>
-          {Object.entries(TIMING_LABELS).map(([value, label]) => (
-            <option key={value} value={value}>
-              {label}
-            </option>
-          ))}
-        </select>
+        <div className="space-y-1.5">
+          <label htmlFor={`${formId}-totalAmount`} className={labelClass}>
+            New total amount
+          </label>
+          <input
+            id={`${formId}-totalAmount`}
+            name="totalAmount"
+            type="number"
+            step="0.01"
+            min="0"
+            required
+            defaultValue={payment.totalAmount}
+            className={inputClass}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <label htmlFor={`${formId}-currency`} className={labelClass}>
+            New currency
+          </label>
+          <input
+            id={`${formId}-currency`}
+            name="currency"
+            required
+            defaultValue={payment.currency}
+            className={inputClass}
+          />
+        </div>
       </div>
       <div className="grid grid-cols-2 gap-2.5">
-        <input
-          name="dueDate"
-          type="date"
-          defaultValue={payment.dueDate ?? ""}
-          aria-label="New due date"
-          className={inputClass}
-        />
-        <input
-          name="cancellationDeadline"
-          type="date"
-          defaultValue={payment.cancellationDeadline ?? ""}
-          aria-label="New cancellation deadline"
-          className={inputClass}
-        />
+        <div className="space-y-1.5">
+          <label htmlFor={`${formId}-refundability`} className={labelClass}>
+            New refundability
+          </label>
+          <select
+            id={`${formId}-refundability`}
+            name="refundability"
+            defaultValue={payment.refundability}
+            className={inputClass}
+          >
+            {Object.entries(REFUNDABILITY_LABELS).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="space-y-1.5">
+          <label htmlFor={`${formId}-timingType`} className={labelClass}>
+            New timing
+          </label>
+          <select
+            id={`${formId}-timingType`}
+            name="timingType"
+            defaultValue={payment.timingType}
+            className={inputClass}
+          >
+            {Object.entries(TIMING_LABELS).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-2.5">
+        <div className="space-y-1.5">
+          <label htmlFor={`${formId}-dueDate`} className={labelClass}>
+            New due date
+          </label>
+          <input
+            id={`${formId}-dueDate`}
+            name="dueDate"
+            type="date"
+            defaultValue={payment.dueDate ?? ""}
+            className={inputClass}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <label htmlFor={`${formId}-cancellationDeadline`} className={labelClass}>
+            New cancellation deadline
+          </label>
+          <input
+            id={`${formId}-cancellationDeadline`}
+            name="cancellationDeadline"
+            type="date"
+            defaultValue={payment.cancellationDeadline ?? ""}
+            className={inputClass}
+          />
+        </div>
       </div>
       <div className="space-y-1.5">
         <label htmlFor="payment-edit-information-state" className={labelClass}>
@@ -617,13 +682,17 @@ function EditPaymentForm({
         />
         Tied to the competition itself
       </label>
-      <input
-        name="reason"
-        required
-        aria-label="Reason for this change"
-        placeholder="Reason for this change"
-        className={inputClass}
-      />
+      <div className="space-y-1.5">
+        <label htmlFor={`${formId}-reason`} className={labelClass}>
+          Reason for this change
+        </label>
+        <input
+          id={`${formId}-reason`}
+          name="reason"
+          required
+          className={inputClass}
+        />
+      </div>
       {clientError && <FormError message={clientError} />}
       {state.status === "error" && <FormError message={state.message} />}
       <div className="flex gap-2">
@@ -656,6 +725,7 @@ function AcceptRiskForDetailsForm({
   onDone: () => void;
 }) {
   const [state, formAction, submitting] = useActionState(acceptPaymentRiskForDetails, initialFormActionState);
+  const formId = useId();
 
   useEffect(() => {
     if (state.status === "success") onDone();
@@ -678,13 +748,17 @@ function AcceptRiskForDetailsForm({
       <input type="hidden" name="sourceId" value={pending.sourceId ?? ""} />
       <input type="hidden" name="refundability" value={pending.refundability} />
       <input type="hidden" name="competitionRelated" value={pending.competitionRelated ? "on" : ""} />
-      <input
-        name="rationale"
-        required
-        aria-label="Why you're accepting this risk"
-        placeholder="Why you're accepting this risk"
-        className={inputClass}
-      />
+      <div className="space-y-1.5">
+        <label htmlFor={`${formId}-rationale`} className={labelClass}>
+          Why you&apos;re accepting this risk
+        </label>
+        <input
+          id={`${formId}-rationale`}
+          name="rationale"
+          required
+          className={inputClass}
+        />
+      </div>
       {state.status === "error" && <FormError message={state.message} />}
       <button type="submit" disabled={submitting} className={buttonClass}>
         {submitting ? "Accepting…" : "I accept this risk"}
@@ -705,6 +779,7 @@ function DeletePaymentForm({
   onDone: () => void;
 }) {
   const [state, formAction, pending] = useActionState(deletePayment, initialFormActionState);
+  const formId = useId();
 
   const budgetLineNote =
     budgetLineAutoCreated && otherPaymentsOnBudgetLine === 0
@@ -718,13 +793,17 @@ function DeletePaymentForm({
         Delete {formatAmount(payment.totalAmount, payment.currency)} ({payment.description})?{" "}
         {budgetLineNote}
       </p>
-      <input
-        name="reason"
-        required
-        aria-label="Reason for deleting this"
-        placeholder="Reason for deleting this"
-        className={inputClass}
-      />
+      <div className="space-y-1.5">
+        <label htmlFor={`${formId}-reason`} className={labelClass}>
+          Reason for deleting this
+        </label>
+        <input
+          id={`${formId}-reason`}
+          name="reason"
+          required
+          className={inputClass}
+        />
+      </div>
       {state.status === "error" && <FormError message={state.message} />}
       <div className="flex gap-2">
         <button type="submit" disabled={pending} className={buttonClass}>
