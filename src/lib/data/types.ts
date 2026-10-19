@@ -1,4 +1,4 @@
-import type { BudgetCategory, FlightBaggage, InfoState, RateKind } from "@/lib/domain/types";
+import type { BudgetCategory, Confidence, FlightBaggage, InfoState, RateKind } from "@/lib/domain/types";
 
 export type TripStatus = "planning" | "confirmed" | "completed" | "cancelled";
 export type AcceptanceStatus = "pending" | "accepted" | "declined";
@@ -107,6 +107,8 @@ export type BudgetLine = {
   informationState: InfoState;
   sourceId: string | null;
   notes: string | null;
+  /** null = not assessed yet. */
+  confidence: Confidence | null;
   /** True only for a line create_payment made for a payment that had
    * none to attach to -- see delete_payment's cleanup rule. */
   autoCreated: boolean;
@@ -329,6 +331,7 @@ export type CreateBudgetLineWrite = {
   informationState: InfoState;
   sourceId?: string;
   notes?: string;
+  confidence?: Confidence;
 };
 // scenarioId is deliberately not editable here -- only set at creation
 // (CreateBudgetLineWrite above). update_budget_line's own RPC signature
@@ -344,6 +347,7 @@ export type UpdateBudgetLineWrite = {
   informationState: InfoState;
   sourceId?: string;
   notes?: string;
+  confidence?: Confidence;
   reason: string;
 };
 export type DeleteBudgetLineWrite = { id: string; reason: string };

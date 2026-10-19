@@ -2,7 +2,15 @@ import { z } from "zod";
 
 import type { BudgetCategory } from "@/lib/domain/types";
 
-import { changeReason, checkAmountOrder, checkConfirmedNeedsSource, currencyCode, id, infoState } from "./shared";
+import {
+  changeReason,
+  checkAmountOrder,
+  checkConfirmedNeedsSource,
+  confidence,
+  currencyCode,
+  id,
+  infoState,
+} from "./shared";
 
 export const budgetCategory = z.enum(["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"] satisfies [
   BudgetCategory,
@@ -19,6 +27,8 @@ const budgetLineFields = z.object({
   informationState: infoState,
   sourceId: id.optional(),
   notes: z.string().trim().optional(),
+  // Optional: absent means "not assessed" (null in budget_lines).
+  confidence: confidence.optional(),
 });
 
 function refineBudgetLine(value: z.infer<typeof budgetLineFields>, ctx: z.RefinementCtx) {

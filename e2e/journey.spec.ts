@@ -221,9 +221,14 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await addForm.getByLabel("Target").fill("100");
     await addForm.getByLabel("Conservative").fill("120");
     await addForm.getByLabel("Currency").fill("EUR");
+    await addForm.getByLabel("Confidence", { exact: true }).selectOption("low");
     await addForm.getByRole("button", { name: "Add budget line" }).click();
 
     await expect(budgetLineRow(page, "Flight deposit")).toBeVisible();
+    await expect(budgetLineRow(page, "Flight deposit").getByText("Confidence: Low")).toBeVisible();
+    // create_payment's auto-created line was never assessed -- null
+    // shows as such, never as a silent "Low".
+    await expect(budgetLineRow(page, "Registration fee").getByText("Confidence: Not assessed")).toBeVisible();
     await expect(missingRateRow(page, "Planning (base)")).toBeVisible();
     await expect(missingRateRow(page, "Planning (conservative)")).toBeVisible();
 
@@ -313,6 +318,21 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await expect(row.getByText("€110.00")).toBeVisible();
   });
 
+  await test.step("change the budget line's confidence with a reason", async () => {
+    const row = budgetLineRow(page, "Flight deposit");
+
+    await row.getByRole("button", { name: "Edit" }).click();
+    await expect(row.getByLabel("New confidence")).toHaveValue("low");
+    await row.getByLabel("New confidence").selectOption("medium");
+    await row.getByLabel("Reason for this change").fill("Several current fare observations now");
+    await row.getByRole("button", { name: "Save" }).click();
+
+    await expect(row.getByText("Confidence: Medium")).toBeVisible();
+    // Confidence is its own field -- changing it leaves the
+    // information state exactly where it was.
+    await expect(row.getByText("Estimate · Confidence: Medium")).toBeVisible();
+  });
+
   await test.step("try \"confirmed\" with no source and see it refused", async () => {
     const row = budgetLineRow(page, "Flight deposit");
 
@@ -355,7 +375,7 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     const exported = JSON.parse(readFileSync(path!, "utf-8"));
 
     expect(typeof exported.exportedAt).toBe("string");
-    expect(exported.schemaVersion).toBe(1);
+    expect(exported.schemaVersion).toBe(2);
 
     expect(
       exported.data.savingsEntries.some((entry: { note: string | null }) => entry.note === "For the export check"),
@@ -363,6 +383,14 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     expect(
       exported.data.payments.some((payment: { description: string }) => payment.description === "Registration fee"),
     ).toBe(true);
+    const flightDeposit = exported.data.budgetLines.find(
+      (line: { description: string }) => line.description === "Flight deposit",
+    );
+    expect(flightDeposit.confidence).toBe("medium");
+    expect(
+      exported.data.budgetLines.find((line: { description: string }) => line.description === "Registration fee")
+        .confidence,
+    ).toBeNull();
     expect(exported.data.changeLog.length).toBeGreaterThan(0);
   });
 });

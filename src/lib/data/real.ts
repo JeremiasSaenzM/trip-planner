@@ -155,6 +155,7 @@ function mapBudgetLineRow(row: Record<string, unknown>): BudgetLine {
     informationState: row.information_state as BudgetLine["informationState"],
     sourceId: row.source_id as string | null,
     notes: row.notes as string | null,
+    confidence: row.confidence as BudgetLine["confidence"],
     autoCreated: row.auto_created as boolean,
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
@@ -604,6 +605,7 @@ export const realDataSource: DataSource = {
         information_state: input.informationState,
         source_id: input.sourceId ?? null,
         notes: input.notes ?? null,
+        confidence: input.confidence ?? null,
       })
       .select("*")
       .single();
@@ -625,6 +627,7 @@ export const realDataSource: DataSource = {
       p_information_state: input.informationState,
       p_source_id: input.sourceId ?? null,
       p_notes: input.notes ?? null,
+      p_confidence: input.confidence ?? null,
       p_reason: input.reason,
     });
     if (error) throw error;

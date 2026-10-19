@@ -3,15 +3,32 @@
 import { useActionState, useEffect, useId, useState } from "react";
 
 import type { BudgetLine, Source } from "@/lib/data/types";
-import type { InfoState } from "@/lib/domain/types";
+import type { Confidence, InfoState } from "@/lib/domain/types";
 
 import { createBudgetLine, deleteBudgetLine, updateBudgetLine } from "./budget-line-actions";
 import { CATEGORY_LABELS, CATEGORY_ORDER } from "./category-labels";
 import { formatAmount, formatDate } from "./format";
 import { buttonClass, FormError, inputClass, labelClass, secondaryButtonClass } from "./form-styles";
 import { initialFormActionState } from "./form-action-state";
+import { CONFIDENCE_DESCRIPTIONS, CONFIDENCE_NOT_ASSESSED, CONFIDENCE_ORDER, confidenceLabel } from "./confidence-labels";
 import { INFO_STATE_LABELS, INFO_STATE_ORDER } from "./info-state-labels";
 import { SourcePicker } from "./source-picker";
+
+// Shared by the add and edit forms. "" submits as "not assessed"
+// (optionalText() turns it into undefined, stored as null), so clearing
+// an assessment is just picking that option again.
+function ConfidenceSelect({ id, defaultValue }: { id: string; defaultValue: Confidence | null }) {
+  return (
+    <select id={id} name="confidence" defaultValue={defaultValue ?? ""} className={inputClass}>
+      <option value="">{CONFIDENCE_NOT_ASSESSED}</option>
+      {CONFIDENCE_ORDER.map((value) => (
+        <option key={value} value={value}>
+          {CONFIDENCE_DESCRIPTIONS[value]}
+        </option>
+      ))}
+    </select>
+  );
+}
 
 // Mirrors budget_lines_amount_order and budget_lines_confirmed_needs_source
 // -- the same two rules shared.ts's checkAmountOrder/checkConfirmedNeedsSource
@@ -166,6 +183,13 @@ export function AddBudgetLineForm({
         </select>
       </div>
 
+      <div className="space-y-1.5">
+        <label htmlFor="line-confidence" className={labelClass}>
+          Confidence
+        </label>
+        <ConfidenceSelect id="line-confidence" defaultValue={null} />
+      </div>
+
       <SourcePicker
         name="source"
         sources={sources}
@@ -218,6 +242,7 @@ function BudgetLineRow({ line, sources }: { line: BudgetLine; sources: Source[] 
           </p>
           <p className="text-xs text-zinc-500 dark:text-zinc-400">
             {INFO_STATE_LABELS[line.informationState]}
+            {` · Confidence: ${confidenceLabel(line.confidence)}`}
             {source ? ` · ${source.provider} (${formatDate(source.observedOn)})` : ""}
             {line.autoCreated ? " · Auto-created from a payment" : ""}
           </p>
@@ -410,6 +435,13 @@ function EditBudgetLineForm({
             </option>
           ))}
         </select>
+      </div>
+
+      <div className="space-y-1.5">
+        <label htmlFor={`${formId}-confidence`} className={labelClass}>
+          New confidence
+        </label>
+        <ConfidenceSelect id={`${formId}-confidence`} defaultValue={line.confidence} />
       </div>
 
       <SourcePicker
