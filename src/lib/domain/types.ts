@@ -9,6 +9,10 @@ export type InfoState =
 
 export type BudgetCategory = "A" | "B" | "C" | "D" | "E" | "F" | "G" | "H" | "I" | "J";
 
+/** How well-founded a budget line's number is (planning system 07 §8).
+ * Separate from InfoState, which says what kind of claim a value is. */
+export type Confidence = "low" | "medium" | "high";
+
 export type RateKind = "observed" | "planning_base" | "planning_conservative";
 
 /** Target is the planning reference; conservative is the financial-safety test. */

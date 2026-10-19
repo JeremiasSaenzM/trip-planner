@@ -46,6 +46,7 @@ export async function createBudgetLine(_previous: FormActionState, formData: For
     informationState: formData.get("informationState"),
     sourceId,
     notes: optionalText(formData.get("notes")),
+    confidence: optionalText(formData.get("confidence")),
   });
   if (!parsed.success) return { status: "error", message: firstIssueMessage(parsed.error) };
 
@@ -78,6 +79,7 @@ export async function updateBudgetLine(_previous: FormActionState, formData: For
     informationState: formData.get("informationState"),
     sourceId,
     notes: optionalText(formData.get("notes")),
+    confidence: optionalText(formData.get("confidence")),
     reason: formData.get("reason"),
   });
   if (!parsed.success) return { status: "error", message: firstIssueMessage(parsed.error) };

@@ -17,7 +17,7 @@ import type {
 // Bumped whenever the shape of ExportPayload["data"] changes, so a
 // future import (not built yet -- see CLAUDE.md's Phase 5 note) knows
 // whether it's reading something it understands.
-export const EXPORT_SCHEMA_VERSION = 1;
+export const EXPORT_SCHEMA_VERSION = 2;
 
 export type ExportPayload = {
   exportedAt: string;

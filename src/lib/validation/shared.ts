@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import type { InfoState } from "@/lib/domain/types";
+import type { Confidence, InfoState } from "@/lib/domain/types";
 
 // Every foreign key in this app is a Postgres uuid column, but not every
 // id in it is a freshly-generated v4 uuid: supabase/seed.sql and
@@ -26,6 +26,8 @@ export const infoState = z.enum([
   "historical",
   "conflicting",
 ] satisfies [InfoState, ...InfoState[]]);
+
+export const confidence = z.enum(["low", "medium", "high"] satisfies [Confidence, ...Confidence[]]);
 
 // A YYYY-MM-DD value is a calendar date, not an instant -- compared in
 // UTC explicitly here, the same rule format.ts/charts.tsx/

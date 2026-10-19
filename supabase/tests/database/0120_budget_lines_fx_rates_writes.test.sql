@@ -64,7 +64,7 @@ insert into fx_rates (id, owner_id, currency, rate_to_usd, rate_date, rate_kind,
 
 select throws_like(
   $$ select update_budget_line(
-       'e0000000-0000-0000-0000-000000000004', 'A', 'renamed', 100, 100, 100, 'USD', 'estimate', null, null, ''
+       'e0000000-0000-0000-0000-000000000004', 'A', 'renamed', 100, 100, 100, 'USD', 'estimate', null, null, null, ''
      ) $$,
   '%reason is required%',
   'update_budget_line rejects a blank reason'
@@ -72,7 +72,7 @@ select throws_like(
 
 select throws_like(
   $$ select update_budget_line(
-       'e0000000-0000-0000-0000-000000000004', 'A', 'renamed', 100, 50, 100, 'USD', 'estimate', null, null,
+       'e0000000-0000-0000-0000-000000000004', 'A', 'renamed', 100, 50, 100, 'USD', 'estimate', null, null, null,
        'pgTAP: bad order'
      ) $$,
   '%budget_lines_amount_order%',
@@ -81,7 +81,7 @@ select throws_like(
 
 select throws_like(
   $$ select update_budget_line(
-       'e0000000-0000-0000-0000-000000000004', 'A', 'renamed', 100, 100, 100, 'USD', 'confirmed', null, null,
+       'e0000000-0000-0000-0000-000000000004', 'A', 'renamed', 100, 100, 100, 'USD', 'confirmed', null, null, null,
        'pgTAP: confirmed with no source'
      ) $$,
   '%budget_lines_confirmed_needs_source%',
@@ -90,7 +90,7 @@ select throws_like(
 
 select lives_ok(
   $$ select update_budget_line(
-       'e0000000-0000-0000-0000-000000000004', 'A', 'renamed', 100, 100, 100, 'USD', 'estimate', null, null,
+       'e0000000-0000-0000-0000-000000000004', 'A', 'renamed', 100, 100, 100, 'USD', 'estimate', null, null, null,
        'pgTAP: renaming it'
      ) $$,
   'update_budget_line succeeds with a real reason'
@@ -135,7 +135,7 @@ select set_config('request.jwt.claim.sub', '10000000-0000-0000-0000-000000000002
 
 select throws_like(
   $$ select update_budget_line(
-       'e0000000-0000-0000-0000-000000000004', 'A', 'x', 100, 100, 100, 'USD', 'estimate', null, null, 'not mine'
+       'e0000000-0000-0000-0000-000000000004', 'A', 'x', 100, 100, 100, 'USD', 'estimate', null, null, null, 'not mine'
      ) $$,
   '%not found%',
   'a second account updating my budget line gets "not found"'
@@ -185,10 +185,10 @@ select throws_like(
 
 -- Grants: authenticated can call every RPC here, anon can't.
 select ok(has_function_privilege('authenticated',
-  'update_budget_line(uuid, budget_category, text, numeric, numeric, numeric, text, info_state, uuid, text, text)', 'EXECUTE'),
+  'update_budget_line(uuid, budget_category, text, numeric, numeric, numeric, text, info_state, uuid, text, confidence_level, text)', 'EXECUTE'),
   'authenticated can execute update_budget_line');
 select ok(not has_function_privilege('anon',
-  'update_budget_line(uuid, budget_category, text, numeric, numeric, numeric, text, info_state, uuid, text, text)', 'EXECUTE'),
+  'update_budget_line(uuid, budget_category, text, numeric, numeric, numeric, text, info_state, uuid, text, confidence_level, text)', 'EXECUTE'),
   'anon cannot execute update_budget_line');
 select ok(has_function_privilege('authenticated', 'delete_budget_line(uuid, text)', 'EXECUTE'),
   'authenticated can execute delete_budget_line');

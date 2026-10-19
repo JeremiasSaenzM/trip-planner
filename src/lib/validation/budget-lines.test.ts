@@ -40,6 +40,32 @@ describe("createBudgetLineInput", () => {
     });
     expect(result.success).toBe(true);
   });
+
+  it("leaves confidence unset (not assessed) when it's omitted", () => {
+    const result = createBudgetLineInput.safeParse(VALID_CREATE);
+    expect(result.success && result.data.confidence).toBeUndefined();
+  });
+
+  it.each(["low", "medium", "high"] as const)("accepts confidence %s", (confidence) => {
+    expect(createBudgetLineInput.safeParse({ ...VALID_CREATE, confidence }).success).toBe(true);
+  });
+
+  it("rejects a confidence outside low / medium / high", () => {
+    expect(createBudgetLineInput.safeParse({ ...VALID_CREATE, confidence: "very high" }).success).toBe(false);
+  });
+
+  // Independent fields: an estimate can still be well-founded, and a
+  // confirmed value doesn't imply any particular confidence.
+  it("accepts any confidence alongside any information state", () => {
+    expect(createBudgetLineInput.safeParse({ ...VALID_CREATE, confidence: "high" }).success).toBe(true);
+    const confirmedLow = createBudgetLineInput.safeParse({
+      ...VALID_CREATE,
+      informationState: "confirmed",
+      sourceId: "22222222-2222-4222-8222-222222222222",
+      confidence: "low",
+    });
+    expect(confirmedLow.success).toBe(true);
+  });
 });
 
 describe("updateBudgetLineInput", () => {
@@ -56,5 +82,24 @@ describe("updateBudgetLineInput", () => {
       reason: "Hotel confirmed the deposit amount",
     });
     expect(result.success).toBe(true);
+  });
+
+  it("still requires a reason when only confidence changes", () => {
+    const result = updateBudgetLineInput.safeParse({
+      ...VALID_CREATE,
+      id: "33333333-3333-4333-8333-333333333333",
+      confidence: "medium",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts a confidence change with a reason", () => {
+    const result = updateBudgetLineInput.safeParse({
+      ...VALID_CREATE,
+      id: "33333333-3333-4333-8333-333333333333",
+      confidence: "medium",
+      reason: "Several current hotel quotes now",
+    });
+    expect(result.success && result.data.confidence).toBe("medium");
   });
 });
