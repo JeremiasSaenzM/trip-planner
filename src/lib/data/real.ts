@@ -14,6 +14,8 @@ import type {
   FxRate,
   OpenItem,
   Payment,
+  ProposalBatch,
+  ProposalItem,
   SavingsEntry,
   Scenario,
   Source,
@@ -159,6 +161,25 @@ function mapBudgetLineRow(row: Record<string, unknown>): BudgetLine {
     autoCreated: row.auto_created as boolean,
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
+  };
+}
+
+function mapProposalItemRow(row: Record<string, unknown>): ProposalItem {
+  return {
+    id: row.id as string,
+    batchId: row.batch_id as string,
+    position: row.position as number,
+    ref: row.ref as string | null,
+    op: row.op as ProposalItem["op"],
+    targetId: row.target_id as string | null,
+    payload: row.payload,
+    dependsOn: row.depends_on as number[],
+    reason: row.reason as string,
+    status: row.status as ProposalItem["status"],
+    decisionReason: row.decision_reason as string | null,
+    decidedAt: row.decided_at as string | null,
+    resultId: row.result_id as string | null,
+    createdAt: row.created_at as string,
   };
 }
 
@@ -352,6 +373,28 @@ export const realDataSource: DataSource = {
         changedBy: row.changed_by,
       }),
     );
+  },
+
+  async getProposalBatches() {
+    const supabase = await createClient();
+    const { data, error } = await supabase.from("proposal_batches").select("*");
+    if (error) throw error;
+    return (data ?? []).map(
+      (row): ProposalBatch => ({
+        id: row.id,
+        tripId: row.trip_id,
+        note: row.note,
+        rawText: row.raw_text,
+        createdAt: row.created_at,
+      }),
+    );
+  },
+
+  async getProposalItems() {
+    const supabase = await createClient();
+    const { data, error } = await supabase.from("proposal_items").select("*");
+    if (error) throw error;
+    return (data ?? []).map(mapProposalItemRow);
   },
 
   async createTrip(input) {
@@ -724,5 +767,53 @@ export const realDataSource: DataSource = {
     });
     if (error) throw error;
     return mapFxRateRow(data as Record<string, unknown>);
+  },
+
+  // Import proposals (20261021090000_import_proposals.sql). Saving a
+  // batch is one RPC so its items land together or not at all; approving
+  // runs the proposed write and marks the item in one transaction, with
+  // change_log recording actor 'claude' and the proposal's own reason.
+  async createProposalBatch(input) {
+    assertWritesAllowed();
+    const supabase = await createClient();
+    const { data, error } = await supabase.rpc("create_proposal_batch", {
+      p_trip_id: input.tripId,
+      p_note: input.note ?? null,
+      p_raw_text: input.rawText,
+      p_items: input.items,
+    });
+    if (error) throw error;
+    return data as string;
+  },
+
+  async approveProposal(itemId) {
+    assertWritesAllowed();
+    const supabase = await createClient();
+    const { data, error } = await supabase.rpc("approve_proposal", { p_item_id: itemId });
+    if (error) throw error;
+    return mapProposalItemRow(data as Record<string, unknown>);
+  },
+
+  async rejectProposal(input) {
+    assertWritesAllowed();
+    const supabase = await createClient();
+    const { data, error } = await supabase.rpc("reject_proposal", {
+      p_item_id: input.itemId,
+      p_reason: input.reason,
+      p_cascade: input.cascade,
+    });
+    if (error) throw error;
+    return data as number;
+  },
+
+  async closeProposalBatch(input) {
+    assertWritesAllowed();
+    const supabase = await createClient();
+    const { data, error } = await supabase.rpc("close_proposal_batch", {
+      p_batch_id: input.batchId,
+      p_reason: input.reason,
+    });
+    if (error) throw error;
+    return data as number;
   },
 };

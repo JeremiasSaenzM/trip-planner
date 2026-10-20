@@ -8,6 +8,8 @@ import type {
   FxRate,
   OpenItem,
   Payment,
+  ProposalBatch,
+  ProposalItem,
   SavingsEntry,
   Scenario,
   Source,
@@ -809,5 +811,110 @@ export const changeLog: ChangeLogEntry[] = [
     actor: "app",
     changedAt: "2026-09-01T00:00:00Z",
     changedBy: "10000000-0000-0000-0000-000000000001",
+  },
+];
+
+// One pasted research batch, still under review, so Preview shows the
+// /import review screen in each of its states: a source to create, an
+// update that depends on it (waiting), a create that's ready, and an
+// update written against a value that has since moved (stale -- the
+// Round-trip flight's minimum is 520 here, not the 500 it expected).
+export const proposalBatches: ProposalBatch[] = [
+  {
+    id: "f0000000-0000-0000-0000-000000000001",
+    tripId: "20000000-0000-0000-0000-000000000001",
+    note: "Fictional research session: fares and food",
+    rawText: '{"format": "trip-planner-proposals", "version": 1, "items": ["(fictional demo batch)"]}',
+    createdAt: "2026-10-12T00:00:00Z",
+  },
+];
+
+export const proposalItems: ProposalItem[] = [
+  {
+    id: "f1000000-0000-0000-0000-000000000001",
+    batchId: "f0000000-0000-0000-0000-000000000001",
+    position: 0,
+    ref: "fare-tracker",
+    op: "create_source",
+    targetId: null,
+    payload: {
+      data: {
+        provider: "Fictional fare tracker",
+        tier: 3,
+        url: "https://example.com/fares",
+        observedOn: "2026-10-12",
+      },
+    },
+    dependsOn: [],
+    reason: "Fictional example: where the new fare came from",
+    status: "pending",
+    decisionReason: null,
+    decidedAt: null,
+    resultId: null,
+    createdAt: "2026-10-12T00:00:00Z",
+  },
+  {
+    id: "f1000000-0000-0000-0000-000000000002",
+    batchId: "f0000000-0000-0000-0000-000000000001",
+    position: 1,
+    ref: null,
+    op: "update_budget_line",
+    targetId: "70000000-0000-0000-0000-000000000002",
+    payload: {
+      changes: {
+        amountTarget: { from: 650, to: 610 },
+        source: { from: null, to: { item: 0 } },
+      },
+    },
+    dependsOn: [0],
+    reason: "Fictional example: the fare dropped",
+    status: "pending",
+    decisionReason: null,
+    decidedAt: null,
+    resultId: null,
+    createdAt: "2026-10-12T00:00:00Z",
+  },
+  {
+    id: "f1000000-0000-0000-0000-000000000003",
+    batchId: "f0000000-0000-0000-0000-000000000001",
+    position: 2,
+    ref: null,
+    op: "create_budget_line",
+    targetId: null,
+    payload: {
+      data: {
+        scenario: { id: "50000000-0000-0000-0000-000000000001" },
+        category: "E",
+        description: "Festival week meals",
+        amountMin: 140,
+        amountTarget: 160,
+        amountConservative: 200,
+        currency: "EUR",
+        informationState: "estimate",
+      },
+    },
+    dependsOn: [],
+    reason: "Fictional example: typical meal prices near the venue",
+    status: "pending",
+    decisionReason: null,
+    decidedAt: null,
+    resultId: null,
+    createdAt: "2026-10-12T00:00:00Z",
+  },
+  {
+    id: "f1000000-0000-0000-0000-000000000004",
+    batchId: "f0000000-0000-0000-0000-000000000001",
+    position: 3,
+    ref: null,
+    op: "update_budget_line",
+    targetId: "70000000-0000-0000-0000-000000000002",
+    payload: { changes: { amountMin: { from: 500, to: 480 } } },
+    dependsOn: [],
+    reason: "Fictional example: written before the minimum was last changed",
+    status: "pending",
+    decisionReason: null,
+    decidedAt: null,
+    resultId: null,
+    createdAt: "2026-10-12T00:00:00Z",
   },
 ];

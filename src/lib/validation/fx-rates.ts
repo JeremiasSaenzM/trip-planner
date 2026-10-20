@@ -4,7 +4,7 @@ import type { RateKind } from "@/lib/domain/types";
 
 import { changeReason, currencyCode, id, infoState } from "./shared";
 
-const rateKind = z.enum(["observed", "planning_base", "planning_conservative"] satisfies [
+export const rateKind = z.enum(["observed", "planning_base", "planning_conservative"] satisfies [
   RateKind,
   ...RateKind[],
 ]);

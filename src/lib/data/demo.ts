@@ -29,6 +29,8 @@ export const demoDataSource: DataSource = {
   getFlightOptions: async () => fixtures.flightOptions,
   getFlightSegments: async () => fixtures.flightSegments,
   getChangeLog: async () => fixtures.changeLog,
+  getProposalBatches: async () => fixtures.proposalBatches,
+  getProposalItems: async () => fixtures.proposalItems,
   createTrip: async () => writesDisabledInDemoMode(),
   createCompetition: async () => writesDisabledInDemoMode(),
   updateCompetition: async () => writesDisabledInDemoMode(),
@@ -50,4 +52,8 @@ export const demoDataSource: DataSource = {
   deleteBudgetLine: async () => writesDisabledInDemoMode(),
   createFxRate: async () => writesDisabledInDemoMode(),
   updateFxRate: async () => writesDisabledInDemoMode(),
+  createProposalBatch: async () => writesDisabledInDemoMode(),
+  approveProposal: async () => writesDisabledInDemoMode(),
+  rejectProposal: async () => writesDisabledInDemoMode(),
+  closeProposalBatch: async () => writesDisabledInDemoMode(),
 };

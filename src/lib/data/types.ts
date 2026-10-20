@@ -234,6 +234,56 @@ export type ChangeLogEntry = {
   changedBy: string | null;
 };
 
+// Import proposals (20261021090000_import_proposals.sql): a pasted batch
+// of research results, each item approved or rejected on its own.
+export type ProposalOp =
+  | "create_source"
+  | "create_competition"
+  | "create_scenario"
+  | "create_budget_line"
+  | "create_payment"
+  | "create_fx_rate"
+  | "update_competition"
+  | "update_scenario"
+  | "update_budget_line"
+  | "update_payment"
+  | "update_fx_rate"
+  | "update_savings_entry";
+export type ProposalStatus = "pending" | "approved" | "rejected";
+
+export type ProposalBatch = {
+  id: string;
+  tripId: string;
+  note: string | null;
+  /** Exactly what was pasted, kept for the audit trail. */
+  rawText: string;
+  createdAt: string;
+};
+
+export type ProposalItem = {
+  id: string;
+  batchId: string;
+  /** 0-based order within the batch -- what {"item": n} references and
+   * dependsOn point at. */
+  position: number;
+  ref: string | null;
+  op: ProposalOp;
+  /** The row an update changes; null for a create. */
+  targetId: string | null;
+  /** {"data": ...} or {"changes": ...} -- read it back through
+   * src/lib/proposals/schema.ts's storedPayloadSchema(), never trusted
+   * as-is. */
+  payload: unknown;
+  dependsOn: number[];
+  reason: string;
+  status: ProposalStatus;
+  decisionReason: string | null;
+  decidedAt: string | null;
+  /** The row the approval created, or (for an update) changed. */
+  resultId: string | null;
+  createdAt: string;
+};
+
 // Write-method inputs. Deliberately plain, hand-written types rather than
 // importing the Zod-inferred types from src/lib/validation -- those
 // modules import PaymentStatus/PaymentTiming/Refundability etc. from
@@ -387,6 +437,26 @@ export type CreatePaymentRiskDecisionWrite = {
   acceptedCurrency: string;
 };
 
+// What src/lib/proposals/parse.ts hands create_proposal_batch() for each
+// item -- already validated and linked.
+export type ProposalItemWrite = {
+  position: number;
+  ref: string | null;
+  op: ProposalOp;
+  targetId: string | null;
+  payload: unknown;
+  dependsOn: number[];
+  reason: string;
+};
+export type CreateProposalBatchWrite = {
+  tripId: string;
+  note?: string;
+  rawText: string;
+  items: ProposalItemWrite[];
+};
+export type RejectProposalWrite = { itemId: string; reason: string; cascade: boolean };
+export type CloseProposalBatchWrite = { batchId: string; reason: string };
+
 // One data-access layer, two implementations (src/lib/data/real.ts, the
 // real Supabase-backed one, and src/lib/data/demo.ts, typed fixture data)
 // -- chosen by src/lib/data/index.ts, the only place that calls
@@ -413,6 +483,8 @@ export type DataSource = {
   getFlightOptions(): Promise<FlightOption[]>;
   getFlightSegments(): Promise<FlightSegment[]>;
   getChangeLog(): Promise<ChangeLogEntry[]>;
+  getProposalBatches(): Promise<ProposalBatch[]>;
+  getProposalItems(): Promise<ProposalItem[]>;
   createTrip(input: CreateTripWrite): Promise<Trip>;
   createCompetition(input: CreateCompetitionWrite): Promise<Competition>;
   updateCompetition(input: UpdateCompetitionWrite): Promise<Competition>;
@@ -434,4 +506,11 @@ export type DataSource = {
   deleteBudgetLine(input: DeleteBudgetLineWrite): Promise<void>;
   createFxRate(input: CreateFxRateWrite): Promise<FxRate>;
   updateFxRate(input: UpdateFxRateWrite): Promise<FxRate>;
+  /** Returns the new batch's id. */
+  createProposalBatch(input: CreateProposalBatchWrite): Promise<string>;
+  approveProposal(itemId: string): Promise<ProposalItem>;
+  /** Returns how many items were rejected (more than one with cascade). */
+  rejectProposal(input: RejectProposalWrite): Promise<number>;
+  /** Returns how many still-pending items were rejected. */
+  closeProposalBatch(input: CloseProposalBatchWrite): Promise<number>;
 };

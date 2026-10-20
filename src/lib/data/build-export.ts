@@ -8,6 +8,8 @@ import type {
   FxRate,
   OpenItem,
   Payment,
+  ProposalBatch,
+  ProposalItem,
   SavingsEntry,
   Scenario,
   Source,
@@ -19,7 +21,8 @@ import type {
 // whether it's reading something it understands.
 //   2 -- budget lines gained confidence
 //   3 -- a competition's city, country, dates and time zone can be null
-export const EXPORT_SCHEMA_VERSION = 3;
+//   4 -- proposalBatches and proposalItems (imported research)
+export const EXPORT_SCHEMA_VERSION = 4;
 
 export type ExportPayload = {
   exportedAt: string;
@@ -37,6 +40,8 @@ export type ExportPayload = {
     openItems: OpenItem[];
     flightOptions: FlightOption[];
     flightSegments: FlightSegment[];
+    proposalBatches: ProposalBatch[];
+    proposalItems: ProposalItem[];
     changeLog: ChangeLogEntry[];
   };
 };

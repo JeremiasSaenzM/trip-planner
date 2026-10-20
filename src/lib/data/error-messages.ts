@@ -74,6 +74,20 @@ const SCENARIO_REFUSAL_MESSAGES: [suffix: string, message: string][] = [
   ],
 ];
 
+// approve_proposal() and its helpers (20261021090000_import_proposals.sql)
+// -- each raised with dynamic details interpolated in, so matched by a
+// stable prefix. "Out of date" is the race the review screen can't see:
+// the value moved between loading the page and pressing Approve.
+const PROPOSAL_MESSAGES: [prefix: string, message: string][] = [
+  [
+    "Proposal is out of date",
+    "This changed since the proposal was written, so it wasn't applied. Reject it and ask for a fresh proposal.",
+  ],
+  ["Proposal depends on", "This depends on another item of the batch that isn't approved yet -- approve that one first."],
+  ["Proposal changes a field it can't", "This proposal tries to change a field that can't be changed this way."],
+];
+const PROPOSAL_ALREADY_DECIDED_PATTERN = /^Proposal \S+ was already (approved|rejected)\.$/;
+
 // change_log_capture()'s own reason requirement (change_log.sql) --
 // reached only if a write somehow skips the form's own changeReason
 // validation (shared.ts).
@@ -111,6 +125,13 @@ export function translatePostgresError(error: { message: string }): string {
   }
   for (const [suffix, message] of SCENARIO_REFUSAL_MESSAGES) {
     if (error.message.endsWith(suffix)) return message;
+  }
+  for (const [prefix, message] of PROPOSAL_MESSAGES) {
+    if (error.message.startsWith(prefix)) return message;
+  }
+  const decided = error.message.match(PROPOSAL_ALREADY_DECIDED_PATTERN);
+  if (decided) {
+    return `This proposal was already ${decided[1]}.`;
   }
   if (error.message.includes(NOT_FOUND_SUFFIX)) {
     return NOT_FOUND_MESSAGE;
