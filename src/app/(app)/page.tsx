@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Suspense } from "react";
 
 import { getCurrentUser } from "@/lib/auth";
+import { dataSource } from "@/lib/data";
 
 import { AddCompetitionForm, CreateScenarioForm, CreateTripForm } from "./bootstrap-forms";
 import { BudgetByCategoryChart, SavingsScheduleChart } from "./charts";
@@ -30,10 +32,14 @@ export default function OverviewPage({ searchParams }: PageProps<"/">) {
 async function Overview({ searchParams }: { searchParams: PageProps<"/">["searchParams"] }) {
   await getCurrentUser();
   const { scenario: scenarioId, basis } = await searchParams;
-  const data = await loadDashboardData({
-    scenarioId: typeof scenarioId === "string" ? scenarioId : undefined,
-    basis: typeof basis === "string" ? basis : undefined,
-  });
+  const [data, proposalItems] = await Promise.all([
+    loadDashboardData({
+      scenarioId: typeof scenarioId === "string" ? scenarioId : undefined,
+      basis: typeof basis === "string" ? basis : undefined,
+    }),
+    dataSource.getProposalItems(),
+  ]);
+  const pendingProposals = proposalItems.filter((item) => item.status === "pending").length;
 
   if (data.status === "no_trip") {
     return <CreateTripForm />;
@@ -62,6 +68,15 @@ async function Overview({ searchParams }: { searchParams: PageProps<"/">["search
 
   return (
     <div className="space-y-6">
+      {pendingProposals > 0 && (
+        <Caveat>
+          <Link href="/import" className="font-medium underline">
+            {pendingProposals} research proposal{pendingProposals === 1 ? "" : "s"} waiting for review
+          </Link>
+          {" "}-- nothing from them is in these figures until you approve it.
+        </Caveat>
+      )}
+
       <DashboardControls
         basePath="/"
         scenarios={data.scenarios}

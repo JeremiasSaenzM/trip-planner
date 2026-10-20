@@ -14,6 +14,20 @@ describe("createSourceInput", () => {
     expect(result.success).toBe(true);
   });
 
+  // Source URLs are rendered as links on the import review screen, so
+  // only a scheme a browser navigates to is allowed -- .url() alone
+  // accepts these.
+  it.each(["javascript:alert(1)", "JAVASCRIPT:alert(1)", "data:text/html,<script>alert(1)</script>", "file:///etc/passwd", "ftp://example.com"])(
+    "rejects a non-http(s) url: %s",
+    (url) => {
+      expect(createSourceInput.safeParse({ ...VALID, url }).success).toBe(false);
+    },
+  );
+
+  it("accepts an http url as well as https", () => {
+    expect(createSourceInput.safeParse({ ...VALID, url: "http://example.com/fares" }).success).toBe(true);
+  });
+
   it("rejects a tier outside 1-6", () => {
     expect(createSourceInput.safeParse({ ...VALID, tier: 7 }).success).toBe(false);
   });

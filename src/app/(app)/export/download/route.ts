@@ -26,6 +26,8 @@ export async function GET() {
     openItems,
     flightOptions,
     flightSegments,
+    proposalBatches,
+    proposalItems,
     changeLog,
   ] = await Promise.all([
     dataSource.getTrips(),
@@ -40,6 +42,8 @@ export async function GET() {
     dataSource.getOpenItems(),
     dataSource.getFlightOptions(),
     dataSource.getFlightSegments(),
+    dataSource.getProposalBatches(),
+    dataSource.getProposalItems(),
     dataSource.getChangeLog(),
   ]);
 
@@ -58,6 +62,8 @@ export async function GET() {
     openItems,
     flightOptions,
     flightSegments,
+    proposalBatches,
+    proposalItems,
     changeLog,
   });
 

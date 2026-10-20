@@ -18,11 +18,23 @@ const NAV_ITEMS = [
 // Every link carries the current ?scenario=&basis= along (see
 // dashboard-query.ts). useSearchParams() makes the component that calls
 // it client-rendered up to the nearest <Suspense> -- so the static shell
-// prerenders NavLinks with no query as the fallback, and NavWithQuery
+// prerenders the links with no query as the fallback, and NavWithQuery
 // swaps in the same links with the query once the URL is known.
+//
+// usePathname() needs the same treatment on a dynamic route like
+// /import/[batch], whose path isn't known when the shell is prerendered:
+// there the fallback is the links with nothing highlighted. On every
+// static route the path is known, so the prerendered tab bar still
+// highlights the current section.
 export function Nav({ variant }: { variant: "bottom" | "top" }) {
   return (
-    <Suspense fallback={<NavLinks variant={variant} query="" />}>
+    <Suspense
+      fallback={
+        <Suspense fallback={<NavLinks variant={variant} query="" pathname={null} />}>
+          <NavWithPathname variant={variant} query="" />
+        </Suspense>
+      }
+    >
       <NavWithQuery variant={variant} />
     </Suspense>
   );
@@ -30,14 +42,17 @@ export function Nav({ variant }: { variant: "bottom" | "top" }) {
 
 function NavWithQuery({ variant }: { variant: "bottom" | "top" }) {
   const searchParams = useSearchParams();
-  return <NavLinks variant={variant} query={dashboardQuery(searchParams)} />;
+  return <NavWithPathname variant={variant} query={dashboardQuery(searchParams)} />;
 }
 
-// Client Component because it needs usePathname() to highlight the current section.
+// usePathname() highlights the current section.
+function NavWithPathname({ variant, query }: { variant: "bottom" | "top"; query: string }) {
+  return <NavLinks variant={variant} query={query} pathname={usePathname()} />;
+}
+
 // Mobile: fixed tab bar at the bottom, within thumb reach.
 // From the md breakpoint up: the same links inline in the header.
-function NavLinks({ variant, query }: { variant: "bottom" | "top"; query: string }) {
-  const pathname = usePathname();
+function NavLinks({ variant, query, pathname }: { variant: "bottom" | "top"; query: string; pathname: string | null }) {
 
   if (variant === "top") {
     return (

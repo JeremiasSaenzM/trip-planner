@@ -39,3 +39,18 @@ export type UpdatePaymentDetailsActionState =
   | { status: "blocked"; message: string; pending: UpdatePaymentDetailsInput };
 
 export const initialUpdatePaymentDetailsActionState: UpdatePaymentDetailsActionState = { status: "idle" };
+
+// /import's paste form: a paste is all or nothing, so a refused one
+// lists every problem at once rather than only the first.
+export type ProposalPasteActionState = { status: "idle" } | { status: "error"; problems: string[] };
+
+export const initialProposalPasteActionState: ProposalPasteActionState = { status: "idle" };
+
+// "Approve all ready": each item is its own transaction, so the result
+// is a tally -- what went through, and each failure with its own message.
+export type ApproveAllReadyActionState =
+  | { status: "idle" }
+  | { status: "error"; message: string }
+  | { status: "done"; approved: number; failures: { position: number; message: string }[] };
+
+export const initialApproveAllReadyActionState: ApproveAllReadyActionState = { status: "idle" };

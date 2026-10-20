@@ -10,7 +10,7 @@ const paymentStatus = z.enum(["planned", "committed", "paid", "cancelled"] satis
   ...PaymentStatus[],
 ]);
 
-const paymentTiming = z.enum([
+export const paymentTiming = z.enum([
   "paid_now",
   "due_on_date",
   "pay_before_arrival",
@@ -19,7 +19,7 @@ const paymentTiming = z.enum([
   "optional",
 ] satisfies [PaymentTiming, ...PaymentTiming[]]);
 
-const refundability = z.enum([
+export const refundability = z.enum([
   "refundable",
   "partially_refundable",
   "non_refundable",

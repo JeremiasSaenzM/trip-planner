@@ -152,3 +152,50 @@ describe("isAcceptanceSafeguardError", () => {
     expect(isAcceptanceSafeguardError({ message: "A reason is required for this change." })).toBe(false);
   });
 });
+
+// approve_proposal() and its helpers (20261021090000_import_proposals.sql).
+describe("translatePostgresError: import proposals", () => {
+  it("says a proposal went stale between loading the page and approving it", () => {
+    expect(
+      translatePostgresError({
+        message: "Proposal is out of date: amountMin is now 1500.00, but the proposal expected 1.",
+      }),
+    ).toBe("This changed since the proposal was written, so it wasn't applied. Reject it and ask for a fresh proposal.");
+  });
+
+  it("says what to approve first", () => {
+    expect(
+      translatePostgresError({ message: "Proposal depends on item 2 of this batch, which isn't an approved scenario." }),
+    ).toBe("This depends on another item of the batch that isn't approved yet -- approve that one first.");
+  });
+
+  it("refuses a field outside the whitelist in words", () => {
+    expect(translatePostgresError({ message: "Proposal changes a field it can't: tripId" })).toBe(
+      "This proposal tries to change a field that can't be changed this way.",
+    );
+  });
+
+  it("says an item was already decided", () => {
+    expect(
+      translatePostgresError({ message: "Proposal f1000000-0000-0000-0000-000000000001 was already approved." }),
+    ).toBe("This proposal was already approved.");
+  });
+
+  it("covers Claude's own reason rule with the existing reason message", () => {
+    expect(
+      translatePostgresError({
+        message: "A reason is required for every Claude-originated write (INSERT on public.sources)",
+      }),
+    ).toBe("Say why you're making this change -- a reason is required for edits and deletes.");
+  });
+
+  it("gives the same safeguard message an approval would get from the payment form", () => {
+    expect(
+      translatePostgresError({
+        message:
+          "Payment is a non-refundable/unknown, competition-related commitment (status committed) but the " +
+          "competition is not accepted and risk_accepted_decision_id does not point to a traveler decision for it.",
+      }),
+    ).toMatch(/^This is a non-refundable/);
+  });
+});

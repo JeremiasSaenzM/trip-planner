@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { dateNotInFuture } from "./shared";
+import { dateNotInFuture, httpUrl } from "./shared";
 
 const dateOnly = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use a YYYY-MM-DD date");
 
@@ -17,7 +17,7 @@ export const createSourceInput = z
   .object({
     provider: z.string().trim().min(1, "Say where this came from"),
     tier: z.number().int().min(1).max(6),
-    url: z.string().trim().url().optional().or(z.literal("")),
+    url: httpUrl.optional().or(z.literal("")),
     observedOn: dateNotInFuture,
     applicablePeriodStart: dateOnly.optional(),
     applicablePeriodEnd: dateOnly.optional(),
