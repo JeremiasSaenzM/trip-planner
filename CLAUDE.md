@@ -34,6 +34,7 @@ I'm a developer in the making. This project is for learning and for my portfolio
 - Never read, print, or reuse credentials from credential stores, keychains, environment files, or tokens (e.g. `git credential fill`, OS keychains, `.netrc`). If something needs authentication, stop and ask me to log in myself.
 - Never create or modify `.env.local` without asking me first — it may hold real values. If a one-off task (e.g. a test build) needs env vars, use a separate, clearly-named file or inline/exported env vars instead, and clean them up afterward.
 - Every table has RLS enabled. Policy: only my authenticated user can read or write.
+- Every migration that creates a table includes its grants in that same migration: `revoke all on <table> from anon, authenticated, service_role;`, then grant exactly what it needs (plan data: `select, insert, update, delete` to `authenticated, service_role`; an append-only table like `change_log`: `select` only). Never grant anything to `anon`. Add the table to `supabase/tests/database/0150_table_grants.test.sql`, which fails CI for any table without its grants.
 - Free Supabase has no automatic backups: provide an "export my data" feature early.
 
 ## Demo mode
