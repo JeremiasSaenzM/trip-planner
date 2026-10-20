@@ -66,6 +66,13 @@ function competitionCard(page: Page, name: string) {
   return scenariosSection(page, "Competitions").locator("div.rounded-xl").filter({ hasText: name });
 }
 
+// /import/[batch] numbers each proposal "Item n" -- found by that exact
+// label, since an item's own text (a scenario's name, say) also shows up
+// in every later item that references it.
+function proposalCard(page: Page, n: number) {
+  return page.getByTestId("proposal-item").filter({ has: page.getByText(`Item ${n}`, { exact: true }) });
+}
+
 test("the full first-run journey, starting from a signed-out, empty account", async ({ page }) => {
   await test.step("log in via the magic link", async () => {
     await page.goto("/login");
@@ -514,6 +521,171 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await expect(page.getByText("For the export check")).toBeVisible();
   });
 
+  // One research batch, pasted the way a claude.ai session would hand it
+  // over: a source, a competition with no host yet, a scenario for it
+  // and three budget lines in it (by ref, no ids yet), an update to an
+  // existing line, an update written against a value that has since
+  // moved, and a scenario-plus-line chain that gets rejected as a whole.
+  let batchUrl = "";
+
+  await test.step("paste a research batch from the Export page's Import research link", async () => {
+    const before = await (await page.request.get("/export/download")).json();
+    const flightDeposit = before.data.budgetLines.find(
+      (line: { description: string }) => line.description === "Flight deposit",
+    );
+    expect(flightDeposit.amountTarget).toBe(110);
+    expect(flightDeposit.amountMin).toBe(90);
+
+    const line = (scenarioRef: string, category: string, description: string, amounts: [number, number, number]) => ({
+      scenario: { ref: scenarioRef },
+      category,
+      description,
+      amountMin: amounts[0],
+      amountTarget: amounts[1],
+      amountConservative: amounts[2],
+      currency: "EUR",
+      informationState: "estimate",
+    });
+    const batch = {
+      format: "trip-planner-proposals",
+      version: 1,
+      note: "Olympics research session",
+      items: [
+        {
+          op: "create_source",
+          ref: "fares",
+          reason: "Where the fares came from",
+          data: { provider: "Fictional fare tracker", tier: 3, observedOn: "2026-10-01", url: "https://example.com/fares" },
+        },
+        { op: "create_competition", ref: "olympics", reason: "New candidate, host not announced", data: { name: "Fictional Choir Olympics 2028" } },
+        {
+          op: "create_scenario",
+          ref: "olympics-scn",
+          reason: "One scenario per candidate",
+          data: { name: "Olympics 2028", competition: { ref: "olympics" } },
+        },
+        {
+          op: "create_budget_line",
+          reason: "Fare research for the Olympics",
+          data: { ...line("olympics-scn", "B", "Olympics flights", [800, 900, 1100]), source: { ref: "fares" } },
+        },
+        { op: "create_budget_line", reason: "Typical lodging prices", data: line("olympics-scn", "C", "Olympics lodging", [400, 500, 650]) },
+        { op: "create_budget_line", reason: "Meal estimate", data: line("olympics-scn", "E", "Olympics meals", [100, 120, 150]) },
+        {
+          op: "update_budget_line",
+          target: flightDeposit.id,
+          reason: "Fare dropped",
+          changes: { amountTarget: { from: flightDeposit.amountTarget, to: 105 } },
+        },
+        {
+          op: "update_budget_line",
+          target: flightDeposit.id,
+          reason: "Written against an old minimum",
+          changes: { amountMin: { from: 50, to: 60 } },
+        },
+        { op: "create_scenario", ref: "abandoned", reason: "A second idea", data: { name: "Abandoned idea" } },
+        { op: "create_budget_line", reason: "For the second idea", data: line("abandoned", "A", "Abandoned idea line", [1, 1, 1]) },
+      ],
+    };
+
+    await page.goto("/export");
+    await page.getByRole("link", { name: "Import research" }).click();
+    await expect(page).toHaveURL("/import");
+
+    await page.getByLabel("Proposals to review").fill(JSON.stringify(batch, null, 2));
+    await page.getByRole("button", { name: "Review proposals" }).click();
+    await expect(page).toHaveURL(/\/import\/[0-9a-f-]{36}$/);
+    batchUrl = new URL(page.url()).pathname;
+  });
+
+  await test.step("Overview says proposals are waiting, and nothing is written yet", async () => {
+    await page.goto("/");
+    await expect(page.getByRole("link", { name: "10 research proposals waiting for review" })).toBeVisible();
+    await page.goto("/scenarios");
+    await expect(scenarioCard(page, "Olympics 2028")).toHaveCount(0);
+    await page.goto("/");
+    await page.getByRole("link", { name: "10 research proposals waiting for review" }).click();
+    await expect(page).toHaveURL("/import");
+    await page.getByRole("link", { name: "Olympics research session" }).click();
+    await expect(page).toHaveURL(batchUrl);
+  });
+
+  await test.step("the review shows current next to proposed, the source, and what's stale", async () => {
+    await expect(proposalCard(page, 1).getByRole("link", { name: "https://example.com/fares" })).toBeVisible();
+    await expect(proposalCard(page, 3).getByText("Waiting on item 2 (new competition)")).toBeVisible();
+    await expect(proposalCard(page, 4).getByText(/Fictional fare tracker \(item 1 of this batch, pending\)/).first()).toBeVisible();
+
+    const update = proposalCard(page, 7);
+    await expect(update.getByText("Change budget line: Flight deposit")).toBeVisible();
+    await expect(update.getByText("110 → 105")).toBeVisible();
+    await expect(update.getByText("Reason: Fare dropped")).toBeVisible();
+
+    const stale = proposalCard(page, 8);
+    await expect(stale.getByText("Out of date")).toBeVisible();
+    await expect(stale.getByText(/Changed since this was written: Minimum is now 90, the proposal expected 50/)).toBeVisible();
+    // Reject-only: a stale proposal is never applied over the value that moved.
+    await expect(stale.getByRole("button", { name: "Approve" })).toHaveCount(0);
+  });
+
+  await test.step("reject one budget line on its own, with a reason", async () => {
+    const meals = proposalCard(page, 6);
+    await meals.getByRole("button", { name: "Reject" }).click();
+    await meals.getByLabel("Reason for rejecting this").fill("Not budgeting meals yet");
+    await meals.getByRole("button", { name: "Reject" }).click();
+    await expect(proposalCard(page, 6).getByText("Rejected: Not budgeting meals yet")).toBeVisible();
+  });
+
+  await test.step("reject a scenario together with the line that depends on it", async () => {
+    const abandoned = proposalCard(page, 9);
+    await abandoned.getByRole("button", { name: "Reject" }).click();
+    await expect(abandoned.getByText(/One item depends on this: item 10 \(new budget line\)/)).toBeVisible();
+    await abandoned.getByLabel("Reason for rejecting this").fill("Dropping this idea");
+    await abandoned.getByLabel("Reject them too, with this reason").check();
+    await abandoned.getByRole("button", { name: "Reject" }).click();
+
+    await expect(proposalCard(page, 9).getByText("Rejected: Dropping this idea")).toBeVisible();
+    await expect(proposalCard(page, 10).getByText("Rejected: Rejected with item 9, which it depends on: Dropping this idea")).toBeVisible();
+  });
+
+  await test.step("approve all ready: the chain goes through in one click, the stale one stays", async () => {
+    await page.getByRole("button", { name: /Approve all ready/ }).click();
+    await expect(page.getByRole("status")).toHaveText("Approved 6 items.");
+
+    for (const n of [1, 2, 3, 4, 5, 7]) {
+      await expect(proposalCard(page, n).getByText("Approved -- written to your plan.")).toBeVisible();
+    }
+    await expect(proposalCard(page, 8).getByText("Out of date")).toBeVisible();
+  });
+
+  await test.step("reject the stale update", async () => {
+    const stale = proposalCard(page, 8);
+    await stale.getByRole("button", { name: "Reject" }).click();
+    await stale.getByLabel("Reason for rejecting this").fill("Minimum moved; asking for a fresh proposal");
+    await stale.getByRole("button", { name: "Reject" }).click();
+    await expect(proposalCard(page, 8).getByText("Rejected: Minimum moved; asking for a fresh proposal")).toBeVisible();
+    // Nothing left pending: the batch-wide buttons go away.
+    await expect(page.getByRole("button", { name: /Approve all ready/ })).toHaveCount(0);
+  });
+
+  await test.step("what was approved is in the plan, and nothing else", async () => {
+    await page.goto("/");
+    await expect(page.getByRole("link", { name: /research proposals? waiting for review/ })).toHaveCount(0);
+
+    await page.goto("/budget-lines");
+    await expect(budgetLineRow(page, "Flight deposit").getByText("€105.00")).toBeVisible();
+
+    await page.goto("/scenarios");
+    await expect(scenarioCard(page, "Olympics 2028").getByText("Fictional Choir Olympics 2028")).toBeVisible();
+    await expect(scenarioCard(page, "Abandoned idea")).toHaveCount(0);
+    await scenarioCard(page, "Olympics 2028").getByRole("link", { name: "Switch to" }).click();
+    const olympicsScenarioId = new URL(page.url()).searchParams.get("scenario")!;
+
+    await page.goto(`/budget-lines?scenario=${olympicsScenarioId}`);
+    await expect(budgetLineRow(page, "Olympics flights")).toBeVisible();
+    await expect(budgetLineRow(page, "Olympics lodging")).toBeVisible();
+    await expect(budgetLineRow(page, "Olympics meals")).toHaveCount(0);
+  });
+
   await test.step("export my data and check its contents", async () => {
     await page.goto("/");
     await page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Export" }).click();
@@ -529,7 +701,7 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     const exported = JSON.parse(readFileSync(path!, "utf-8"));
 
     expect(typeof exported.exportedAt).toBe("string");
-    expect(exported.schemaVersion).toBe(3);
+    expect(exported.schemaVersion).toBe(4);
     const dateless = exported.data.competitions.find(
       (competition: { name: string }) => competition.name === "World Choir Games (host TBA)",
     );
@@ -551,5 +723,57 @@ test("the full first-run journey, starting from a signed-out, empty account", as
         .confidence,
     ).toBeNull();
     expect(exported.data.changeLog.length).toBeGreaterThan(0);
+
+    // The import: approved writes are Claude's, each with its proposal's
+    // reason; every rejection is recorded with its own.
+    type LogEntry = {
+      tableName: string;
+      action: string;
+      actor: string;
+      reason: string | null;
+      newData: Record<string, unknown> | null;
+    };
+    const log: LogEntry[] = exported.data.changeLog;
+    expect(
+      log.some(
+        (e) =>
+          e.tableName === "budget_lines" &&
+          e.action === "insert" &&
+          e.actor === "claude" &&
+          e.reason === "Fare research for the Olympics" &&
+          e.newData?.description === "Olympics flights",
+      ),
+    ).toBe(true);
+    expect(
+      log.some(
+        (e) =>
+          e.tableName === "budget_lines" &&
+          e.action === "update" &&
+          e.actor === "claude" &&
+          e.reason === "Fare dropped" &&
+          Number(e.newData?.amount_target) === 105,
+      ),
+    ).toBe(true);
+    expect(
+      log.some((e) => e.tableName === "scenarios" && e.action === "insert" && e.actor === "claude" && e.reason === "One scenario per candidate"),
+    ).toBe(true);
+    for (const reason of ["Not budgeting meals yet", "Dropping this idea", "Minimum moved; asking for a fresh proposal"]) {
+      expect(
+        log.some((e) => e.tableName === "proposal_items" && e.action === "update" && e.actor === "app" && e.reason === reason),
+      ).toBe(true);
+    }
+    // Never a Claude-originated write without a reason.
+    expect(log.filter((e) => e.actor === "claude").every((e) => e.reason)).toBe(true);
+    // Nothing from a rejected proposal was written.
+    expect(exported.data.budgetLines.some((l: { description: string }) => l.description === "Olympics meals")).toBe(false);
+    expect(exported.data.scenarios.some((s: { name: string }) => s.name === "Abandoned idea")).toBe(false);
+
+    const proposals: { position: number; status: string; decisionReason: string | null }[] = exported.data.proposalItems;
+    expect(proposals.filter((p) => p.status === "approved")).toHaveLength(6);
+    expect(proposals.filter((p) => p.status === "rejected")).toHaveLength(4);
+    expect(proposals.find((p) => p.position === 9)!.decisionReason).toBe(
+      "Rejected with item 9, which it depends on: Dropping this idea",
+    );
+    expect(exported.data.proposalBatches[0].note).toBe("Olympics research session");
   });
 });

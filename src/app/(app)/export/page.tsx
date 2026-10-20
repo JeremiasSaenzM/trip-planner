@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Suspense } from "react";
 
 import { getCurrentUser } from "@/lib/auth";
@@ -28,8 +29,8 @@ async function ExportScreen() {
     <div className="space-y-4">
       <p className="text-sm text-zinc-600 dark:text-zinc-400">
         Downloads everything in your trip as one JSON file: trips, competitions, scenarios, sources, budget
-        lines, payments, savings entries, FX rates, decisions, open items, flight options and segments, and
-        the full change log.
+        lines, payments, savings entries, FX rates, decisions, open items, flight options and segments,
+        imported research proposals (with what became of each), and the full change log.
       </p>
       <p className="text-sm text-zinc-600 dark:text-zinc-400">
         This is your only backup -- the free Supabase plan doesn&apos;t make its own. Importing this file back
@@ -41,6 +42,17 @@ async function ExportScreen() {
       >
         Download my data
       </a>
+
+      <div className="space-y-2 border-t border-zinc-200 pt-4 dark:border-zinc-800">
+        <h2 className="text-lg font-semibold">Import research</h2>
+        <p className="text-sm text-zinc-600 dark:text-zinc-400">
+          Paste proposed changes from a research session and approve them one by one. Nothing is written until
+          you approve it.
+        </p>
+        <Link href="/import" className="inline-block text-sm font-medium underline">
+          Import research
+        </Link>
+      </div>
     </div>
   );
 }
