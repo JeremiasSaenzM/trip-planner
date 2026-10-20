@@ -88,7 +88,7 @@ select lives_ok(
           "payload": {"data": {"scenario": {"id": "b2000000-0000-0000-0000-000000000004"}, "category": "E",
             "description": "Backwards amounts", "amountMin": 500, "amountTarget": 100, "amountConservative": 50,
             "currency": "EUR", "informationState": "estimate"}}},
-         {"position": 8, "ref": "b1-foreign", "op": "create_budget_line", "reason": "pgTAP: someone else's source",
+         {"position": 8, "ref": "b1-foreign", "op": "create_budget_line", "reason": "pgTAP: someone else''s source",
           "payload": {"data": {"category": "E", "description": "Foreign source line", "amountMin": 1,
             "amountTarget": 1, "amountConservative": 1, "currency": "EUR", "informationState": "estimate",
             "source": {"id": "b2000000-0000-0000-0000-000000000099"}}}}
