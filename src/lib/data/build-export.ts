@@ -17,7 +17,9 @@ import type {
 // Bumped whenever the shape of ExportPayload["data"] changes, so a
 // future import (not built yet -- see CLAUDE.md's Phase 5 note) knows
 // whether it's reading something it understands.
-export const EXPORT_SCHEMA_VERSION = 2;
+//   2 -- budget lines gained confidence
+//   3 -- a competition's city, country, dates and time zone can be null
+export const EXPORT_SCHEMA_VERSION = 3;
 
 export type ExportPayload = {
   exportedAt: string;

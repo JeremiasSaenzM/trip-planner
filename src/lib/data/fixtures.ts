@@ -133,6 +133,27 @@ export const competitions: Competition[] = [
     createdAt: "2026-09-01T00:00:00Z",
     updatedAt: "2026-09-01T00:00:00Z",
   },
+  // A candidate whose host and festival dates aren't announced yet --
+  // shows the "no dates, so no savings requirement" states in Preview.
+  {
+    id: "40000000-0000-0000-0000-000000000003",
+    tripId: "20000000-0000-0000-0000-000000000001",
+    name: "Fictional World Choir Games (host not announced)",
+    city: null,
+    country: null,
+    venue: null,
+    startDate: null,
+    endDate: null,
+    timezone: null,
+    datesState: "pending",
+    datesSourceId: null,
+    acceptanceStatus: "pending",
+    acceptanceDecidedOn: null,
+    acceptanceSourceId: null,
+    isSelected: false,
+    createdAt: "2026-10-05T00:00:00Z",
+    updatedAt: "2026-10-05T00:00:00Z",
+  },
 ];
 
 export const scenarios: Scenario[] = [
@@ -155,6 +176,16 @@ export const scenarios: Scenario[] = [
     notes: "Fictional example: a few extra days in Paris after the festival.",
     createdAt: "2026-09-01T00:00:00Z",
     updatedAt: "2026-09-01T00:00:00Z",
+  },
+  {
+    id: "50000000-0000-0000-0000-000000000003",
+    tripId: "20000000-0000-0000-0000-000000000001",
+    name: "World Choir Games — host TBA",
+    competitionId: "40000000-0000-0000-0000-000000000003",
+    includesExtension: false,
+    notes: null,
+    createdAt: "2026-10-05T00:00:00Z",
+    updatedAt: "2026-10-05T00:00:00Z",
   },
 ];
 

@@ -14,6 +14,12 @@ import { firstIssueMessage, optionalText } from "./server-action-helpers";
 // Server Actions for the Overview page's "no_trip"/"no_scenario" empty
 // states (see bootstrap-forms.tsx). The hosted database starts out
 // completely empty, so this is the only way into the rest of the app.
+// The competition and scenario forms are reused on /scenarios to add
+// more of each -- and every page's scenario selector lists them -- so
+// those two revalidate everything under the root layout.
+function revalidateCompetitionsAndScenarios() {
+  revalidatePath("/", "layout");
+}
 
 export async function createTrip(_previous: FormActionState, formData: FormData): Promise<FormActionState> {
   const parsed = createTripInput.safeParse({ name: formData.get("name") });
@@ -36,12 +42,12 @@ export async function createCompetition(
   const parsed = createCompetitionInput.safeParse({
     tripId: formData.get("tripId"),
     name: formData.get("name"),
-    city: formData.get("city"),
-    country: formData.get("country"),
+    city: optionalText(formData.get("city")),
+    country: optionalText(formData.get("country")),
     venue: optionalText(formData.get("venue")),
-    startDate: formData.get("startDate"),
-    endDate: formData.get("endDate"),
-    timezone: formData.get("timezone"),
+    startDate: optionalText(formData.get("startDate")),
+    endDate: optionalText(formData.get("endDate")),
+    timezone: optionalText(formData.get("timezone")),
   });
   if (!parsed.success) return { status: "error", message: firstIssueMessage(parsed.error) };
 
@@ -51,7 +57,7 @@ export async function createCompetition(
     return { status: "error", message: translatePostgresError(error as { message: string }) };
   }
 
-  revalidatePath("/");
+  revalidateCompetitionsAndScenarios();
   return initialFormActionState;
 }
 
@@ -72,6 +78,6 @@ export async function createScenario(
     return { status: "error", message: translatePostgresError(error as { message: string }) };
   }
 
-  revalidatePath("/");
+  revalidateCompetitionsAndScenarios();
   return initialFormActionState;
 }

@@ -1,4 +1,14 @@
+import type { Competition } from "@/lib/data/types";
+
 import { formatUsd } from "./format";
+
+// Why a scenario has no departure date, in plain words -- shared by
+// every page that has to explain a figure it can't compute (Overview's
+// savings requirement, Payments' before/during-the-trip split), so they
+// never fall back to a silent $0 or a silent single bucket instead.
+export function noDatesReason(competition: Competition | null): string {
+  return competition === null ? "This scenario has no competition yet" : "No festival dates yet";
+}
 
 export function Card({ children }: { children: React.ReactNode }) {
   return <div className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">{children}</div>;

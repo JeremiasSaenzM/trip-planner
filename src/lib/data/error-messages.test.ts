@@ -27,6 +27,41 @@ describe("translatePostgresError", () => {
     expect(message).toMatch(/I accept this risk/);
   });
 
+  it("translates the competition both-or-neither dates check", () => {
+    const message = translatePostgresError({
+      message: 'new row for relation "competitions" violates check constraint "competitions_dates_together"',
+    });
+    expect(message).toBe("Give both festival dates (first and final day), or neither.");
+  });
+
+  it("translates delete_scenario's refusals by their suffix", () => {
+    expect(
+      translatePostgresError({
+        message: "Scenario a1000000-0000-0000-0000-000000000012 still has budget lines -- delete them first.",
+      }),
+    ).toMatch(/^This scenario still has budget lines/);
+    expect(
+      translatePostgresError({
+        message: "Scenario a1000000-0000-0000-0000-000000000013 still has payments -- delete them first.",
+      }),
+    ).toMatch(/^This scenario still has payments/);
+    expect(
+      translatePostgresError({
+        message: "Scenario a1000000-0000-0000-0000-000000000014 still has flight options -- delete them first.",
+      }),
+    ).toMatch(/^This scenario still has flight options/);
+  });
+
+  it("translates update_scenario's committed-payments refusal", () => {
+    const message = translatePostgresError({
+      message:
+        "Scenario a1000000-0000-0000-0000-000000000012 has committed non-refundable competition payments -- " +
+        "its competition can't be changed.",
+    });
+    expect(message).toMatch(/can't be changed/);
+    expect(message).toMatch(/still rename it/);
+  });
+
   it("translates the change-reason trigger's raised exception", () => {
     const message = translatePostgresError({
       message: "A reason is required for UPDATE on public.budget_lines (set app.change_reason before writing)",

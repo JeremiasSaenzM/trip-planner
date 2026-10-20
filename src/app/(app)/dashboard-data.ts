@@ -10,6 +10,8 @@ import { findMissingFxRates, type MissingFxRate } from "@/lib/domain/find-missin
 import { rollUpBudgetByScenario, type RollUpBudgetByScenarioResult } from "@/lib/domain/roll-up-budget-by-scenario";
 import type { Basis } from "@/lib/domain/types";
 
+import { sortScenarios } from "./scenario-order";
+
 export type { Basis };
 
 export type DashboardData =
@@ -24,13 +26,17 @@ export type DashboardData =
       basis: Basis;
       asOfDate: string;
       rollup: RollUpBudgetByScenarioResult;
-      /** null when the scenario has no competition yet -- see noDepartureDate. */
+      /** null when noDepartureDate. */
       savings: CalculateRequiredSavingsResult | null;
+      /** The scenario has no competition, or its competition has no
+       * festival dates yet -- either way there's no deadline to save
+       * toward, so no savings requirement can be computed. Pages must
+       * say so in words, never show it as $0. */
       noDepartureDate: boolean;
       provisional: boolean;
       obligations: BuiltObligation[];
-      /** Savings minus everything already paid. 0 when noDepartureDate
-       * (buildObligations never ran, so there's nothing to report). */
+      /** Savings minus everything already paid -- computed even when
+       * noDepartureDate, since it doesn't depend on a date. */
       availableUsd: number;
       /** null when noDepartureDate -- there are no obligations to plan against. */
       phasedPlan: BuildPhasedSavingsPlanResult | null;
@@ -50,8 +56,8 @@ export type DashboardData =
       savingsEntries: SavingsEntry[];
       /** Payments buildObligations() couldn't convert to USD (no
        * matching fx_rate) -- excluded from every savings figure above,
-       * same as rollup.missingRates is for budget lines. Always []
-       * when noDepartureDate, since buildObligations never ran. */
+       * same as rollup.missingRates is for budget lines. When
+       * noDepartureDate, only already-paid amounts can be missing one. */
       missingPaymentRates: MissingObligationRate[];
       /** Global -- sources have no trip_id of their own (see
        * supabase/migrations/20261012130400_sources.sql). */
@@ -91,7 +97,7 @@ export async function loadDashboardData(params: {
 
   const tripCompetitions = competitions.filter((c) => c.tripId === trip.id);
 
-  const tripScenarios = scenarios.filter((s) => s.tripId === trip.id);
+  const tripScenarios = sortScenarios(scenarios.filter((s) => s.tripId === trip.id));
   const scenario = tripScenarios.find((s) => s.id === params.scenarioId) ?? tripScenarios[0];
   if (!scenario) return { status: "no_scenario", trip, competitions: tripCompetitions };
 
@@ -159,7 +165,7 @@ export async function loadDashboardData(params: {
       noDepartureDate: true,
       provisional: false,
       obligations: [],
-      availableUsd: 0,
+      availableUsd: obligationsResult.availableUsd,
       phasedPlan: null,
       parallelPlan: null,
       payments: scenarioPayments,
@@ -167,7 +173,7 @@ export async function loadDashboardData(params: {
       budgetLines: scenarioBudgetLines,
       openItems: tripOpenItems,
       savingsEntries: tripSavingsEntries,
-      missingPaymentRates: [],
+      missingPaymentRates: obligationsResult.missingRates,
       sources,
       fxRates: rates,
       missingFxRates,

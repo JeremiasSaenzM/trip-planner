@@ -51,6 +51,21 @@ function missingRateRow(page: Page, rateKindLabel: string) {
   return page.locator("li").filter({ hasText: rateKindLabel });
 }
 
+// /scenarios lists each scenario's competition by name, and the Add
+// forms' competition pickers list every competition too -- so a card
+// is found inside its own section, never page-wide by text alone.
+function scenariosSection(page: Page, heading: "Scenarios" | "Competitions") {
+  return page.locator("section").filter({ has: page.getByRole("heading", { name: heading, exact: true }) });
+}
+
+function scenarioCard(page: Page, name: string) {
+  return scenariosSection(page, "Scenarios").locator("div.rounded-xl").filter({ hasText: name });
+}
+
+function competitionCard(page: Page, name: string) {
+  return scenariosSection(page, "Competitions").locator("div.rounded-xl").filter({ hasText: name });
+}
+
 test("the full first-run journey, starting from a signed-out, empty account", async ({ page }) => {
   await test.step("log in via the magic link", async () => {
     await page.goto("/login");
@@ -347,6 +362,145 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await expect(row.getByRole("button", { name: "Save" })).toBeVisible();
   });
 
+  const FIRST_COMPETITION = "Llangollen International Musical Eisteddfod";
+  const DATELESS_COMPETITION = "World Choir Games (host TBA)";
+  let firstScenarioId = "";
+  let datelessScenarioId = "";
+
+  await test.step("open /scenarios from the Manage scenarios link", async () => {
+    await page.goto("/");
+    firstScenarioId = new URL(
+      (await page.getByRole("link", { name: "Manage scenarios" }).getAttribute("href"))!,
+      "http://x",
+    ).searchParams.get("scenario")!;
+    await page.getByRole("link", { name: "Manage scenarios" }).click();
+    await expect(page).toHaveURL(/\/scenarios\?scenario=/);
+    await expect(scenarioCard(page, "Llangollen 2027").getByText("Selected")).toBeVisible();
+  });
+
+  await test.step("add a second competition with no city and no dates", async () => {
+    const form = page.locator("form").filter({ has: page.getByRole("button", { name: "Add competition" }) });
+    await form.getByLabel("Name").fill(DATELESS_COMPETITION);
+    await form.getByRole("button", { name: "Add competition" }).click();
+
+    const card = competitionCard(page, DATELESS_COMPETITION);
+    await expect(card.getByText("Festival dates not announced yet")).toBeVisible();
+    await expect(card.getByText("Host city not announced yet")).toBeVisible();
+    await expect(card.getByText("Not used by any scenario")).toBeVisible();
+  });
+
+  await test.step("create a scenario for it and switch to it", async () => {
+    const form = page.locator("form").filter({ has: page.getByRole("button", { name: "Create scenario" }) });
+    await form.getByLabel("Name").fill("Host TBA scenario");
+    await form.getByLabel("Competition").selectOption({ label: DATELESS_COMPETITION });
+    await form.getByRole("button", { name: "Create scenario" }).click();
+
+    await expect(competitionCard(page, DATELESS_COMPETITION).getByText("Used by: Host TBA scenario")).toBeVisible();
+
+    await scenarioCard(page, "Host TBA scenario").getByRole("link", { name: "Switch to" }).click();
+    await expect(page).toHaveURL(/\/\?scenario=/);
+    datelessScenarioId = new URL(page.url()).searchParams.get("scenario")!;
+    expect(datelessScenarioId).not.toBe(firstScenarioId);
+  });
+
+  await test.step("with no festival dates, say so instead of showing $0", async () => {
+    await expect(page.getByTestId("no-savings-requirement")).toHaveText(
+      "No festival dates yet, so there's no savings requirement to compute.",
+    );
+    await expect(page.getByTestId("required-monthly-saving")).toHaveCount(0);
+  });
+
+  await test.step("the selection survives a nav click", async () => {
+    const budgetLink = page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Budget" });
+    // Also waits for the nav to hydrate: its prerendered fallback has
+    // no query, and clicking that one would drop the selection.
+    await expect(budgetLink).toHaveAttribute("href", new RegExp(`scenario=${datelessScenarioId}`));
+    await budgetLink.click();
+    await expect(page).toHaveURL(new RegExp(`/budget-lines\\?scenario=${datelessScenarioId}`));
+  });
+
+  await test.step("add a budget line to the new scenario; it doesn't appear in the first one", async () => {
+    const addForm = budgetLineAddForm(page);
+    await addForm.getByLabel("Description").fill("Host TBA registration");
+    await addForm.getByLabel("Budget category").selectOption("A");
+    await addForm.getByLabel("Minimum").fill("200");
+    await addForm.getByLabel("Target").fill("250");
+    await addForm.getByLabel("Conservative").fill("300");
+    await addForm.getByRole("button", { name: "Add budget line" }).click();
+    await expect(budgetLineRow(page, "Host TBA registration")).toBeVisible();
+
+    await page.getByRole("link", { name: "Llangollen 2027", exact: true }).click();
+    await expect(page).toHaveURL(new RegExp(`scenario=${firstScenarioId}`));
+    await expect(budgetLineRow(page, "Flight deposit")).toBeVisible();
+    await expect(budgetLineRow(page, "Host TBA registration")).toHaveCount(0);
+  });
+
+  await test.step("with no festival dates, Payments says it can't split instead of bucketing silently", async () => {
+    await page.goto(`/payments?scenario=${datelessScenarioId}`);
+    await page.getByLabel("Description").fill("Host TBA deposit");
+    await page.getByLabel("Budget category").selectOption("A");
+    await page.getByLabel("Amount").fill("50");
+    await page.getByLabel("Refundability").selectOption("refundable");
+    await page.getByRole("button", { name: "Add payment" }).click();
+    await expect(page.getByText("Host TBA deposit", { exact: true })).toBeVisible();
+
+    await expect(page.getByTestId("no-payment-split")).toContainText("No festival dates yet");
+    await expect(page.getByRole("heading", { name: "All payments" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Due before you leave" })).toHaveCount(0);
+  });
+
+  await test.step("edit the first competition's dates to confirmed, with a source", async () => {
+    await page.goto(`/scenarios?scenario=${firstScenarioId}`);
+    const card = competitionCard(page, FIRST_COMPETITION);
+
+    await card.getByRole("button", { name: "Edit" }).click();
+    await card.getByLabel("Information state (festival dates)").selectOption("confirmed");
+    // A role lookup, not getByLabel: this picker is optional, so its
+    // visible label reads "Source (festival dates) (optional)".
+    await card.getByRole("combobox", { name: /^Source \(festival dates\)/ }).selectOption("__new__");
+    await card.getByLabel("Provider", { exact: true }).fill("Fictional festival website");
+    await card.getByLabel("Tier", { exact: true }).selectOption("1");
+    await card.getByLabel("Observation date", { exact: true }).fill("2026-10-01");
+    await card.getByLabel("Reason for this change").fill("Dates published on the official site");
+    await card.getByRole("button", { name: "Save" }).click();
+
+    await expect(card.getByText(/\(Confirmed\)/)).toBeVisible();
+    await expect(card.getByText("Acceptance pending")).toBeVisible();
+  });
+
+  await test.step("create an empty scenario, rename it and link it, then delete it with a reason", async () => {
+    const form = page.locator("form").filter({ has: page.getByRole("button", { name: "Create scenario" }) });
+    await form.getByLabel("Name").fill("Throwaway scenario");
+    await form.getByLabel("Competition").selectOption({ label: "No competition yet" });
+    await form.getByRole("button", { name: "Create scenario" }).click();
+    await expect(scenarioCard(page, "Throwaway scenario").getByText("No competition yet")).toBeVisible();
+
+    const card = scenarioCard(page, "Throwaway scenario");
+    await card.getByRole("button", { name: "Edit" }).click();
+    await card.getByLabel("New name").fill("Throwaway scenario (linked)");
+    await card.getByLabel("Competition").selectOption({ label: DATELESS_COMPETITION });
+    await card.getByLabel("Reason for this change").fill("Trying out a link");
+    await card.getByRole("button", { name: "Save" }).click();
+
+    const renamed = scenarioCard(page, "Throwaway scenario (linked)");
+    await expect(renamed.getByText(DATELESS_COMPETITION)).toBeVisible();
+
+    await renamed.getByRole("button", { name: "Delete" }).click();
+    await renamed.getByLabel("Reason for deleting this").fill("Only a test");
+    await renamed.getByRole("button", { name: "Delete" }).click();
+    await expect(scenarioCard(page, "Throwaway scenario")).toHaveCount(0);
+  });
+
+  await test.step("deleting a scenario that still has budget lines is refused", async () => {
+    const card = scenarioCard(page, "Host TBA scenario");
+    await card.getByRole("button", { name: "Delete" }).click();
+    await card.getByLabel("Reason for deleting this").fill("Trying anyway");
+    await card.getByRole("button", { name: "Delete" }).click();
+
+    await expect(card.getByRole("alert")).toContainText("still has budget lines");
+    await expect(scenarioCard(page, "Host TBA scenario")).toHaveCount(1);
+  });
+
   // The journey's only savings entry so far was recorded, edited, and
   // then deleted earlier (see "delete the entry with a reason") -- a
   // fresh one here is what the export step below actually checks for,
@@ -375,7 +529,12 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     const exported = JSON.parse(readFileSync(path!, "utf-8"));
 
     expect(typeof exported.exportedAt).toBe("string");
-    expect(exported.schemaVersion).toBe(2);
+    expect(exported.schemaVersion).toBe(3);
+    const dateless = exported.data.competitions.find(
+      (competition: { name: string }) => competition.name === "World Choir Games (host TBA)",
+    );
+    expect(dateless.startDate).toBeNull();
+    expect(dateless.city).toBeNull();
 
     expect(
       exported.data.savingsEntries.some((entry: { note: string | null }) => entry.note === "For the export check"),

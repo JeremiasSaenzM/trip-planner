@@ -29,9 +29,9 @@ export function DashboardControls({
 }) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-2">
-      {scenarios.length > 1 ? (
-        <div className="flex flex-wrap gap-1">
-          {scenarios.map((scenario) => (
+      <div className="flex flex-wrap items-center gap-1">
+        {scenarios.length > 1 &&
+          scenarios.map((scenario) => (
             <Link
               key={scenario.id}
               href={`${basePath}?scenario=${scenario.id}&basis=${basis}`}
@@ -41,10 +41,15 @@ export function DashboardControls({
               {scenario.name}
             </Link>
           ))}
-        </div>
-      ) : (
-        <span />
-      )}
+        {/* Always shown, even with a single scenario -- it's also the
+            way to add a second one. */}
+        <Link
+          href={`/scenarios?scenario=${activeScenarioId}&basis=${basis}`}
+          className="px-2 py-1 text-xs font-medium text-zinc-600 underline dark:text-zinc-400"
+        >
+          Manage scenarios
+        </Link>
+      </div>
 
       <div className="flex gap-1 rounded-full bg-zinc-100 p-1 dark:bg-zinc-800">
         {(["target", "conservative"] as const).map((option) => (
