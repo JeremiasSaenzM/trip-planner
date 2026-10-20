@@ -7,7 +7,7 @@ import { AddCompetitionForm, CreateScenarioForm, CreateTripForm } from "./bootst
 import { BudgetByCategoryChart, SavingsScheduleChart } from "./charts";
 import { DashboardControls } from "./dashboard-controls";
 import { loadDashboardData } from "./dashboard-data";
-import { Card, CardLabel, Caveat, RangeFigure } from "./dashboard-ui";
+import { Card, CardLabel, Caveat, noDatesReason, RangeFigure } from "./dashboard-ui";
 import { formatUsd } from "./format";
 import { ParallelSavingsChart, PhasedSavingsChart } from "./savings-plan-charts";
 import { RecordSavingsEntryForm, SavingsEntryList } from "./savings-entries-ui";
@@ -93,7 +93,11 @@ async function Overview({ searchParams }: { searchParams: PageProps<"/">["search
       <Card>
         <CardLabel>Required monthly saving ({data.basis})</CardLabel>
         {noDepartureDate ? (
-          <p className="text-lg text-zinc-500 dark:text-zinc-400">No departure date yet.</p>
+          // Never $0 here: that would read as "nothing to save", when the
+          // truth is "can't say yet".
+          <p data-testid="no-savings-requirement" className="mt-1 text-base text-zinc-600 dark:text-zinc-400">
+            {noDatesReason(competition)}, so there&apos;s no savings requirement to compute.
+          </p>
         ) : (
           <p data-testid="required-monthly-saving" className="text-3xl font-semibold tracking-tight">
             {formatUsd(binding ?? 0)}

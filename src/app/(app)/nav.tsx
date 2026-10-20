@@ -1,7 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
+import { Suspense } from "react";
+
+import { dashboardQuery } from "./dashboard-query";
 
 // Sections of the app.
 const NAV_ITEMS = [
@@ -12,10 +15,28 @@ const NAV_ITEMS = [
   { href: "/export", label: "Export", icon: DownloadIcon },
 ];
 
+// Every link carries the current ?scenario=&basis= along (see
+// dashboard-query.ts). useSearchParams() makes the component that calls
+// it client-rendered up to the nearest <Suspense> -- so the static shell
+// prerenders NavLinks with no query as the fallback, and NavWithQuery
+// swaps in the same links with the query once the URL is known.
+export function Nav({ variant }: { variant: "bottom" | "top" }) {
+  return (
+    <Suspense fallback={<NavLinks variant={variant} query="" />}>
+      <NavWithQuery variant={variant} />
+    </Suspense>
+  );
+}
+
+function NavWithQuery({ variant }: { variant: "bottom" | "top" }) {
+  const searchParams = useSearchParams();
+  return <NavLinks variant={variant} query={dashboardQuery(searchParams)} />;
+}
+
 // Client Component because it needs usePathname() to highlight the current section.
 // Mobile: fixed tab bar at the bottom, within thumb reach.
 // From the md breakpoint up: the same links inline in the header.
-export function Nav({ variant }: { variant: "bottom" | "top" }) {
+function NavLinks({ variant, query }: { variant: "bottom" | "top"; query: string }) {
   const pathname = usePathname();
 
   if (variant === "top") {
@@ -24,7 +45,7 @@ export function Nav({ variant }: { variant: "bottom" | "top" }) {
         {NAV_ITEMS.map(({ href, label }) => (
           <Link
             key={href}
-            href={href}
+            href={`${href}${query}`}
             aria-current={pathname === href ? "page" : undefined}
             className="rounded-lg px-3 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-100 aria-[current=page]:text-zinc-950 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:aria-[current=page]:text-zinc-50"
           >
@@ -44,7 +65,7 @@ export function Nav({ variant }: { variant: "bottom" | "top" }) {
         {NAV_ITEMS.map(({ href, label, icon: Icon }) => (
           <li key={href} className="flex-1">
             <Link
-              href={href}
+              href={`${href}${query}`}
               aria-current={pathname === href ? "page" : undefined}
               className="flex min-h-14 flex-col items-center justify-center gap-0.5 text-xs font-medium text-zinc-500 aria-[current=page]:text-zinc-950 dark:text-zinc-400 dark:aria-[current=page]:text-zinc-50"
             >

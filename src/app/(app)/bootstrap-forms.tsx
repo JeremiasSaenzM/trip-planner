@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useId } from "react";
 
 import type { Competition } from "@/lib/data/types";
 
@@ -34,9 +34,14 @@ export function CreateTripForm() {
 }
 
 // Step 1 of the "no_scenario" empty state, shown until the trip has at
-// least one competition candidate.
+// least one competition candidate -- and reused on /scenarios to add
+// more. Only the name is required: a competition can be worth costing
+// before its host or dates are announced. useId() keeps the label/input
+// pairs unique when this renders next to other forms on the same page.
 export function AddCompetitionForm({ tripId }: { tripId: string }) {
   const [state, formAction, pending] = useActionState(createCompetition, initialFormActionState);
+  const formId = useId();
+  const fieldId = (field: string) => `${formId}-${field}`;
 
   return (
     <Card>
@@ -44,11 +49,11 @@ export function AddCompetitionForm({ tripId }: { tripId: string }) {
       <form action={formAction} className="mt-3 space-y-4">
         <input type="hidden" name="tripId" value={tripId} />
         <div className="space-y-1.5">
-          <label htmlFor="competition-name" className={labelClass}>
+          <label htmlFor={fieldId("name")} className={labelClass}>
             Name
           </label>
           <input
-            id="competition-name"
+            id={fieldId("name")}
             name="name"
             required
             className={inputClass}
@@ -57,52 +62,47 @@ export function AddCompetitionForm({ tripId }: { tripId: string }) {
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
-            <label htmlFor="competition-city" className={labelClass}>
-              City
+            <label htmlFor={fieldId("city")} className={labelClass}>
+              City (optional)
             </label>
-            <input id="competition-city" name="city" required className={inputClass} />
+            <input id={fieldId("city")} name="city" className={inputClass} />
           </div>
           <div className="space-y-1.5">
-            <label htmlFor="competition-country" className={labelClass}>
-              Country
+            <label htmlFor={fieldId("country")} className={labelClass}>
+              Country (optional)
             </label>
-            <input id="competition-country" name="country" required className={inputClass} />
+            <input id={fieldId("country")} name="country" className={inputClass} />
           </div>
         </div>
         <div className="space-y-1.5">
-          <label htmlFor="competition-venue" className={labelClass}>
+          <label htmlFor={fieldId("venue")} className={labelClass}>
             Venue (optional)
           </label>
-          <input id="competition-venue" name="venue" className={inputClass} />
+          <input id={fieldId("venue")} name="venue" className={inputClass} />
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
-            <label htmlFor="competition-start" className={labelClass}>
+            <label htmlFor={fieldId("start")} className={labelClass}>
               Official festival dates: first day
             </label>
-            <input id="competition-start" name="startDate" type="date" required className={inputClass} />
+            <input id={fieldId("start")} name="startDate" type="date" className={inputClass} />
           </div>
           <div className="space-y-1.5">
-            <label htmlFor="competition-end" className={labelClass}>
+            <label htmlFor={fieldId("end")} className={labelClass}>
               Official festival dates: final day
             </label>
-            <input id="competition-end" name="endDate" type="date" required className={inputClass} />
+            <input id={fieldId("end")} name="endDate" type="date" className={inputClass} />
           </div>
         </div>
         <p className="text-xs text-zinc-500 dark:text-zinc-400">
-          These start out pending. You can mark them confirmed later, once you add a source for them.
+          Give both dates or leave both empty if they aren&apos;t announced yet. They start out pending. You can
+          mark them confirmed later, once you add a source for them.
         </p>
         <div className="space-y-1.5">
-          <label htmlFor="competition-timezone" className={labelClass}>
-            Time zone
+          <label htmlFor={fieldId("timezone")} className={labelClass}>
+            Time zone (optional)
           </label>
-          <input
-            id="competition-timezone"
-            name="timezone"
-            required
-            className={inputClass}
-            placeholder="Europe/London"
-          />
+          <input id={fieldId("timezone")} name="timezone" className={inputClass} placeholder="Europe/London" />
         </div>
         {state.status === "error" && <FormError message={state.message} />}
         <button type="submit" disabled={pending} className={buttonClass}>
@@ -114,9 +114,12 @@ export function AddCompetitionForm({ tripId }: { tripId: string }) {
 }
 
 // Step 2 of the "no_scenario" empty state, shown once at least one
-// competition exists for this trip.
+// competition exists for this trip -- and reused on /scenarios. "No
+// competition yet" is a real choice: a scenario can be linked to one
+// later (EditScenarioForm in scenarios-ui.tsx).
 export function CreateScenarioForm({ tripId, competitions }: { tripId: string; competitions: Competition[] }) {
   const [state, formAction, pending] = useActionState(createScenario, initialFormActionState);
+  const formId = useId();
 
   return (
     <Card>
@@ -124,22 +127,22 @@ export function CreateScenarioForm({ tripId, competitions }: { tripId: string; c
       <form action={formAction} className="mt-3 space-y-4">
         <input type="hidden" name="tripId" value={tripId} />
         <div className="space-y-1.5">
-          <label htmlFor="scenario-name" className={labelClass}>
+          <label htmlFor={`${formId}-name`} className={labelClass}>
             Name
           </label>
-          <input id="scenario-name" name="name" required className={inputClass} placeholder="Llangollen 2027" />
+          <input
+            id={`${formId}-name`}
+            name="name"
+            required
+            className={inputClass}
+            placeholder="Llangollen 2027"
+          />
         </div>
         <div className="space-y-1.5">
-          <label htmlFor="scenario-competition" className={labelClass}>
+          <label htmlFor={`${formId}-competition`} className={labelClass}>
             Competition
           </label>
-          <select id="scenario-competition" name="competitionId" required className={inputClass}>
-            {competitions.map((competition) => (
-              <option key={competition.id} value={competition.id}>
-                {competition.name}
-              </option>
-            ))}
-          </select>
+          <CompetitionSelect id={`${formId}-competition`} competitions={competitions} defaultValue={competitions[0]?.id ?? ""} />
         </div>
         {state.status === "error" && <FormError message={state.message} />}
         <button type="submit" disabled={pending} className={buttonClass}>
@@ -147,5 +150,28 @@ export function CreateScenarioForm({ tripId, competitions }: { tripId: string; c
         </button>
       </form>
     </Card>
+  );
+}
+
+// Shared with EditScenarioForm. "" submits as "no competition"
+// (optionalText() turns it into undefined, stored as null).
+export function CompetitionSelect({
+  id,
+  competitions,
+  defaultValue,
+}: {
+  id: string;
+  competitions: Competition[];
+  defaultValue: string;
+}) {
+  return (
+    <select id={id} name="competitionId" defaultValue={defaultValue} className={inputClass}>
+      {competitions.map((competition) => (
+        <option key={competition.id} value={competition.id}>
+          {competition.name}
+        </option>
+      ))}
+      <option value="">No competition yet</option>
+    </select>
   );
 }

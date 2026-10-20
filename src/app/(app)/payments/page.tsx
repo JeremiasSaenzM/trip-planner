@@ -6,7 +6,7 @@ import type { BudgetLine, Payment, Source } from "@/lib/data/types";
 
 import { DashboardControls } from "../dashboard-controls";
 import { loadDashboardData } from "../dashboard-data";
-import { Card, EmptyState } from "../dashboard-ui";
+import { Card, EmptyState, noDatesReason } from "../dashboard-ui";
 import { formatAmount, formatDate } from "../format";
 import { AddPaymentForm, PaymentRowActions } from "../payment-write-ui";
 import { REFUNDABILITY_LABELS, STATUS_LABELS, TIMING_LABELS } from "../payment-labels";
@@ -55,11 +55,17 @@ async function PaymentsScreen({ searchParams }: { searchParams: PageProps<"/paym
     );
   }
 
-  const canSplit = competition !== null;
-  const preTrip = canSplit
-    ? payments.filter((p) => p.dueDate === null || p.dueDate < competition.startDate)
-    : payments;
-  const duringTrip = canSplit ? payments.filter((p) => p.dueDate !== null && p.dueDate >= competition.startDate) : [];
+  // The split is by the first official festival day. With no dates
+  // there's no line to split on -- so say that, and list everything
+  // under a neutral heading rather than silently calling it all
+  // "before you leave".
+  const festivalStart = competition?.startDate ?? null;
+  const preTrip =
+    festivalStart === null ? [] : payments.filter((p) => p.dueDate === null || p.dueDate < festivalStart);
+  const duringTrip =
+    festivalStart === null ? [] : payments.filter((p) => p.dueDate !== null && p.dueDate >= festivalStart);
+
+  const groupProps = { asOfDate, tripId: trip.id, competitionId, budgetLines, tripPayments, sources };
 
   return (
     <div className="space-y-6">
@@ -72,33 +78,19 @@ async function PaymentsScreen({ searchParams }: { searchParams: PageProps<"/paym
 
       <Card>{addForm}</Card>
 
-      {!canSplit && (
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          No departure date yet for this scenario, so payments aren&apos;t split by pre-trip/during-trip.
-        </p>
-      )}
-
-      <PaymentGroup
-        title="Due before you leave"
-        payments={preTrip}
-        asOfDate={asOfDate}
-        tripId={trip.id}
-        competitionId={competitionId}
-        budgetLines={budgetLines}
-        tripPayments={tripPayments}
-        sources={sources}
-      />
-      {canSplit && (
-        <PaymentGroup
-          title="Due during the trip"
-          payments={duringTrip}
-          asOfDate={asOfDate}
-          tripId={trip.id}
-          competitionId={competitionId}
-          budgetLines={budgetLines}
-          tripPayments={tripPayments}
-          sources={sources}
-        />
+      {festivalStart === null ? (
+        <>
+          <p data-testid="no-payment-split" className="text-sm text-zinc-600 dark:text-zinc-400">
+            {noDatesReason(competition)}, so payments can&apos;t be split into &ldquo;before you leave&rdquo; and
+            &ldquo;during the trip&rdquo;.
+          </p>
+          <PaymentGroup title="All payments" payments={payments} {...groupProps} />
+        </>
+      ) : (
+        <>
+          <PaymentGroup title="Due before you leave" payments={preTrip} {...groupProps} />
+          <PaymentGroup title="Due during the trip" payments={duringTrip} {...groupProps} />
+        </>
       )}
     </div>
   );
