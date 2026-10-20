@@ -74,6 +74,10 @@ function proposalCard(page: Page, n: number) {
 }
 
 test("the full first-run journey, starting from a signed-out, empty account", async ({ page }) => {
+  // One long journey on purpose (each step builds on the last), so it
+  // gets more than Playwright's default 30 s for the whole test.
+  test.setTimeout(120_000);
+
   await test.step("log in via the magic link", async () => {
     await page.goto("/login");
     await page.getByLabel("Email").fill(TEST_EMAIL);
