@@ -12,6 +12,7 @@ I'm a developer in the making. This project is for learning and for my portfolio
 - Work in small steps. Propose a plan before larger changes, and wait for my OK.
 - One focused commit per meaningful step, with a clear message (Conventional Commits: `feat:`, `fix:`, `chore:`, `docs:`, `test:`).
 - Don't add libraries without saying why.
+- Never add Co-Authored-By or 'Generated with Claude Code' lines to commits or pull requests.
 - This project is worked on from two machines (a Windows PC and a Mac). Always git pull on main before starting, and push or open a PR before switching machines. Never leave uncommitted work on one machine.
 
 ## Stack
