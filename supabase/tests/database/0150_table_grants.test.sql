@@ -12,7 +12,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
-select plan(42);
+select plan(48);
 
 select set_eq(
   $$ select c.relname::text from pg_class c
@@ -20,7 +20,7 @@ select set_eq(
   array[
     'trips', 'sources', 'competitions', 'scenarios', 'decisions', 'budget_lines',
     'payments', 'savings_entries', 'fx_rates', 'open_items', 'flight_options',
-    'flight_segments', 'change_log'
+    'flight_segments', 'change_log', 'proposal_batches', 'proposal_items'
   ],
   'every table in public has its expected grants declared in this file'
 );
@@ -96,6 +96,17 @@ select table_privs_are('public', 'flight_segments', 'anon', array[]::text[], 'an
 select table_privs_are('public', 'change_log', 'authenticated', array['SELECT'], 'authenticated: change_log is read-only');
 select table_privs_are('public', 'change_log', 'service_role', array['SELECT'], 'service_role: change_log is read-only');
 select table_privs_are('public', 'change_log', 'anon', array[]::text[], 'anon: nothing on change_log');
+
+-- Import proposals (20261021090000_import_proposals.sql): pasted, then
+-- approved or rejected -- never deleted, and a batch is never edited.
+
+select table_privs_are('public', 'proposal_batches', 'authenticated', array['SELECT', 'INSERT'], 'authenticated: proposal_batches, no update or delete');
+select table_privs_are('public', 'proposal_batches', 'service_role', array['SELECT', 'INSERT'], 'service_role: proposal_batches, no update or delete');
+select table_privs_are('public', 'proposal_batches', 'anon', array[]::text[], 'anon: nothing on proposal_batches');
+
+select table_privs_are('public', 'proposal_items', 'authenticated', array['SELECT', 'INSERT', 'UPDATE'], 'authenticated: proposal_items, no delete');
+select table_privs_are('public', 'proposal_items', 'service_role', array['SELECT', 'INSERT', 'UPDATE'], 'service_role: proposal_items, no delete');
+select table_privs_are('public', 'proposal_items', 'anon', array[]::text[], 'anon: nothing on proposal_items');
 
 select * from finish();
 rollback;
