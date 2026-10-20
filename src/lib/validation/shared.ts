@@ -38,6 +38,18 @@ export function todayUtc(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+// A source's URL is rendered as a link (the import review screen shows
+// each proposal's source with it), so it has to be one a browser only
+// ever navigates to. Zod's .url() alone accepts any scheme the URL
+// parser does -- javascript:, data:, file: -- which was harmless while
+// nothing rendered these as links, and wouldn't be once something did.
+export const httpUrl = z
+  .string()
+  .trim()
+  .max(2000, "That URL is too long")
+  .url("That doesn't look like a URL")
+  .refine((value) => /^https?:\/\//i.test(value), "Only http:// and https:// links are allowed");
+
 export const dateNotInFuture = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, "Use a YYYY-MM-DD date")
