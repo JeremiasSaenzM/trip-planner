@@ -681,10 +681,12 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await page.goto("/scenarios");
     await expect(scenarioCard(page, "Olympics 2028").getByText("Fictional Choir Olympics 2028")).toBeVisible();
     await expect(scenarioCard(page, "Abandoned idea")).toHaveCount(0);
-    await scenarioCard(page, "Olympics 2028").getByRole("link", { name: "Switch to" }).click();
-    const olympicsScenarioId = new URL(page.url()).searchParams.get("scenario")!;
 
-    await page.goto(`/budget-lines?scenario=${olympicsScenarioId}`);
+    // The budget page's own scenario switcher; wait for its navigation
+    // before looking for the lines.
+    await page.goto("/budget-lines");
+    await page.getByRole("link", { name: "Olympics 2028", exact: true }).click();
+    await expect(page).toHaveURL(/[?&]scenario=[0-9a-f-]{36}/);
     await expect(budgetLineRow(page, "Olympics flights")).toBeVisible();
     await expect(budgetLineRow(page, "Olympics lodging")).toBeVisible();
     await expect(budgetLineRow(page, "Olympics meals")).toHaveCount(0);
