@@ -20,7 +20,14 @@ max_rows = 1000
 # `postgres` are reachable through the Data API roles (`anon`, `authenticated`, `service_role`)
 # without explicit GRANTs, matching the cloud default. Set to `false` to require explicit GRANTs
 # instead. Left unset, a fresh project falls back to `true`.
-# auto_expose_new_tables = true
+#
+# Off here on purpose: Supabase makes `false` the default from 30 October
+# 2026, so local and CI databases already run that way, and a migration
+# that forgets its grants fails CI now rather than after a CLI upgrade.
+# Every table's grants are stated in its migration (see
+# 20261020090000_explicit_table_grants.sql) and checked by
+# supabase/tests/database/0150_table_grants.test.sql.
+auto_expose_new_tables = false
 
 [api.tls]
 # Enable HTTPS endpoints locally using a self-signed certificate.
