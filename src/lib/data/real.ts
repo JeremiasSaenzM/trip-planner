@@ -37,12 +37,12 @@ function mapCompetitionRow(row: Record<string, unknown>): Competition {
     id: row.id as string,
     tripId: row.trip_id as string,
     name: row.name as string,
-    city: row.city as string,
-    country: row.country as string,
+    city: row.city as string | null,
+    country: row.country as string | null,
     venue: row.venue as string | null,
-    startDate: row.start_date as string,
-    endDate: row.end_date as string,
-    timezone: row.timezone as string,
+    startDate: row.start_date as string | null,
+    endDate: row.end_date as string | null,
+    timezone: row.timezone as string | null,
     datesState: row.dates_state as Competition["datesState"],
     datesSourceId: row.dates_source_id as string | null,
     acceptanceStatus: row.acceptance_status as Competition["acceptanceStatus"],
@@ -370,12 +370,12 @@ export const realDataSource: DataSource = {
       .insert({
         trip_id: input.tripId,
         name: input.name,
-        city: input.city,
-        country: input.country,
+        city: input.city ?? null,
+        country: input.country ?? null,
         venue: input.venue ?? null,
-        start_date: input.startDate,
-        end_date: input.endDate,
-        timezone: input.timezone,
+        start_date: input.startDate ?? null,
+        end_date: input.endDate ?? null,
+        timezone: input.timezone ?? null,
         dates_state: input.datesState,
         dates_source_id: input.datesSourceId ?? null,
       })
@@ -383,6 +383,29 @@ export const realDataSource: DataSource = {
       .single();
     if (error) throw error;
     return mapCompetitionRow(data);
+  },
+
+  // Edits go through update_competition
+  // (20261019090000_manage_competitions_scenarios.sql), same reason as
+  // updateSavingsEntry below: the reason has to be set in the same call.
+  async updateCompetition(input) {
+    assertWritesAllowed();
+    const supabase = await createClient();
+    const { data, error } = await supabase.rpc("update_competition", {
+      p_id: input.id,
+      p_name: input.name,
+      p_city: input.city ?? null,
+      p_country: input.country ?? null,
+      p_venue: input.venue ?? null,
+      p_start_date: input.startDate ?? null,
+      p_end_date: input.endDate ?? null,
+      p_timezone: input.timezone ?? null,
+      p_dates_state: input.datesState,
+      p_dates_source_id: input.datesSourceId ?? null,
+      p_reason: input.reason,
+    });
+    if (error) throw error;
+    return mapCompetitionRow(data as Record<string, unknown>);
   },
 
   async createScenario(input) {
@@ -401,6 +424,29 @@ export const realDataSource: DataSource = {
       .single();
     if (error) throw error;
     return mapScenarioRow(data);
+  },
+
+  async updateScenario(input) {
+    assertWritesAllowed();
+    const supabase = await createClient();
+    const { data, error } = await supabase.rpc("update_scenario", {
+      p_id: input.id,
+      p_name: input.name,
+      p_competition_id: input.competitionId ?? null,
+      p_reason: input.reason,
+    });
+    if (error) throw error;
+    return mapScenarioRow(data as Record<string, unknown>);
+  },
+
+  async deleteScenario(input) {
+    assertWritesAllowed();
+    const supabase = await createClient();
+    const { error } = await supabase.rpc("delete_scenario", {
+      p_id: input.id,
+      p_reason: input.reason,
+    });
+    if (error) throw error;
   },
 
   // A new entry has nothing prior to justify changing, so change_log's

@@ -162,6 +162,31 @@ describe("buildObligations", () => {
     expect(noCompetition.status).toBe("no_departure_date");
   });
 
+  it("still reports availableUsd with no departure date -- money set aside isn't $0 just because dates are missing", () => {
+    const result = buildObligations({
+      payments: [],
+      allTripPayments: [
+        {
+          budgetLineId: "L1",
+          description: "Deposit",
+          totalAmount: 300,
+          paidAmount: 100,
+          currency: "USD",
+          dueDate: null,
+          status: "paid",
+        },
+      ],
+      budgetLines: [],
+      savingsEntries: [{ amountUsd: 500, recordedOn: "2026-12-01" }],
+      rates: [],
+      departureDate: null,
+      departureDateConfirmed: false,
+      asOfDate: "2027-01-01",
+    });
+
+    expect(result).toEqual({ status: "no_departure_date", availableUsd: 400, missingRates: [] });
+  });
+
   it("clamps a pay-at-property payment due after departure, raising the monthly requirement vs. its original date", () => {
     const payments: PaymentForObligations[] = [
       {

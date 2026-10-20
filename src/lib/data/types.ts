@@ -44,12 +44,15 @@ export type Competition = {
   id: string;
   tripId: string;
   name: string;
-  city: string;
-  country: string;
+  /** null until the host is announced -- same for country and timezone. */
+  city: string | null;
+  country: string | null;
   venue: string | null;
-  startDate: string;
-  endDate: string;
-  timezone: string;
+  /** First and final official festival days. Both null, or both set
+   * (competitions_dates_together) -- a festival period needs both ends. */
+  startDate: string | null;
+  endDate: string | null;
+  timezone: string | null;
   datesState: InfoState;
   datesSourceId: string | null;
   acceptanceStatus: AcceptanceStatus;
@@ -240,18 +243,22 @@ export type ChangeLogEntry = {
 // below, so it's passed straight through with no mapping step.
 export type CreateTripWrite = { name: string };
 
-export type CreateCompetitionWrite = {
-  tripId: string;
+type CompetitionFieldsWrite = {
   name: string;
-  city: string;
-  country: string;
+  city?: string;
+  country?: string;
   venue?: string;
-  startDate: string;
-  endDate: string;
-  timezone: string;
+  startDate?: string;
+  endDate?: string;
+  timezone?: string;
   datesState: InfoState;
   datesSourceId?: string;
 };
+
+export type CreateCompetitionWrite = CompetitionFieldsWrite & { tripId: string };
+// acceptanceStatus is deliberately absent -- see update_competition's
+// own comment (20261019090000_manage_competitions_scenarios.sql).
+export type UpdateCompetitionWrite = CompetitionFieldsWrite & { id: string; reason: string };
 
 export type CreateScenarioWrite = {
   tripId: string;
@@ -260,6 +267,9 @@ export type CreateScenarioWrite = {
   includesExtension: boolean;
   notes?: string;
 };
+// competitionId absent = unlink (a scenario with no competition yet).
+export type UpdateScenarioWrite = { id: string; name: string; competitionId?: string; reason: string };
+export type DeleteScenarioWrite = { id: string; reason: string };
 
 export type RecordSavingsEntryWrite = { tripId: string; amount: number; recordedOn: string; note?: string };
 export type UpdateSavingsEntryWrite = { id: string; amount: number; recordedOn: string; note?: string; reason: string };
@@ -405,7 +415,10 @@ export type DataSource = {
   getChangeLog(): Promise<ChangeLogEntry[]>;
   createTrip(input: CreateTripWrite): Promise<Trip>;
   createCompetition(input: CreateCompetitionWrite): Promise<Competition>;
+  updateCompetition(input: UpdateCompetitionWrite): Promise<Competition>;
   createScenario(input: CreateScenarioWrite): Promise<Scenario>;
+  updateScenario(input: UpdateScenarioWrite): Promise<Scenario>;
+  deleteScenario(input: DeleteScenarioWrite): Promise<void>;
   recordSavingsEntry(input: RecordSavingsEntryWrite): Promise<SavingsEntry>;
   updateSavingsEntry(input: UpdateSavingsEntryWrite): Promise<SavingsEntry>;
   deleteSavingsEntry(input: DeleteSavingsEntryWrite): Promise<void>;

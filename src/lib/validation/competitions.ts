@@ -1,29 +1,67 @@
 import { z } from "zod";
 
-import { checkConfirmedNeedsSource, id, infoState } from "./shared";
+import { changeReason, checkConfirmedNeedsSource, id, infoState } from "./shared";
 
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use a YYYY-MM-DD date");
 
-// Mirrors competitions: competitions_end_after_start (end_date >=
-// start_date) and competitions_dates_confirmed_needs_source.
-export const createCompetitionInput = z
-  .object({
+// Everything but the name is optional: a competition can be worth
+// costing before its host city or festival dates are announced.
+const competitionFields = z.object({
+  name: z.string().trim().min(1, "Name the competition"),
+  city: z.string().trim().optional(),
+  country: z.string().trim().optional(),
+  venue: z.string().trim().optional(),
+  startDate: isoDate.optional(),
+  endDate: isoDate.optional(),
+  timezone: z.string().trim().optional(),
+  datesSourceId: id.optional(),
+});
+
+// Mirrors competitions_dates_together, competitions_end_after_start,
+// competitions_confirmed_dates_need_dates and
+// competitions_dates_confirmed_needs_source.
+function refineCompetition(
+  value: z.infer<typeof competitionFields> & { datesState: z.infer<typeof infoState> },
+  ctx: z.RefinementCtx,
+) {
+  if ((value.startDate === undefined) !== (value.endDate === undefined)) {
+    ctx.addIssue({
+      code: "custom",
+      path: [value.startDate === undefined ? "startDate" : "endDate"],
+      message: "Give both festival dates (first and final day), or neither.",
+    });
+  }
+  if (value.startDate !== undefined && value.endDate !== undefined && value.endDate < value.startDate) {
+    ctx.addIssue({ code: "custom", path: ["endDate"], message: "The festival can't end before it starts." });
+  }
+  if (value.datesState === "confirmed" && value.startDate === undefined) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["startDate"],
+      message: "Confirmed dates need the dates themselves -- add them, or leave the dates pending.",
+    });
+  }
+  checkConfirmedNeedsSource(ctx, value.datesState, value.datesSourceId, ["datesSourceId"]);
+}
+
+export const createCompetitionInput = competitionFields
+  .extend({
     tripId: id,
-    name: z.string().trim().min(1, "Name the competition"),
-    city: z.string().trim().min(1),
-    country: z.string().trim().min(1),
-    venue: z.string().trim().optional(),
-    startDate: isoDate,
-    endDate: isoDate,
-    timezone: z.string().trim().min(1, "Pick the competition's own time zone, e.g. Europe/Paris"),
     datesState: infoState.default("pending"),
-    datesSourceId: id.optional(),
   })
-  .superRefine((value, ctx) => {
-    if (value.endDate < value.startDate) {
-      ctx.addIssue({ code: "custom", path: ["endDate"], message: "The festival can't end before it starts." });
-    }
-    checkConfirmedNeedsSource(ctx, value.datesState, value.datesSourceId, ["datesSourceId"]);
-  });
+  .superRefine(refineCompetition);
+
+// acceptanceStatus is deliberately not a field here -- accepting a
+// competition lifts the non-refundable-payment safeguard, so it gets its
+// own flow (see update_competition's comment in
+// 20261019090000_manage_competitions_scenarios.sql).
+export const updateCompetitionInput = competitionFields
+  .extend({
+    id,
+    datesState: infoState,
+    reason: changeReason,
+  })
+  .superRefine(refineCompetition);
 
 export type CreateCompetitionInput = z.infer<typeof createCompetitionInput>;
+export type UpdateCompetitionInput = z.infer<typeof updateCompetitionInput>;

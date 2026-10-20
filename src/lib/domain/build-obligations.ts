@@ -71,7 +71,16 @@ export type BuildObligationsInput = {
 };
 
 export type BuildObligationsResult =
-  | { status: "no_departure_date" }
+  | {
+      status: "no_departure_date";
+      /** Still computed with no departure date: money set aside minus
+       * what's already been paid is a fact about the past, independent
+       * of when the trip starts. Only the obligations need a date. */
+      availableUsd: number;
+      /** Only already-paid amounts that couldn't be converted -- no
+       * obligation is built, so none of those can be missing a rate. */
+      missingRates: MissingObligationRate[];
+    }
   | {
       status: "ready";
       obligations: BuiltObligation[];
@@ -95,11 +104,6 @@ export type BuildObligationsResult =
  * departure, are pinned to departureDate.
  */
 export function buildObligations(input: BuildObligationsInput): BuildObligationsResult {
-  if (input.departureDate === null) {
-    return { status: "no_departure_date" };
-  }
-  const departureDate = input.departureDate;
-
   const missingRates: MissingObligationRate[] = [];
 
   function toUsd(amount: number, currency: string, rateKind: RateKind, description: string): number | null {
@@ -122,6 +126,11 @@ export function buildObligations(input: BuildObligationsInput): BuildObligations
   }, 0);
 
   const availableUsd = savedUsd - paidUsd;
+
+  if (input.departureDate === null) {
+    return { status: "no_departure_date", availableUsd, missingRates };
+  }
+  const departureDate = input.departureDate;
 
   const activePayments = input.payments.filter((payment) => payment.status !== "cancelled");
   const obligations: BuiltObligation[] = [];

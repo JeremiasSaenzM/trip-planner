@@ -17,6 +17,9 @@ const CHECK_CONSTRAINT_MESSAGES: Record<string, string> = {
   budget_lines_amount_order: "Minimum, target and conservative must stay in that order (min ≤ target ≤ conservative).",
   payments_paid_not_over_total: "The amount paid can't be more than the total.",
   competitions_end_after_start: "The festival can't end before it starts.",
+  competitions_dates_together: "Give both festival dates (first and final day), or neither.",
+  competitions_confirmed_dates_need_dates:
+    "Confirmed dates need the dates themselves -- add them, or leave the dates pending.",
   fx_rates_currency_date_kind_unique: "There's already a rate for this currency, date and kind -- edit that one instead.",
   savings_entries_amount_positive: "The amount has to be more than zero.",
   savings_entries_recorded_on_not_future: "That date can't be in the future.",
@@ -50,6 +53,26 @@ const AMOUNT_EXCEEDED_MESSAGE =
 const BUDGET_LINE_HAS_PAYMENTS_SUFFIX = "still has payments attached -- delete or reassign them first.";
 const BUDGET_LINE_HAS_PAYMENTS_MESSAGE =
   "This budget line still has payments attached -- delete or reassign them first.";
+
+// delete_scenario()/update_scenario() raise these with a dynamic id
+// interpolated in (20261019090000_manage_competitions_scenarios.sql),
+// matched by their stable suffixes.
+const SCENARIO_REFUSAL_MESSAGES: [suffix: string, message: string][] = [
+  [
+    "still has budget lines -- delete them first.",
+    "This scenario still has budget lines -- delete them first (on the Budget page, with this scenario selected).",
+  ],
+  [
+    "still has payments -- delete them first.",
+    "This scenario still has payments -- delete them first (on the Payments page, with this scenario selected).",
+  ],
+  ["still has flight options -- delete them first.", "This scenario still has flight options -- delete them first."],
+  [
+    "has committed non-refundable competition payments -- its competition can't be changed.",
+    "This scenario has committed non-refundable payments tied to its competition, so its competition can't be " +
+      "changed -- that would move those commitments under a different competition. You can still rename it.",
+  ],
+];
 
 // change_log_capture()'s own reason requirement (change_log.sql) --
 // reached only if a write somehow skips the form's own changeReason
@@ -85,6 +108,9 @@ export function translatePostgresError(error: { message: string }): string {
   }
   if (error.message.endsWith(BUDGET_LINE_HAS_PAYMENTS_SUFFIX)) {
     return BUDGET_LINE_HAS_PAYMENTS_MESSAGE;
+  }
+  for (const [suffix, message] of SCENARIO_REFUSAL_MESSAGES) {
+    if (error.message.endsWith(suffix)) return message;
   }
   if (error.message.includes(NOT_FOUND_SUFFIX)) {
     return NOT_FOUND_MESSAGE;

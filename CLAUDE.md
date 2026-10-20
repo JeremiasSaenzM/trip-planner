@@ -107,6 +107,7 @@ Each phase ends with something working, committed, and pushed.
    - Never rank on descriptive attributes. The hard constraints and cost rules (planning-system files 04 and 07, restated under Domain rules above) apply as they do elsewhere.
 7. **Reports and polish** — Printable budget summary, payment calendar, README with screenshots and the story of the project.
    - Printable trip sheet, readable on a phone: where I sleep each night, how I get between places, flight and booking references, emergency contacts.
+   - Mark a competition accepted: today there is no way to do it anywhere in the app (it's deliberately not in the competition edit form). It lifts the safeguard on non-refundable payments (hard constraint 3), so it gets its own small flow: a deliberate confirmation step, a required reason, and ideally a source — never a dropdown among other fields.
    - Saving-method selector: choose flat / one phase at a time / one pot per payment; show only that chart, and make the headline number follow the choice (e.g. "Amount to save during current phase = X").
 
 ## Current phase

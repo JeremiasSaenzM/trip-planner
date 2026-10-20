@@ -24,6 +24,9 @@ describe("buildExportPayload", () => {
 
     expect(result.exportedAt).toBe("2026-10-15T12:00:00.000Z");
     expect(result.schemaVersion).toBe(EXPORT_SCHEMA_VERSION);
+    // Pinned: nullable competition fields (20261019090000) changed the
+    // exported shape, so this has to have moved past 2.
+    expect(EXPORT_SCHEMA_VERSION).toBe(3);
     expect(result.data.trips).toBe(fixtures.trips);
     expect(result.data.changeLog).toBe(fixtures.changeLog);
     expect(Object.keys(result.data)).toEqual([
