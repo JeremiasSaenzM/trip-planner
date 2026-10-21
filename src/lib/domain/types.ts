@@ -15,8 +15,11 @@ export type Confidence = "low" | "medium" | "high";
 
 export type RateKind = "observed" | "planning_base" | "planning_conservative";
 
-/** Target is the planning reference; conservative is the financial-safety test. */
-export type Basis = "target" | "conservative";
+/** Target is the planning reference; conservative is the financial-safety
+ * test (07 §7). Minimum is neither: it's the floor of what's actually
+ * been observed, viewable but never the default. Ordered low to high. */
+export const BASES = ["minimum", "target", "conservative"] as const;
+export type Basis = (typeof BASES)[number];
 
 export type FlightBaggage = "included" | "paid_addon" | "not_allowed" | "unknown";
 

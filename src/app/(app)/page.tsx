@@ -84,6 +84,16 @@ async function Overview({ searchParams }: { searchParams: PageProps<"/">["search
         basis={data.basis}
       />
 
+      {/* One quiet line, not a Caveat box: nothing is wrong, it's a
+          reminder of what this view is. 07 §7: Target is the planning
+          reference, Conservative the financial-safety test. */}
+      {data.basis === "minimum" && (
+        <p data-testid="minimum-basis-note" className="text-xs text-zinc-600 dark:text-zinc-400">
+          Minimum is the floor of what&apos;s been observed, not a savings plan -- plan on Target, test against
+          Conservative.
+        </p>
+      )}
+
       {provisional && (
         <Caveat>
           The festival dates for this scenario aren&apos;t confirmed yet, so every savings figure below is
@@ -163,7 +173,7 @@ async function Overview({ searchParams }: { searchParams: PageProps<"/">["search
 
       <Card>
         <CardLabel>Budget by category</CardLabel>
-        <BudgetByCategoryChart byCategory={rollup.byCategory} />
+        <BudgetByCategoryChart byCategory={rollup.byCategory} basis={data.basis} />
       </Card>
 
       {savings && binding !== null && (

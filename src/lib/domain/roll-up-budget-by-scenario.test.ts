@@ -123,3 +123,23 @@ describe("rollUpBudgetByScenario", () => {
     expect(result.complete).toBe(true);
   });
 });
+
+describe("rollUpBudgetByScenario at the minimum basis", () => {
+  it("sums each line's own minimum, per category, at the planning_base rate", () => {
+    const result = rollUpBudgetByScenario({
+      tripId: "trip-1",
+      scenarioId: "scenario-1",
+      asOfDate: "2026-10-05",
+      rates,
+      budgetLines: [
+        line({ category: "B", amountMin: 80, amountTarget: 100, amountConservative: 120, currency: "GBP" }),
+        line({ category: "C", amountMin: 50, amountTarget: 70, amountConservative: 90, currency: "USD" }),
+      ],
+    });
+    // GBP minimum at planning_base 1.3 (never the conservative 1.35): 104
+    expect(result.totals.min).toBeCloseTo(104 + 50, 5);
+    expect(result.byCategory.B.min).toBeCloseTo(104, 5);
+    expect(result.byCategory.C.min).toBe(50);
+    expect(result.totals.min).toBeLessThan(result.totals.target);
+  });
+});

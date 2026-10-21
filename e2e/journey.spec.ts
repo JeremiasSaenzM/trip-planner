@@ -359,6 +359,48 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await expect(row.getByText("Estimate · Confidence: Medium")).toBeVisible();
   });
 
+  await test.step("switch the basis to Minimum: the figures drop to the observed floor, with a note", async () => {
+    // Flight deposit is now 90 / 110 / 120 EUR with no payment of its
+    // own, so the departure deadline -- the last phase of "one phase at
+    // a time", from the 1 March payment to departure -- is smaller at
+    // the minimum. That phase's dates are fixed, so its monthly figure
+    // doesn't depend on what day the test runs.
+    const departurePhaseSaving = async () => {
+      const text = await page.getByTestId("phased-savings-list").getByRole("listitem").last().innerText();
+      return Number(text.match(/save \$([\d,.]+)/)![1].replace(/,/g, ""));
+    };
+
+    await page.goto("/");
+    await expect(page.getByTestId("minimum-basis-note")).toHaveCount(0);
+    const targetSaving = parseUsd(await requiredMonthlySaving.innerText());
+    const targetDeparturePhase = await departurePhaseSaving();
+
+    await page.getByRole("link", { name: "Minimum", exact: true }).click();
+    await expect(page).toHaveURL(/[?&]basis=minimum/);
+    await expect(page.getByText("Required monthly saving (minimum)")).toBeVisible();
+    await expect(page.getByTestId("minimum-basis-note")).toHaveText(/not a savings plan/);
+    expect(await departurePhaseSaving()).toBeLessThan(targetDeparturePhase);
+    // The headline is the tightest deadline's rate, which here is the
+    // 1 March payments (identical at every basis) -- so it may not
+    // move, but it can never be higher than at target.
+    expect(parseUsd(await requiredMonthlySaving.innerText())).toBeLessThanOrEqual(targetSaving);
+    await expect(page.getByRole("link", { name: "Minimum", exact: true })).toHaveAttribute("aria-current", "page");
+
+    // Carried along by the nav, like target and conservative.
+    await expect(page.getByRole("link", { name: "Budget", exact: true })).toHaveAttribute("href", /[?&]basis=minimum/);
+
+    // Back to Target: the planning figure, and the note goes away.
+    await page.getByRole("link", { name: "Target", exact: true }).click();
+    await expect(page).toHaveURL(/[?&]basis=target/);
+    await expect(page.getByTestId("minimum-basis-note")).toHaveCount(0);
+    expect(parseUsd(await requiredMonthlySaving.innerText())).toBe(targetSaving);
+    expect(await departurePhaseSaving()).toBe(targetDeparturePhase);
+
+    // Leave the page where this step found it: the budget line steps
+    // around this one work on /budget-lines without navigating.
+    await page.goto("/budget-lines");
+  });
+
   await test.step("try \"confirmed\" with no source and see it refused", async () => {
     const row = budgetLineRow(page, "Flight deposit");
 

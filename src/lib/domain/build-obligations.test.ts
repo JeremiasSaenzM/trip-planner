@@ -23,7 +23,7 @@ describe("buildObligations", () => {
     const result = buildObligations({
       payments,
       allTripPayments: payments,
-      budgetLines: [{ id: "L1", description: "Hotel", amountTarget: 500, amountConservative: 500, currency: "USD" }],
+      budgetLines: [{ id: "L1", description: "Hotel", amountMin: 500, amountTarget: 500, amountConservative: 500, currency: "USD" }],
       savingsEntries: [],
       rates: [],
       departureDate: DEPARTURE,
@@ -53,7 +53,7 @@ describe("buildObligations", () => {
       payments,
       allTripPayments: payments,
       budgetLines: [
-        { id: "L1", description: "Registration", amountTarget: 300, amountConservative: 300, currency: "USD" },
+        { id: "L1", description: "Registration", amountMin: 300, amountTarget: 300, amountConservative: 300, currency: "USD" },
       ],
       savingsEntries: [{ amountUsd: 1000, recordedOn: "2027-01-01" }],
       rates: [],
@@ -83,7 +83,7 @@ describe("buildObligations", () => {
       payments,
       allTripPayments: payments,
       budgetLines: [
-        { id: "L1", description: "Final balance", amountTarget: 400, amountConservative: 400, currency: "USD" },
+        { id: "L1", description: "Final balance", amountMin: 400, amountTarget: 400, amountConservative: 400, currency: "USD" },
       ],
       savingsEntries: [],
       rates: [],
@@ -120,8 +120,8 @@ describe("buildObligations", () => {
       payments,
       allTripPayments: payments,
       budgetLines: [
-        { id: "L1", description: "Flight", amountTarget: 600, amountConservative: 600, currency: "GBP" },
-        { id: "L2", description: "Hotel", amountTarget: 400, amountConservative: 500, currency: "EUR" },
+        { id: "L1", description: "Flight", amountMin: 600, amountTarget: 600, amountConservative: 600, currency: "GBP" },
+        { id: "L2", description: "Hotel", amountMin: 400, amountTarget: 400, amountConservative: 500, currency: "EUR" },
       ],
       savingsEntries: [],
       rates,
@@ -203,7 +203,7 @@ describe("buildObligations", () => {
     const result = buildObligations({
       payments,
       allTripPayments: payments,
-      budgetLines: [{ id: "L1", description: "Hotel", amountTarget: 800, amountConservative: 800, currency: "USD" }],
+      budgetLines: [{ id: "L1", description: "Hotel", amountMin: 800, amountTarget: 800, amountConservative: 800, currency: "USD" }],
       savingsEntries: [],
       rates: [],
       departureDate: DEPARTURE,
@@ -241,8 +241,8 @@ describe("buildObligations", () => {
       { currency: "GBP", rateToUsd: 1.35, rateDate: "2027-01-01", rateKind: "planning_conservative" as const },
     ];
     const budgetLines: BudgetLineForObligations[] = [
-      { id: "L1", description: "Flight", amountTarget: 600, amountConservative: 650, currency: "USD" },
-      { id: "L2", description: "Hotel", amountTarget: 400, amountConservative: 450, currency: "GBP" },
+      { id: "L1", description: "Flight", amountMin: 600, amountTarget: 600, amountConservative: 650, currency: "USD" },
+      { id: "L2", description: "Hotel", amountMin: 400, amountTarget: 400, amountConservative: 450, currency: "GBP" },
     ];
     const payments: PaymentForObligations[] = [
       {
@@ -318,7 +318,7 @@ describe("buildObligations", () => {
     const result = buildObligations({
       payments,
       allTripPayments: payments,
-      budgetLines: [{ id: "L1", description: "Flight", amountTarget: 500, amountConservative: 500, currency: "USD" }],
+      budgetLines: [{ id: "L1", description: "Flight", amountMin: 500, amountTarget: 500, amountConservative: 500, currency: "USD" }],
       savingsEntries: [{ amountUsd: 1000, recordedOn: "2027-01-01" }],
       rates: [],
       departureDate: DEPARTURE,
@@ -329,5 +329,103 @@ describe("buildObligations", () => {
     if (result.status !== "ready") throw new Error("expected ready");
     expect(result.availableUsd).toBe(850);
     expect(result.obligations.some((o) => o.description === "Cancelled flight")).toBe(false);
+  });
+});
+
+describe("buildObligations at the minimum basis", () => {
+  const base = {
+    savingsEntries: [],
+    departureDate: DEPARTURE,
+    departureDateConfirmed: true,
+    asOfDate: "2027-01-15",
+  };
+  const rates = [
+    { currency: "EUR", rateToUsd: 1.1, rateDate: "2027-01-01", rateKind: "planning_base" as const },
+    { currency: "EUR", rateToUsd: 1.15, rateDate: "2027-01-01", rateKind: "planning_conservative" as const },
+  ];
+
+  it("takes a line's unallocated remainder from its amountMin, at the planning_base rate", () => {
+    const result = buildObligations({
+      ...base,
+      payments: [],
+      allTripPayments: [],
+      budgetLines: [{ id: "L1", description: "Hotel", amountMin: 300, amountTarget: 400, amountConservative: 500, currency: "EUR" }],
+      rates,
+    });
+    if (result.status !== "ready") throw new Error("expected ready");
+    const hotel = result.obligations[0];
+    expect(hotel.amountMinimumUsd).toBeCloseTo(300 * 1.1, 5);
+    expect(hotel.amountTargetUsd).toBeCloseTo(400 * 1.1, 5);
+    expect(hotel.amountConservativeUsd).toBeCloseTo(500 * 1.15, 5);
+  });
+
+  it("counts a payment at its real remaining amount: a quote, not a projection", () => {
+    const payments: PaymentForObligations[] = [
+      { budgetLineId: "L1", description: "Flight", totalAmount: 600, paidAmount: 100, currency: "EUR", dueDate: "2027-03-01", status: "committed" },
+    ];
+    const result = buildObligations({
+      ...base,
+      payments,
+      allTripPayments: payments,
+      budgetLines: [{ id: "L1", description: "Flight", amountMin: 500, amountTarget: 600, amountConservative: 700, currency: "EUR" }],
+      rates,
+    });
+    if (result.status !== "ready") throw new Error("expected ready");
+    const flight = result.obligations.find((o) => o.description === "Flight")!;
+    expect(flight.amountMinimumUsd).toBeCloseTo(500 * 1.1, 5);
+    expect(flight.amountMinimumUsd).toBe(flight.amountTargetUsd);
+  });
+
+  it("never goes below zero when a line's payments already exceed its minimum, while target still has a remainder", () => {
+    const payments: PaymentForObligations[] = [
+      { budgetLineId: "L1", description: "Deposit", totalAmount: 350, paidAmount: 0, currency: "USD", dueDate: "2027-03-01", status: "committed" },
+    ];
+    const result = buildObligations({
+      ...base,
+      payments,
+      allTripPayments: payments,
+      budgetLines: [{ id: "L1", description: "Hotel", amountMin: 300, amountTarget: 400, amountConservative: 500, currency: "USD" }],
+      rates: [],
+    });
+    if (result.status !== "ready") throw new Error("expected ready");
+    const remainder = result.obligations.find((o) => o.description === "Hotel (unallocated)")!;
+    expect(remainder).toMatchObject({ amountMinimumUsd: 0, amountTargetUsd: 50, amountConservativeUsd: 150 });
+  });
+
+  it("satisfies (sum of obligations) - availableUsd === (scenario total) - (total savings) at the minimum too", () => {
+    const budgetLines: BudgetLineForObligations[] = [
+      { id: "L1", description: "Flight", amountMin: 500, amountTarget: 600, amountConservative: 650, currency: "USD" },
+      { id: "L2", description: "Hotel", amountMin: 300, amountTarget: 400, amountConservative: 450, currency: "EUR" },
+    ];
+    // Under the line's minimum, so its remainder isn't clamped at zero.
+    const payments: PaymentForObligations[] = [
+      { budgetLineId: "L1", description: "Flight deposit", totalAmount: 450, paidAmount: 200, currency: "USD", dueDate: "2027-03-01", status: "committed" },
+    ];
+    const savingsEntries = [{ amountUsd: 1000, recordedOn: "2027-01-01" }];
+
+    const obligationsResult = buildObligations({ ...base, payments, allTripPayments: payments, budgetLines, savingsEntries, rates });
+    if (obligationsResult.status !== "ready") throw new Error("expected ready");
+
+    const rollup = rollUpBudgetByScenario({
+      tripId: "T1",
+      scenarioId: "S1",
+      asOfDate: base.asOfDate,
+      rates,
+      budgetLines: budgetLines.map(
+        (line): BudgetLineForRollup => ({
+          tripId: "T1",
+          scenarioId: "S1",
+          category: "B",
+          amountMin: line.amountMin,
+          amountTarget: line.amountTarget,
+          amountConservative: line.amountConservative,
+          currency: line.currency,
+          informationState: "estimate",
+        }),
+      ),
+    });
+
+    const sumMinimum = obligationsResult.obligations.reduce((sum, o) => sum + o.amountMinimumUsd, 0);
+    expect(sumMinimum - obligationsResult.availableUsd).toBeCloseTo(rollup.totals.min - 1000, 5);
   });
 });

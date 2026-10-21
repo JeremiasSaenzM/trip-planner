@@ -7,6 +7,7 @@ import { dataSource } from "@/lib/data";
 import type { AcceptanceStatus, Competition, Scenario } from "@/lib/data/types";
 
 import { AddCompetitionForm, CreateScenarioForm } from "../bootstrap-forms";
+import { parseBasis } from "../dashboard-query";
 import { Card, EmptyState } from "../dashboard-ui";
 import { formatDate } from "../format";
 import { INFO_STATE_LABELS } from "../info-state-labels";
@@ -63,7 +64,7 @@ async function ScenariosScreen({ searchParams }: { searchParams: PageProps<"/sce
   // Same fallback rule as loadDashboardData: a missing or stale
   // ?scenario= means the first (oldest) one.
   const selected = tripScenarios.find((s) => s.id === scenarioParam) ?? tripScenarios[0];
-  const basis = basisParam === "conservative" ? "conservative" : "target";
+  const basis = parseBasis(basisParam);
 
   function references(scenario: Scenario): string[] {
     const lines = budgetLines.filter((line) => line.scenarioId === scenario.id).length;

@@ -2,10 +2,26 @@ import type { Basis } from "./types";
 
 export type ObligationForGrouping = {
   description: string;
+  amountMinimumUsd: number;
   amountTargetUsd: number;
   amountConservativeUsd: number;
   dueDate: string;
 };
+
+/** An obligation's amount at the given basis. */
+export function obligationAmount(
+  obligation: Pick<ObligationForGrouping, "amountMinimumUsd" | "amountTargetUsd" | "amountConservativeUsd">,
+  basis: Basis,
+): number {
+  switch (basis) {
+    case "minimum":
+      return obligation.amountMinimumUsd;
+    case "target":
+      return obligation.amountTargetUsd;
+    case "conservative":
+      return obligation.amountConservativeUsd;
+  }
+}
 
 export type DeadlineGroup = {
   dueDate: string;
@@ -40,10 +56,7 @@ export function groupObligationsByDueDate(
   return [...byDate.entries()]
     .map(([dueDate, group]) => ({
       dueDate,
-      amountUsd: group.reduce(
-        (sum, o) => sum + (basis === "target" ? o.amountTargetUsd : o.amountConservativeUsd),
-        0,
-      ),
+      amountUsd: group.reduce((sum, o) => sum + obligationAmount(o, basis), 0),
       description:
         group.length === 1
           ? group[0].description

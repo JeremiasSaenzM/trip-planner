@@ -157,7 +157,7 @@ export function PhasedSavingsChart({
 
 function PhasedSavingsList({ pastDue, future }: { pastDue: PhasedSavingsPhase[]; future: PhasedSavingsPhase[] }) {
   return (
-    <ul className="mt-2 space-y-1 text-sm text-zinc-600 dark:text-zinc-400">
+    <ul data-testid="phased-savings-list" className="mt-2 space-y-1 text-sm text-zinc-600 dark:text-zinc-400">
       {pastDue.map((phase, i) => (
         <li key={`past-${i}`} className="text-red-700 dark:text-red-400">
           Overdue since {formatDate(phase.toDate)} · short {formatUsd(phase.shortfallNow ?? 0)} now ·{" "}
