@@ -308,3 +308,54 @@ describe("the chart data differs between bases when the amounts do", () => {
     expect((data.conservative.cumulative as number[]).at(-1)).toBeCloseTo(usd(1900, 700, 130, "planning_conservative"), 6);
   });
 });
+
+describe("a remainder that's zero at the selected basis is never listed", () => {
+  // A booked payment covers the line's minimum but not its target or
+  // conservative: the line still has an unallocated remainder, just not
+  // at the minimum basis.
+  const booked: PaymentForObligations = payment("hotel", "Hotel booking", 350, "USD", "2027-03-01", { status: "committed" });
+  const line: BudgetLineForObligations = {
+    id: booked.budgetLineId,
+    description: "Hotel",
+    amountMin: 300,
+    amountTarget: 400,
+    amountConservative: 500,
+    currency: "USD",
+  };
+
+  function run(basis: (typeof BASES)[number]) {
+    const result = buildObligations({
+      payments: [booked],
+      allTripPayments: [booked],
+      budgetLines: [line],
+      savingsEntries: [],
+      rates: RATES,
+      departureDate: TRIP_DEPARTURE,
+      departureDateConfirmed: true,
+      asOfDate: AS_OF,
+    });
+    if (result.status !== "ready") throw new Error("expected ready");
+    const common = { obligations: result.obligations, availableUsd: result.availableUsd, asOfDate: AS_OF, basis };
+    return {
+      pots: buildDeadlinePots({ obligations: result.obligations, basis, asOfDate: AS_OF }),
+      parallel: buildParallelSavingsPlan(common),
+      phased: buildPhasedSavingsPlan(common),
+    };
+  }
+
+  it("leaves it out of the pots and both plans at the minimum basis", () => {
+    const { pots, parallel, phased } = run("minimum");
+    expect(pots.flatMap((pot) => pot.items).map((item) => item.timing)).toEqual(["on_date"]);
+    expect(pots.map((pot) => pot.dueDate)).toEqual(["2027-03-01"]);
+    expect(parallel.pots.map((pot) => pot.dueDate)).toEqual(["2027-03-01"]);
+    expect(phased.phases.map((phase) => phase.toDate)).toEqual(["2027-03-01"]);
+  });
+
+  it("still lists it at the bases where something is left to cover", () => {
+    for (const [basis, amount] of [["target", 50], ["conservative", 150]] as const) {
+      const { pots } = run(basis);
+      const remainder = pots.flatMap((pot) => pot.items).find((item) => item.timing === "unallocated");
+      expect(remainder?.amountUsd).toBe(amount);
+    }
+  });
+});

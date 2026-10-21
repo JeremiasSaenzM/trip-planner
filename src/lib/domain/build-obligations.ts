@@ -183,6 +183,18 @@ export type BuildObligationsResult =
  * needed. Each line's unallocated remainder is netted per basis against
  * its payments' amounts at that same basis.
  */
+// A line's uncovered remainder, in USD, with floating-point residue
+// treated as nothing. Scaling a placeholder by its line's ratio doesn't
+// always land exactly on the line's figure (39 * (31 / 39) is
+// 30.999999999999996), and a remainder of a few billionths of a cent
+// isn't money anyone has to save -- under half a cent rounds to $0.00,
+// so it's zero here too. Never negative: payments covering more than
+// the line leave nothing over, not a credit.
+const HALF_CENT_USD = 0.005;
+function settledRemainder(usd: number): number {
+  return usd < HALF_CENT_USD ? 0 : usd;
+}
+
 export function buildObligations(input: BuildObligationsInput): BuildObligationsResult {
   const missingRates: MissingObligationRate[] = [];
 
@@ -293,10 +305,10 @@ export function buildObligations(input: BuildObligationsInput): BuildObligations
     // so this can't be the one that's missing a rate.
     const lineMinimumUsd = toUsd(line.amountMin, line.currency, "planning_base", line.description) ?? 0;
 
-    const remainderMinimumUsd = Math.max(0, lineMinimumUsd - linked.minimum);
-    const remainderTargetUsd = Math.max(0, lineTargetUsd - linked.target);
-    const remainderConservativeUsd = Math.max(0, lineConservativeUsd - linked.conservative);
-    if (remainderMinimumUsd <= 0 && remainderTargetUsd <= 0 && remainderConservativeUsd <= 0) continue;
+    const remainderMinimumUsd = settledRemainder(lineMinimumUsd - linked.minimum);
+    const remainderTargetUsd = settledRemainder(lineTargetUsd - linked.target);
+    const remainderConservativeUsd = settledRemainder(lineConservativeUsd - linked.conservative);
+    if (remainderMinimumUsd === 0 && remainderTargetUsd === 0 && remainderConservativeUsd === 0) continue;
 
     obligations.push({
       origin: { kind: "unallocated", budgetLineId: line.id },
