@@ -560,7 +560,12 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await card.getByRole("button", { name: "Save" }).click();
 
     const renamed = scenarioCard(page, "Throwaway scenario (linked)");
-    await expect(renamed.getByText(DATELESS_COMPETITION)).toBeVisible();
+    // The card's read-only competition caption is a <p> -- getByText alone
+    // also matches the <option> of the same name inside the edit form's
+    // competition <select>, which can still be mid-unmount right after
+    // Save (the useActionState effect that closes it fires a tick after
+    // the server data refreshes), so this pins it to the caption only.
+    await expect(renamed.locator("p").filter({ hasText: DATELESS_COMPETITION })).toBeVisible();
 
     await renamed.getByRole("button", { name: "Delete" }).click();
     await renamed.getByLabel("Reason for deleting this").fill("Only a test");
