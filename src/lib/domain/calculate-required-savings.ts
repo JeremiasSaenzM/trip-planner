@@ -1,5 +1,4 @@
-import { DateTime } from "luxon";
-
+import { incomeDatesBetween, type IncomeCadence } from "./income-cadence";
 import type { Basis } from "./types";
 
 export type Obligation = {
@@ -23,6 +22,9 @@ export type CalculateRequiredSavingsInput = {
   savingsEntries: SavingsEntry[];
   /** YYYY-MM-DD, "today" */
   asOfDate: string;
+  /** When the traveller's income arrives -- each deadline's monthly
+   * figure divides by the income dates left before it. */
+  incomeCadence: IncomeCadence;
 };
 
 export type ScheduleEntry = {
@@ -33,7 +35,9 @@ export type ScheduleEntry = {
   remainingMinimum: number;
   remainingTarget: number;
   remainingConservative: number;
-  /** null for a past-due deadline -- dividing by "months until" makes no sense once it's already due. */
+  /** The income dates left before this deadline (after today, up to and
+   * including it) -- whole months at month-end cadence, never a
+   * fraction. null for a past-due deadline: no income is left before it. */
   monthsUntil: number | null;
   requiredMonthlyMinimum: number | null;
   requiredMonthlyTarget: number | null;
@@ -76,12 +80,13 @@ export function requiredMonthlyAt(entry: ScheduleEntry, basis: Basis): number | 
 
 /**
  * Required monthly saving, at each basis, per deadline: cumulative
- * amount due by then, minus money already saved, divided by the months
- * until then. Never takes a "savings capacity" input -- only what's
+ * amount due by then, minus money already saved, divided by the income
+ * dates left before then (incomeDatesBetween()) -- the number of times
+ * money can actually be set aside, not the fractional months between
+ * two dates. Never takes a "savings capacity" input -- only what's
  * already been set aside.
  */
 export function calculateRequiredSavings(input: CalculateRequiredSavingsInput): CalculateRequiredSavingsResult {
-  const asOf = DateTime.fromISO(input.asOfDate);
   const saved = input.savingsEntries
     .filter((entry) => entry.recordedOn <= input.asOfDate)
     .reduce((sum, entry) => sum + entry.amountUsd, 0);
@@ -115,8 +120,9 @@ export function calculateRequiredSavings(input: CalculateRequiredSavingsInput): 
       };
     }
 
-    const exactMonths = DateTime.fromISO(dueDate).diff(asOf, "months").months;
-    const monthsUntil = Math.max(1, exactMonths);
+    // Never below 1: only a deadline that isn't itself an income date
+    // can have none before it, and buildObligations() never builds one.
+    const monthsUntil = Math.max(1, incomeDatesBetween(input.asOfDate, dueDate, input.incomeCadence));
 
     return {
       dueDate,

@@ -222,6 +222,7 @@ export async function loadDashboardData(params: {
     asOfDate,
     savingsEntries: [{ amountUsd: obligationsResult.availableUsd, recordedOn: asOfDate }],
     obligations: obligationsResult.obligations,
+    incomeCadence: TRAVELLER_INCOME_CADENCE,
   });
 
   const phasedPlan = buildPhasedSavingsPlan({
@@ -229,6 +230,7 @@ export async function loadDashboardData(params: {
     availableUsd: obligationsResult.availableUsd,
     asOfDate,
     basis,
+    incomeCadence: TRAVELLER_INCOME_CADENCE,
     departureDate: obligationsResult.departureSaveBy,
   });
 
@@ -237,6 +239,7 @@ export async function loadDashboardData(params: {
     availableUsd: obligationsResult.availableUsd,
     asOfDate,
     basis,
+    incomeCadence: TRAVELLER_INCOME_CADENCE,
     departureDate: obligationsResult.departureSaveBy,
   });
 

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { buildParallelSavingsPlan } from "./build-parallel-savings-plan";
 import type { ObligationForGrouping } from "./group-obligations-by-due-date";
+import { TRAVELLER_INCOME_CADENCE } from "./income-cadence";
 
 function obligation(description: string, amountUsd: number, dueDate: string): ObligationForGrouping {
   return { description, amountMinimumUsd: amountUsd, amountTargetUsd: amountUsd, amountConservativeUsd: amountUsd, dueDate };
@@ -16,6 +17,7 @@ const THREE_DEADLINES: ObligationForGrouping[] = [
 describe("buildParallelSavingsPlan", () => {
   it("gives every deadline its own pot, saving from today to its own due date", () => {
     const result = buildParallelSavingsPlan({
+      incomeCadence: TRAVELLER_INCOME_CADENCE,
       obligations: THREE_DEADLINES,
       availableUsd: 0,
       asOfDate: "2027-01-01",
@@ -41,6 +43,7 @@ describe("buildParallelSavingsPlan", () => {
 
   it("gives the first pot's full share of available money before later pots get any", () => {
     const result = buildParallelSavingsPlan({
+      incomeCadence: TRAVELLER_INCOME_CADENCE,
       obligations: THREE_DEADLINES,
       availableUsd: 2000,
       asOfDate: "2027-01-01",
@@ -56,6 +59,7 @@ describe("buildParallelSavingsPlan", () => {
 
   it("clamps a pot shorter than a month to 1 month", () => {
     const result = buildParallelSavingsPlan({
+      incomeCadence: TRAVELLER_INCOME_CADENCE,
       obligations: [obligation("Deposit", 300, "2027-01-10")],
       availableUsd: 0,
       asOfDate: "2027-01-01",
@@ -67,6 +71,7 @@ describe("buildParallelSavingsPlan", () => {
 
   it("reports a past-due pot as a shortfall, excluded from the open-pot periods", () => {
     const result = buildParallelSavingsPlan({
+      incomeCadence: TRAVELLER_INCOME_CADENCE,
       obligations: [obligation("Overdue deposit", 500, "2027-01-01"), obligation("Flight", 300, "2027-04-01")],
       availableUsd: 200,
       asOfDate: "2027-02-01",
@@ -84,6 +89,7 @@ describe("buildParallelSavingsPlan", () => {
   it("satisfies total saved + available money = total needed, with no unresolved shortfall", () => {
     const availableUsd = 0;
     const result = buildParallelSavingsPlan({
+      incomeCadence: TRAVELLER_INCOME_CADENCE,
       obligations: THREE_DEADLINES,
       availableUsd,
       asOfDate: "2027-01-01",
@@ -107,6 +113,7 @@ describe("buildParallelSavingsPlan", () => {
       obligation("Flight", 1200, "2027-06-01"),
     ];
     const result = buildParallelSavingsPlan({
+      incomeCadence: TRAVELLER_INCOME_CADENCE,
       obligations,
       availableUsd,
       asOfDate: "2027-01-01",
@@ -129,7 +136,13 @@ describe("buildParallelSavingsPlan at the minimum basis", () => {
       { description: "Registration", amountMinimumUsd: 400, amountTargetUsd: 600, amountConservativeUsd: 700, dueDate: "2027-03-01" },
       { description: "Flight", amountMinimumUsd: 500, amountTargetUsd: 900, amountConservativeUsd: 1000, dueDate: "2027-06-01" },
     ];
-    const result = buildParallelSavingsPlan({ obligations, availableUsd: 100, asOfDate: "2027-01-01", basis: "minimum" });
+    const result = buildParallelSavingsPlan({
+      incomeCadence: TRAVELLER_INCOME_CADENCE,
+      obligations,
+      availableUsd: 100,
+      asOfDate: "2027-01-01",
+      basis: "minimum",
+    });
     expect(result.pots.map((p) => ({ amount: p.amountUsd, share: p.availableShareUsd, saving: p.monthlySaving }))).toEqual([
       { amount: 400, share: 100, saving: 150 },
       { amount: 500, share: 0, saving: 100 },

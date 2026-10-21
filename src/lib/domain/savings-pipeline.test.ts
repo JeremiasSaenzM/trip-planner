@@ -106,6 +106,7 @@ function runPipeline(departureDate: string) {
   expect(result.missingRates).toEqual([]);
 
   const savings = calculateRequiredSavings({
+    incomeCadence: TRAVELLER_INCOME_CADENCE,
     asOfDate: AS_OF,
     savingsEntries: [{ amountUsd: result.availableUsd, recordedOn: AS_OF }],
     obligations: result.obligations,
@@ -170,7 +171,13 @@ describe("the savings pipeline: headline, schedule and pots agree on one payment
       const pots = buildDeadlinePots({ ...potInputs(result), basis });
       const potTotal = pots.reduce((sum, pot) => sum + pot.amountUsd, 0);
 
-      const common = { obligations: result.obligations, availableUsd: result.availableUsd, asOfDate: AS_OF, basis };
+      const common = {
+        obligations: result.obligations,
+        availableUsd: result.availableUsd,
+        asOfDate: AS_OF,
+        basis,
+        incomeCadence: TRAVELLER_INCOME_CADENCE,
+      };
       const parallel = buildParallelSavingsPlan(common);
       const phased = buildPhasedSavingsPlan(common);
 
@@ -299,11 +306,22 @@ describe("the chart data differs between bases when the amounts do", () => {
       asOfDate: AS_OF,
     });
     if (result.status !== "ready") throw new Error("expected ready");
-    const savings = calculateRequiredSavings({ asOfDate: AS_OF, savingsEntries: [], obligations: result.obligations });
+    const savings = calculateRequiredSavings({
+      incomeCadence: TRAVELLER_INCOME_CADENCE,
+      asOfDate: AS_OF,
+      savingsEntries: [],
+      obligations: result.obligations,
+    });
     return Object.fromEntries(
       BASES.map((basis) => {
         const pots = buildDeadlinePots({ ...potInputs(result), basis });
-        const common = { obligations: result.obligations, availableUsd: 0, asOfDate: AS_OF, basis };
+        const common = {
+          obligations: result.obligations,
+          availableUsd: 0,
+          asOfDate: AS_OF,
+          basis,
+          incomeCadence: TRAVELLER_INCOME_CADENCE,
+        };
         return [
           basis,
           {
@@ -363,7 +381,13 @@ describe("a remainder that's zero at the selected basis is never listed", () => 
       asOfDate: AS_OF,
     });
     if (result.status !== "ready") throw new Error("expected ready");
-    const common = { obligations: result.obligations, availableUsd: result.availableUsd, asOfDate: AS_OF, basis };
+    const common = {
+      obligations: result.obligations,
+      availableUsd: result.availableUsd,
+      asOfDate: AS_OF,
+      basis,
+      incomeCadence: TRAVELLER_INCOME_CADENCE,
+    };
     return {
       pots: buildDeadlinePots({ ...potInputs(result), basis }),
       parallel: buildParallelSavingsPlan(common),

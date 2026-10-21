@@ -31,3 +31,30 @@ export function lastIncomeDateOnOrBefore(date: string, cadence: IncomeCadence): 
     }
   }
 }
+
+/**
+ * How many income dates fall after `afterDate` and on or before
+ * `onOrBeforeDate` -- the number of times money can still be set aside
+ * before a deadline. Income arriving on `afterDate` itself ("today") is
+ * not counted: by then it's already in, or about to be in, what's been
+ * set aside. 0 when no income arrives in between.
+ *
+ * This is what a monthly saving divides by. At month-end cadence it's a
+ * whole number of months, never a fraction: 20 October to 30 June is 9
+ * paydays (31 Oct ... 30 Jun), not 8.3 months.
+ */
+export function incomeDatesBetween(afterDate: string, onOrBeforeDate: string, cadence: IncomeCadence): number {
+  if (onOrBeforeDate <= afterDate) return 0;
+  switch (cadence.kind) {
+    case "month_end": {
+      // Both ends snapped back to a month-end: the month-ends strictly
+      // after the first and up to the second are exactly the months
+      // between those two.
+      const monthIndex = (date: string) => {
+        const day = DateTime.fromISO(lastIncomeDateOnOrBefore(date, cadence), { zone: "utc" });
+        return day.year * 12 + day.month;
+      };
+      return monthIndex(onOrBeforeDate) - monthIndex(afterDate);
+    }
+  }
+}

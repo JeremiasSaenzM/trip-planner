@@ -1,6 +1,5 @@
-import { DateTime } from "luxon";
-
 import { groupObligationsByDueDate, type ObligationForGrouping } from "./group-obligations-by-due-date";
+import { incomeDatesBetween, type IncomeCadence } from "./income-cadence";
 import type { Basis } from "./types";
 
 export type PhasedSavingsPhase = {
@@ -29,6 +28,9 @@ export type BuildPhasedSavingsPlanInput = {
   availableUsd: number;
   asOfDate: string;
   basis: Basis;
+  /** When the traveller's income arrives -- monthly figures divide by
+   * the income dates in each stretch (monthsBetween()). */
+  incomeCadence: IncomeCadence;
   /** Labeling hint only, passed through to groupObligationsByDueDate() --
    * see its own doc comment. */
   departureDate?: string | null;
@@ -38,8 +40,13 @@ export type BuildPhasedSavingsPlanResult = {
   phases: PhasedSavingsPhase[];
 };
 
-function monthsBetween(fromDate: string, toDate: string): number {
-  return Math.max(1, DateTime.fromISO(toDate).diff(DateTime.fromISO(fromDate), "months").months);
+// Income dates after `fromDate` up to `toDate` (incomeDatesBetween()) --
+// what a monthly saving divides by: whole months at month-end cadence,
+// never a fraction. Never below 1: only a deadline that isn't itself an
+// income date can have none before it, and buildObligations() never
+// builds one.
+function monthsBetween(fromDate: string, toDate: string, cadence: IncomeCadence): number {
+  return Math.max(1, incomeDatesBetween(fromDate, toDate, cadence));
 }
 
 /**
@@ -78,7 +85,7 @@ export function buildPhasedSavingsPlan(input: BuildPhasedSavingsPlanInput): Buil
       continue;
     }
 
-    const months = monthsBetween(phaseStart, deadline.dueDate);
+    const months = monthsBetween(phaseStart, deadline.dueDate, input.incomeCadence);
     const moneyCarriedIn = remaining;
     const monthlySaving = Math.max(0, (deadline.amountUsd - moneyCarriedIn) / months);
     const balanceAfterPayment = Math.max(0, moneyCarriedIn - deadline.amountUsd);

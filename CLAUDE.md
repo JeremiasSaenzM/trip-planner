@@ -77,7 +77,7 @@ These come from the planning system. Encode them in the schema and in tested fun
 - Every budget line has Minimum / Target / Conservative values. Target is the planning reference; Conservative is the financial-safety test.
 - Keep the original currency of every expense. Base currency is USD. Conversions record the rate and its date.
 
-**Savings.** The app tells me the **required** monthly saving (target and conservative): remaining amount ÷ remaining months, per deadline. It never asks for or plans around my "savings capacity". If I record money already set aside, it recalculates what's left.
+**Savings.** The app tells me the **required** monthly saving (target and conservative): remaining amount ÷ the income dates left before the deadline (`incomeDatesBetween()`: whole paydays after today, up to and including the deadline — never fractional months), per deadline. It never asks for or plans around my "savings capacity". If I record money already set aside, it recalculates what's left.
 
 **Departure rule (savings deadlines).** Every payment must be saved for by the day I leave, because money spent during the trip can't be saved from income earned during the trip.
 - "The day I leave" is the trip's own `departure_date` when set (trip-level, the same in every scenario), otherwise the competition's first official day (`resolveDepartureDate()`).
