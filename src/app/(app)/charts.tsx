@@ -29,6 +29,22 @@ function formatUsdTick(value: number): string {
   return `$${Math.round(value).toLocaleString()}`;
 }
 
+// Recharts' axis ticks and default Tooltip box hard-code their own colors
+// (#666 ticks, #fff tooltip background) instead of following the page's
+// theme, which reads fine in light mode but turns unreadable in dark mode
+// (e.g. near-white tooltip text inherited from the page, on a tooltip box
+// that's still hard-coded white). These two are shared across every chart
+// below so dark mode and light mode both stay legible.
+const AXIS_TICK = { fontSize: 11, fill: "var(--chart-neutral)" };
+const TOOLTIP_STYLE = {
+  contentStyle: {
+    backgroundColor: "var(--chart-tooltip-bg)",
+    border: "1px solid var(--chart-tooltip-border)",
+    borderRadius: 8,
+  },
+  labelStyle: { color: "var(--foreground)" },
+};
+
 // Target and conservative bars always; a minimum bar in front of them
 // only while minimum is the selected basis, so the default view is
 // unchanged and the observed floor is there when asked for.
@@ -55,9 +71,9 @@ export function BudgetByCategoryChart({
     <ResponsiveContainer width="100%" height={240}>
       <BarChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
-        <XAxis dataKey="category" tick={{ fontSize: 11 }} />
-        <YAxis tick={{ fontSize: 11 }} width={44} tickFormatter={formatUsdTick} />
-        <Tooltip formatter={(value) => formatUsdTick(Number(value))} />
+        <XAxis dataKey="category" tick={AXIS_TICK} stroke="var(--chart-grid)" />
+        <YAxis tick={AXIS_TICK} stroke="var(--chart-grid)" width={44} tickFormatter={formatUsdTick} />
+        <Tooltip formatter={(value) => formatUsdTick(Number(value))} {...TOOLTIP_STYLE} />
         <Legend wrapperStyle={{ fontSize: 12 }} />
         {showMinimum && <Bar dataKey="minimum" name="Minimum" fill="var(--chart-minimum)" radius={[3, 3, 0, 0]} />}
         <Bar dataKey="target" name="Target" fill="var(--chart-target)" radius={[3, 3, 0, 0]} />
@@ -138,9 +154,10 @@ export function SavingsScheduleChart({
             type="number"
             domain={["dataMin", "dataMax"]}
             tickFormatter={formatDateTick}
-            tick={{ fontSize: 11 }}
+            tick={AXIS_TICK}
+            stroke="var(--chart-grid)"
           />
-          <YAxis tick={{ fontSize: 11 }} width={44} tickFormatter={formatUsdTick} />
+          <YAxis tick={AXIS_TICK} stroke="var(--chart-grid)" width={44} tickFormatter={formatUsdTick} />
           <Tooltip
             labelFormatter={(value) => formatDateTick(Number(value))}
             formatter={(value, name, item) => {
@@ -148,6 +165,7 @@ export function SavingsScheduleChart({
               const amount = formatUsdTick(Number(value));
               return payment && name === "Money needed by this date" ? `${amount} -- ${payment}` : amount;
             }}
+            {...TOOLTIP_STYLE}
           />
           <Legend wrapperStyle={{ fontSize: 12 }} />
           <ReferenceLine

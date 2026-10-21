@@ -23,6 +23,18 @@ function formatUsdTick(value: number): string {
   return `$${Math.round(value).toLocaleString()}`;
 }
 
+// See charts.tsx's own comment: Recharts hard-codes axis tick and default
+// Tooltip colors, which need to follow the theme instead.
+const AXIS_TICK = { fontSize: 11, fill: "var(--chart-neutral)" };
+const TOOLTIP_STYLE = {
+  contentStyle: {
+    backgroundColor: "var(--chart-tooltip-bg)",
+    border: "1px solid var(--chart-tooltip-border)",
+    borderRadius: 8,
+  },
+  labelStyle: { color: "var(--foreground)" },
+};
+
 type SawtoothPoint = {
   timestamp: number;
   balance: number;
@@ -133,12 +145,14 @@ export function PhasedSavingsChart({
             type="number"
             domain={["dataMin", "dataMax"]}
             tickFormatter={formatDateTick}
-            tick={{ fontSize: 11 }}
+            tick={AXIS_TICK}
+            stroke="var(--chart-grid)"
           />
-          <YAxis tick={{ fontSize: 11 }} width={44} tickFormatter={formatUsdTick} />
+          <YAxis tick={AXIS_TICK} stroke="var(--chart-grid)" width={44} tickFormatter={formatUsdTick} />
           <Tooltip
             labelFormatter={(value) => formatDateTick(Number(value))}
             formatter={(value) => formatUsdTick(Number(value))}
+            {...TOOLTIP_STYLE}
           />
           <Line
             type="linear"
@@ -263,9 +277,10 @@ export function ParallelSavingsChart({
             type="number"
             domain={["dataMin", "dataMax"]}
             tickFormatter={formatDateTick}
-            tick={{ fontSize: 11 }}
+            tick={AXIS_TICK}
+            stroke="var(--chart-grid)"
           />
-          <YAxis tick={{ fontSize: 11 }} width={44} tickFormatter={formatUsdTick} />
+          <YAxis tick={AXIS_TICK} stroke="var(--chart-grid)" width={44} tickFormatter={formatUsdTick} />
           <Tooltip content={<BalanceTooltip />} />
           <Line
             type="linear"
