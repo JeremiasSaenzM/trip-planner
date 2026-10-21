@@ -22,7 +22,8 @@ import type {
 //   2 -- budget lines gained confidence
 //   3 -- a competition's city, country, dates and time zone can be null
 //   4 -- proposalBatches and proposalItems (imported research)
-export const EXPORT_SCHEMA_VERSION = 4;
+//   5 -- trips gained a travel window (departureDate, returnDate, travelDatesState, travelDatesSourceId)
+export const EXPORT_SCHEMA_VERSION = 5;
 
 export type ExportPayload = {
   exportedAt: string;

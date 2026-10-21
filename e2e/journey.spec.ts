@@ -54,7 +54,7 @@ function missingRateRow(page: Page, rateKindLabel: string) {
 // /scenarios lists each scenario's competition by name, and the Add
 // forms' competition pickers list every competition too -- so a card
 // is found inside its own section, never page-wide by text alone.
-function scenariosSection(page: Page, heading: "Scenarios" | "Competitions") {
+function scenariosSection(page: Page, heading: "Travel window" | "Scenarios" | "Competitions") {
   return page.locator("section").filter({ has: page.getByRole("heading", { name: heading, exact: true }) });
 }
 
@@ -457,8 +457,8 @@ test("the full first-run journey, starting from a signed-out, empty account", as
   });
 
   await test.step("with no festival dates, say so instead of showing $0", async () => {
-    await expect(page.getByTestId("no-savings-requirement")).toHaveText(
-      "No festival dates yet, so there's no savings requirement to compute.",
+    await expect(page.getByTestId("no-savings-requirement")).toContainText(
+      "No departure date or festival dates yet, so there's no savings requirement to compute.",
     );
     await expect(page.getByTestId("required-monthly-saving")).toHaveCount(0);
   });
@@ -497,7 +497,7 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await page.getByRole("button", { name: "Add payment" }).click();
     await expect(page.getByText("Host TBA deposit", { exact: true })).toBeVisible();
 
-    await expect(page.getByTestId("no-payment-split")).toContainText("No festival dates yet");
+    await expect(page.getByTestId("no-payment-split")).toContainText("No departure date or festival dates yet");
     await expect(page.getByRole("heading", { name: "All payments" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Due before you leave" })).toHaveCount(0);
   });
@@ -552,6 +552,64 @@ test("the full first-run journey, starting from a signed-out, empty account", as
 
     await expect(card.getByRole("alert")).toContainText("still has budget lines");
     await expect(scenarioCard(page, "Host TBA scenario")).toHaveCount(1);
+  });
+
+  await test.step("payments due after the festival starts, or with no due date, are listed as moved to departure", async () => {
+    for (const [description, amount, dueDate] of [
+      ["Post-festival hotel", "120", "2027-07-15"],
+      ["Choir arrangement", "80", ""],
+    ]) {
+      // A fresh page each time, so the second payment can't inherit the
+      // first one's due date from a form that kept its field values.
+      await page.goto(`/payments?scenario=${firstScenarioId}`);
+      await page.getByLabel("Description").fill(description);
+      await page.getByLabel("Budget category").selectOption("C");
+      await page.getByLabel("Amount").fill(amount);
+      await page.getByLabel("Refundability").selectOption("refundable");
+      if (dueDate) await page.getByLabel("Due date (optional)").fill(dueDate);
+      await page.getByRole("button", { name: "Add payment" }).click();
+      await expect(page.getByText(description, { exact: true })).toBeVisible();
+    }
+
+    await page.goto(`/?scenario=${firstScenarioId}`);
+    // No travel window yet: the festival's first official day stands in.
+    await expect(page.getByTestId("departure-anchor")).toHaveText(
+      "No departure date set for the trip yet, so saving toward the festival's first day, Jul 6, 2027.",
+    );
+    const pots = page.getByTestId("deadline-pots");
+    await expect(pots.getByText("Post-festival hotel — $120, due Jul 15, 2027, needed before you leave")).toBeVisible();
+    await expect(pots.getByText("Choir arrangement — $80, no due date, assumed due at departure")).toBeVisible();
+    await expect(pots.getByText("Registration fee — $300, due Feb 1, 2027")).toBeVisible();
+
+    const departurePot = page.getByTestId("deadline-pot").filter({ hasText: "Post-festival hotel" });
+    await expect(departurePot).toContainText("By Jul 6, 2027 · departure");
+    await expect(departurePot).toContainText("Choir arrangement");
+  });
+
+  await test.step("set the trip's travel window, and the plan anchors on the departure date instead", async () => {
+    await page.goto(`/scenarios?scenario=${firstScenarioId}`);
+    const travelWindow = scenariosSection(page, "Travel window");
+    await expect(page.getByTestId("travel-window")).toContainText("Leave: not set");
+
+    await travelWindow.getByRole("button", { name: "Set travel window" }).click();
+    await travelWindow.getByLabel("Departure date").fill("2027-07-03");
+    await travelWindow.getByLabel("Return date").fill("2027-07-14");
+    await travelWindow.getByLabel("Reason for this change").fill("Arriving a few days early");
+    await travelWindow.getByRole("button", { name: "Save" }).click();
+    await expect(page.getByTestId("travel-window")).toContainText("Leave: Jul 3, 2027 · Return: Jul 14, 2027");
+
+    await page.goto(`/?scenario=${firstScenarioId}`);
+    await expect(page.getByTestId("departure-anchor")).toHaveText("Saving toward your departure on Jul 3, 2027.");
+    await expect(page.getByTestId("deadline-pot").filter({ hasText: "Post-festival hotel" })).toContainText(
+      "By Jul 3, 2027 · departure",
+    );
+    await expect(page.getByText(/departure date is on or after the festival/)).toHaveCount(0);
+
+    // Trip-wide: a scenario whose competition has no dates now has a
+    // departure to save toward too.
+    await page.goto(`/?scenario=${datelessScenarioId}`);
+    await expect(page.getByTestId("required-monthly-saving")).toBeVisible();
+    await expect(page.getByTestId("no-savings-requirement")).toHaveCount(0);
   });
 
   // The journey's only savings entry so far was recorded, edited, and
@@ -749,7 +807,8 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     const exported = JSON.parse(readFileSync(path!, "utf-8"));
 
     expect(typeof exported.exportedAt).toBe("string");
-    expect(exported.schemaVersion).toBe(4);
+    expect(exported.schemaVersion).toBe(5);
+    expect(exported.data.trips[0]).toMatchObject({ departureDate: "2027-07-03", returnDate: "2027-07-14" });
     const dateless = exported.data.competitions.find(
       (competition: { name: string }) => competition.name === "World Choir Games (host TBA)",
     );

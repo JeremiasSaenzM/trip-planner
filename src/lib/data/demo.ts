@@ -32,6 +32,7 @@ export const demoDataSource: DataSource = {
   getProposalBatches: async () => fixtures.proposalBatches,
   getProposalItems: async () => fixtures.proposalItems,
   createTrip: async () => writesDisabledInDemoMode(),
+  updateTripTravelWindow: async () => writesDisabledInDemoMode(),
   createCompetition: async () => writesDisabledInDemoMode(),
   updateCompetition: async () => writesDisabledInDemoMode(),
   createScenario: async () => writesDisabledInDemoMode(),

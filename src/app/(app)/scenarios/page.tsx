@@ -4,7 +4,7 @@ import { Suspense } from "react";
 
 import { getCurrentUser } from "@/lib/auth";
 import { dataSource } from "@/lib/data";
-import type { AcceptanceStatus, Competition, Scenario } from "@/lib/data/types";
+import type { AcceptanceStatus, Competition, Scenario, Source, Trip } from "@/lib/data/types";
 
 import { AddCompetitionForm, CreateScenarioForm } from "../bootstrap-forms";
 import { parseBasis } from "../dashboard-query";
@@ -12,7 +12,7 @@ import { Card, EmptyState } from "../dashboard-ui";
 import { formatDate } from "../format";
 import { INFO_STATE_LABELS } from "../info-state-labels";
 import { sortScenarios } from "../scenario-order";
-import { CompetitionRowActions, ScenarioRowActions } from "../scenarios-ui";
+import { CompetitionRowActions, ScenarioRowActions, TravelWindowActions } from "../scenarios-ui";
 
 export const metadata: Metadata = { title: "Scenarios" };
 
@@ -79,6 +79,17 @@ async function ScenariosScreen({ searchParams }: { searchParams: PageProps<"/sce
 
   return (
     <div className="space-y-8">
+      <section className="space-y-3">
+        <h2 className="text-lg font-semibold">Travel window</h2>
+        <p className="text-sm text-zinc-500 dark:text-zinc-400">
+          Trip-wide: the same for every scenario.
+        </p>
+        <Card>
+          <TravelWindowSummary trip={trip} sources={sources} />
+          <TravelWindowActions trip={trip} sources={sources} />
+        </Card>
+      </section>
+
       <section className="space-y-3">
         <h2 className="text-lg font-semibold">Scenarios</h2>
         {tripScenarios.length === 0 ? (
@@ -171,6 +182,27 @@ function CompetitionSummary({ competition, usedBy }: { competition: Competition;
           ? `Used by: ${usedBy.map((s) => s.name).join(", ")}`
           : "Not used by any scenario"}
       </p>
+    </div>
+  );
+}
+
+function TravelWindowSummary({ trip, sources }: { trip: Trip; sources: Source[] }) {
+  const source = trip.travelDatesSourceId ? sources.find((s) => s.id === trip.travelDatesSourceId) : null;
+  return (
+    <div data-testid="travel-window" className="min-w-0 space-y-0.5">
+      <p className="text-sm">
+        Leave: {trip.departureDate ? formatDate(trip.departureDate) : "not set"} · Return:{" "}
+        {trip.returnDate ? formatDate(trip.returnDate) : "not set"}
+      </p>
+      <p className="text-xs text-zinc-500 dark:text-zinc-400">
+        {INFO_STATE_LABELS[trip.travelDatesState]}
+        {source ? ` · ${source.provider} (${formatDate(source.observedOn)})` : ""}
+      </p>
+      {!trip.departureDate && (
+        <p className="text-xs text-zinc-500 dark:text-zinc-400">
+          Until a departure date is set, savings deadlines run to the festival&apos;s first official day.
+        </p>
+      )}
     </div>
   );
 }

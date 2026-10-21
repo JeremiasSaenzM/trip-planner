@@ -28,6 +28,12 @@ export const trips: Trip[] = [
     id: "20000000-0000-0000-0000-000000000001",
     name: "Fictional 2027 choir trip",
     status: "planning",
+    // Left unset on purpose: demo mode shows the fallback to the
+    // competition's first official day.
+    departureDate: null,
+    returnDate: null,
+    travelDatesState: "pending",
+    travelDatesSourceId: null,
     createdAt: "2026-09-01T00:00:00Z",
     updatedAt: "2026-09-01T00:00:00Z",
   },

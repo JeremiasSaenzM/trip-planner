@@ -15,7 +15,9 @@ describe("groupObligationsByDueDate", () => {
       ],
       "target",
     );
-    expect(result).toEqual([{ dueDate: "2027-03-01", amountUsd: 500, description: "2 payments" }]);
+    expect(result).toMatchObject([{ dueDate: "2027-03-01", amountUsd: 500, description: "2 payments" }]);
+    // The group keeps what it's made of, in input order.
+    expect(result[0].items.map((item) => item.description)).toEqual(["Flight", "Hotel deposit"]);
   });
 
   it("labels a multi-item group on the departure date as 'Before departure', not '2 payments'", () => {
@@ -51,7 +53,7 @@ describe("groupObligationsByDueDate", () => {
       "conservative",
     );
     expect(result.map((g) => g.dueDate)).toEqual(["2027-01-01", "2027-06-01"]);
-    expect(result[0]).toEqual({ dueDate: "2027-01-01", amountUsd: 250, description: "Earlier" });
+    expect(result[0]).toMatchObject({ dueDate: "2027-01-01", amountUsd: 250, description: "Earlier" });
   });
 });
 
@@ -65,7 +67,7 @@ describe("groupObligationsByDueDate at the minimum basis", () => {
       ],
       "minimum",
     );
-    expect(result).toEqual([
+    expect(result).toMatchObject([
       { dueDate: "2027-03-01", amountUsd: 430, description: "2 payments" },
       { dueDate: "2027-07-05", amountUsd: 150, description: "Meals" },
     ]);

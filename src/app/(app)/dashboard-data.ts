@@ -2,11 +2,14 @@ import "server-only";
 
 import { dataSource } from "@/lib/data";
 import type { BudgetLine, Competition, FxRate, OpenItem, Payment, SavingsEntry, Scenario, Source, Trip } from "@/lib/data/types";
+import { buildDeadlinePots, type DeadlinePot } from "@/lib/domain/build-deadline-pots";
 import { buildObligations, type BuiltObligation, type MissingObligationRate } from "@/lib/domain/build-obligations";
 import { buildParallelSavingsPlan, type BuildParallelSavingsPlanResult } from "@/lib/domain/build-parallel-savings-plan";
 import { buildPhasedSavingsPlan, type BuildPhasedSavingsPlanResult } from "@/lib/domain/build-phased-savings-plan";
 import { calculateRequiredSavings, type CalculateRequiredSavingsResult } from "@/lib/domain/calculate-required-savings";
+import { checkTravelWindow, type TravelWindowIssue } from "@/lib/domain/check-travel-window";
 import { findMissingFxRates, type MissingFxRate } from "@/lib/domain/find-missing-fx-rates";
+import { resolveDepartureDate, type ResolvedDeparture } from "@/lib/domain/resolve-departure-date";
 import { rollUpBudgetByScenario, type RollUpBudgetByScenarioResult } from "@/lib/domain/roll-up-budget-by-scenario";
 import type { Basis } from "@/lib/domain/types";
 
@@ -27,18 +30,29 @@ export type DashboardData =
       basis: Basis;
       asOfDate: string;
       rollup: RollUpBudgetByScenarioResult;
+      /** The date every savings deadline is measured against: the trip's
+       * own departure date, else the competition's first official day
+       * (resolveDepartureDate()). null when neither exists. */
+      departure: ResolvedDeparture | null;
+      /** The trip's travel window checked against this scenario's
+       * festival period -- empty when it fits, or when there's nothing to
+       * compare yet. */
+      travelWindowIssues: TravelWindowIssue[];
       /** null when noDepartureDate. */
       savings: CalculateRequiredSavingsResult | null;
-      /** The scenario has no competition, or its competition has no
-       * festival dates yet -- either way there's no deadline to save
-       * toward, so no savings requirement can be computed. Pages must
-       * say so in words, never show it as $0. */
+      /** No departure date and no festival dates -- there's no deadline
+       * to save toward, so no savings requirement can be computed. Pages
+       * must say so in words, never show it as $0. */
       noDepartureDate: boolean;
       provisional: boolean;
       obligations: BuiltObligation[];
       /** Savings minus everything already paid -- computed even when
        * noDepartureDate, since it doesn't depend on a date. */
       availableUsd: number;
+      /** Every deadline with the payments it's made of, and how each one
+       * got there (moved, undated, ...) -- built from the same obligations
+       * as savings and both plans. null when noDepartureDate. */
+      pots: DeadlinePot[] | null;
       /** null when noDepartureDate -- there are no obligations to plan against. */
       phasedPlan: BuildPhasedSavingsPlanResult | null;
       parallelPlan: BuildParallelSavingsPlanResult | null;
@@ -138,6 +152,19 @@ export async function loadDashboardData(params: {
     ? competitions.find((c) => c.id === scenario.competitionId) ?? null
     : null;
 
+  const departure = resolveDepartureDate({
+    tripDepartureDate: trip.departureDate,
+    tripTravelDatesState: trip.travelDatesState,
+    competitionStartDate: competition?.startDate ?? null,
+    competitionDatesState: competition?.datesState ?? null,
+  });
+  const travelWindowIssues = checkTravelWindow({
+    departureDate: trip.departureDate,
+    returnDate: trip.returnDate,
+    festivalStartDate: competition?.startDate ?? null,
+    festivalEndDate: competition?.endDate ?? null,
+  });
+
   const tripOpenItems = openItems.filter((item) => item.tripId === trip.id);
   const tripSavingsEntries = savingsEntries.filter((entry) => entry.tripId === trip.id);
 
@@ -147,8 +174,8 @@ export async function loadDashboardData(params: {
     budgetLines: scenarioBudgetLines,
     savingsEntries: tripSavingsEntries.map((entry) => ({ amountUsd: entry.amount, recordedOn: entry.recordedOn })),
     rates,
-    departureDate: competition?.startDate ?? null,
-    departureDateConfirmed: competition?.datesState === "confirmed",
+    departureDate: departure?.date ?? null,
+    departureDateConfirmed: departure?.confirmed ?? false,
     asOfDate,
   });
 
@@ -162,11 +189,14 @@ export async function loadDashboardData(params: {
       basis,
       asOfDate,
       rollup,
+      departure,
+      travelWindowIssues,
       savings: null,
       noDepartureDate: true,
       provisional: false,
       obligations: [],
       availableUsd: obligationsResult.availableUsd,
+      pots: null,
       phasedPlan: null,
       parallelPlan: null,
       payments: scenarioPayments,
@@ -192,7 +222,7 @@ export async function loadDashboardData(params: {
     availableUsd: obligationsResult.availableUsd,
     asOfDate,
     basis,
-    departureDate: competition?.startDate ?? null,
+    departureDate: departure?.date ?? null,
   });
 
   const parallelPlan = buildParallelSavingsPlan({
@@ -200,8 +230,10 @@ export async function loadDashboardData(params: {
     availableUsd: obligationsResult.availableUsd,
     asOfDate,
     basis,
-    departureDate: competition?.startDate ?? null,
+    departureDate: departure?.date ?? null,
   });
+
+  const pots = buildDeadlinePots({ obligations: obligationsResult.obligations, basis, asOfDate });
 
   return {
     status: "ready",
@@ -212,11 +244,14 @@ export async function loadDashboardData(params: {
     basis,
     asOfDate,
     rollup,
+    departure,
+    travelWindowIssues,
     savings,
     noDepartureDate: false,
     provisional: obligationsResult.provisional,
     obligations: obligationsResult.obligations,
     availableUsd: obligationsResult.availableUsd,
+    pots,
     phasedPlan,
     parallelPlan,
     payments: scenarioPayments,

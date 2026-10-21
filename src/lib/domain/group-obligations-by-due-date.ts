@@ -23,10 +23,13 @@ export function obligationAmount(
   }
 }
 
-export type DeadlineGroup = {
+export type DeadlineGroup<T extends ObligationForGrouping = ObligationForGrouping> = {
   dueDate: string;
   amountUsd: number;
   description: string;
+  /** Every obligation summed into amountUsd, in input order -- so a
+   * caller can list what a deadline is made of, not just its total. */
+  items: T[];
 };
 
 /**
@@ -41,12 +44,12 @@ export type DeadlineGroup = {
  * it to), so it reads as "Before departure (N items)" rather than the
  * generic "N payments".
  */
-export function groupObligationsByDueDate(
-  obligations: ObligationForGrouping[],
+export function groupObligationsByDueDate<T extends ObligationForGrouping>(
+  obligations: T[],
   basis: Basis,
   departureDate?: string | null,
-): DeadlineGroup[] {
-  const byDate = new Map<string, ObligationForGrouping[]>();
+): DeadlineGroup<T>[] {
+  const byDate = new Map<string, T[]>();
   for (const obligation of obligations) {
     const group = byDate.get(obligation.dueDate) ?? [];
     group.push(obligation);
@@ -63,6 +66,7 @@ export function groupObligationsByDueDate(
           : dueDate === departureDate
             ? `Before departure (${group.length} items)`
             : `${group.length} payments`,
+      items: group,
     }))
     .sort((a, b) => a.dueDate.localeCompare(b.dueDate));
 }

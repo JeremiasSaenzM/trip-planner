@@ -10,6 +10,7 @@ describe("buildObligations", () => {
   it("does not double-count a budget line that's fully covered by its own payment", () => {
     const payments: PaymentForObligations[] = [
       {
+        id: "P1",
         budgetLineId: "L1",
         description: "Hotel payment",
         totalAmount: 500,
@@ -39,6 +40,7 @@ describe("buildObligations", () => {
   it("reduces availableUsd by what's already been paid", () => {
     const payments: PaymentForObligations[] = [
       {
+        id: "P2",
         budgetLineId: "L1",
         description: "Registration",
         totalAmount: 300,
@@ -69,6 +71,7 @@ describe("buildObligations", () => {
   it("pins a payment with no due date to departure, flagged as estimated and not clamped", () => {
     const payments: PaymentForObligations[] = [
       {
+        id: "P3",
         budgetLineId: "L1",
         description: "Final balance",
         totalAmount: 400,
@@ -106,6 +109,7 @@ describe("buildObligations", () => {
     ];
     const payments: PaymentForObligations[] = [
       {
+        id: "P4",
         budgetLineId: "L1",
         description: "Flight",
         totalAmount: 600,
@@ -167,6 +171,7 @@ describe("buildObligations", () => {
       payments: [],
       allTripPayments: [
         {
+          id: "P5",
           budgetLineId: "L1",
           description: "Deposit",
           totalAmount: 300,
@@ -190,6 +195,7 @@ describe("buildObligations", () => {
   it("clamps a pay-at-property payment due after departure, raising the monthly requirement vs. its original date", () => {
     const payments: PaymentForObligations[] = [
       {
+        id: "P6",
         budgetLineId: "L1",
         description: "Hotel balance (pay at property)",
         totalAmount: 800,
@@ -246,6 +252,7 @@ describe("buildObligations", () => {
     ];
     const payments: PaymentForObligations[] = [
       {
+        id: "P7",
         budgetLineId: "L1",
         description: "Flight deposit",
         totalAmount: 600,
@@ -305,6 +312,7 @@ describe("buildObligations", () => {
   it("still reduces availableUsd for a cancelled payment's already-paid amount, but creates no obligation for it", () => {
     const payments: PaymentForObligations[] = [
       {
+        id: "P8",
         budgetLineId: "L1",
         description: "Cancelled flight",
         totalAmount: 500,
@@ -361,7 +369,8 @@ describe("buildObligations at the minimum basis", () => {
 
   it("counts a payment at its real remaining amount: a quote, not a projection", () => {
     const payments: PaymentForObligations[] = [
-      { budgetLineId: "L1", description: "Flight", totalAmount: 600, paidAmount: 100, currency: "EUR", dueDate: "2027-03-01", status: "committed" },
+      { id: "P9",
+ budgetLineId: "L1", description: "Flight", totalAmount: 600, paidAmount: 100, currency: "EUR", dueDate: "2027-03-01", status: "committed" },
     ];
     const result = buildObligations({
       ...base,
@@ -378,7 +387,8 @@ describe("buildObligations at the minimum basis", () => {
 
   it("never goes below zero when a line's payments already exceed its minimum, while target still has a remainder", () => {
     const payments: PaymentForObligations[] = [
-      { budgetLineId: "L1", description: "Deposit", totalAmount: 350, paidAmount: 0, currency: "USD", dueDate: "2027-03-01", status: "committed" },
+      { id: "P10",
+ budgetLineId: "L1", description: "Deposit", totalAmount: 350, paidAmount: 0, currency: "USD", dueDate: "2027-03-01", status: "committed" },
     ];
     const result = buildObligations({
       ...base,
@@ -399,7 +409,8 @@ describe("buildObligations at the minimum basis", () => {
     ];
     // Under the line's minimum, so its remainder isn't clamped at zero.
     const payments: PaymentForObligations[] = [
-      { budgetLineId: "L1", description: "Flight deposit", totalAmount: 450, paidAmount: 200, currency: "USD", dueDate: "2027-03-01", status: "committed" },
+      { id: "P11",
+ budgetLineId: "L1", description: "Flight deposit", totalAmount: 450, paidAmount: 200, currency: "USD", dueDate: "2027-03-01", status: "committed" },
     ];
     const savingsEntries = [{ amountUsd: 1000, recordedOn: "2027-01-01" }];
 

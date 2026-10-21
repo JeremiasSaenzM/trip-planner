@@ -29,6 +29,10 @@ function mapTripRow(row: Record<string, unknown>): Trip {
     id: row.id as string,
     name: row.name as string,
     status: row.status as Trip["status"],
+    departureDate: row.departure_date as string | null,
+    returnDate: row.return_date as string | null,
+    travelDatesState: row.travel_dates_state as Trip["travelDatesState"],
+    travelDatesSourceId: row.travel_dates_source_id as string | null,
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
   };
@@ -403,6 +407,24 @@ export const realDataSource: DataSource = {
     const { data, error } = await supabase.from("trips").insert({ name: input.name }).select("*").single();
     if (error) throw error;
     return mapTripRow(data);
+  },
+
+  // update_trip_travel_window (20261022090000_trip_travel_window.sql) --
+  // setting the window is an UPDATE on the trip, so it needs a reason,
+  // set in the same call the change_log trigger checks it in.
+  async updateTripTravelWindow(input) {
+    assertWritesAllowed();
+    const supabase = await createClient();
+    const { data, error } = await supabase.rpc("update_trip_travel_window", {
+      p_trip_id: input.tripId,
+      p_departure_date: input.departureDate ?? null,
+      p_return_date: input.returnDate ?? null,
+      p_travel_dates_state: input.travelDatesState,
+      p_travel_dates_source_id: input.travelDatesSourceId ?? null,
+      p_reason: input.reason,
+    });
+    if (error) throw error;
+    return mapTripRow(data as Record<string, unknown>);
   },
 
   async createCompetition(input) {

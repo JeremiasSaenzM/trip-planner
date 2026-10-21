@@ -6,7 +6,7 @@ import type { BudgetLine, Payment, Source } from "@/lib/data/types";
 
 import { DashboardControls } from "../dashboard-controls";
 import { loadDashboardData } from "../dashboard-data";
-import { Card, EmptyState, noDatesReason } from "../dashboard-ui";
+import { Card, EmptyState, noDepartureReason } from "../dashboard-ui";
 import { formatAmount, formatDate } from "../format";
 import { AddPaymentForm, PaymentRowActions } from "../payment-write-ui";
 import { REFUNDABILITY_LABELS, STATUS_LABELS, TIMING_LABELS } from "../payment-labels";
@@ -35,7 +35,7 @@ async function PaymentsScreen({ searchParams }: { searchParams: PageProps<"/paym
   if (data.status === "no_trip") return <EmptyState>No trip yet.</EmptyState>;
   if (data.status === "no_scenario") return <EmptyState>No scenario yet for this trip.</EmptyState>;
 
-  const { payments, competition, asOfDate, trip, scenario, budgetLines, tripPayments, sources } = data;
+  const { payments, competition, departure, asOfDate, trip, scenario, budgetLines, tripPayments, sources } = data;
   const competitionId = competition?.id ?? null;
 
   const addForm = <AddPaymentForm tripId={trip.id} scenarioId={scenario.id} budgetLines={budgetLines} />;
@@ -55,15 +55,16 @@ async function PaymentsScreen({ searchParams }: { searchParams: PageProps<"/paym
     );
   }
 
-  // The split is by the first official festival day. With no dates
-  // there's no line to split on -- so say that, and list everything
-  // under a neutral heading rather than silently calling it all
-  // "before you leave".
-  const festivalStart = competition?.startDate ?? null;
+  // The split is by the departure date the savings plan uses (the trip's
+  // own, else the festival's first day -- resolveDepartureDate()). With
+  // neither there's no line to split on -- so say that, and list
+  // everything under a neutral heading rather than silently calling it
+  // all "before you leave".
+  const departureDate = departure?.date ?? null;
   const preTrip =
-    festivalStart === null ? [] : payments.filter((p) => p.dueDate === null || p.dueDate < festivalStart);
+    departureDate === null ? [] : payments.filter((p) => p.dueDate === null || p.dueDate < departureDate);
   const duringTrip =
-    festivalStart === null ? [] : payments.filter((p) => p.dueDate !== null && p.dueDate >= festivalStart);
+    departureDate === null ? [] : payments.filter((p) => p.dueDate !== null && p.dueDate >= departureDate);
 
   const groupProps = { asOfDate, tripId: trip.id, competitionId, budgetLines, tripPayments, sources };
 
@@ -78,10 +79,10 @@ async function PaymentsScreen({ searchParams }: { searchParams: PageProps<"/paym
 
       <Card>{addForm}</Card>
 
-      {festivalStart === null ? (
+      {departureDate === null ? (
         <>
           <p data-testid="no-payment-split" className="text-sm text-zinc-600 dark:text-zinc-400">
-            {noDatesReason(competition)}, so payments can&apos;t be split into &ldquo;before you leave&rdquo; and
+            {noDepartureReason(competition)}, so payments can&apos;t be split into &ldquo;before you leave&rdquo; and
             &ldquo;during the trip&rdquo;.
           </p>
           <PaymentGroup title="All payments" payments={payments} {...groupProps} />

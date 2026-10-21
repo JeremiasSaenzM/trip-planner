@@ -17,6 +17,11 @@ const CHECK_CONSTRAINT_MESSAGES: Record<string, string> = {
   budget_lines_amount_order: "Minimum, target and conservative must stay in that order (min ≤ target ≤ conservative).",
   payments_paid_not_over_total: "The amount paid can't be more than the total.",
   competitions_end_after_start: "The festival can't end before it starts.",
+  trips_return_after_departure: "You can't come home before you leave -- check the return date.",
+  trips_travel_dates_confirmed_needs_source:
+    "Confirmed travel dates need a source -- add one, or set them back to an estimate.",
+  trips_confirmed_travel_dates_need_dates:
+    "Confirmed travel dates need both the departure and the return date.",
   competitions_dates_together: "Give both festival dates (first and final day), or neither.",
   competitions_confirmed_dates_need_dates:
     "Confirmed dates need the dates themselves -- add them, or leave the dates pending.",
