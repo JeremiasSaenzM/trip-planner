@@ -89,6 +89,30 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await expect(page).toHaveURL("/");
   });
 
+  await test.step("switch the theme with the header toggle", async () => {
+    await expect(page.getByRole("radio", { name: "System", exact: true })).toHaveAttribute("aria-checked", "true");
+
+    await page.getByRole("radio", { name: "Dark", exact: true }).click();
+    await expect(page.locator("html")).toHaveClass(/dark/);
+    expect(await page.evaluate(() => localStorage.getItem("theme"))).toBe("dark");
+
+    // No flash of the wrong theme: the choice survives a reload because
+    // the inline head script (not a useEffect) applies it before paint.
+    await page.reload();
+    await expect(page.locator("html")).toHaveClass(/dark/);
+
+    await page.getByRole("radio", { name: "Light", exact: true }).click();
+    await expect(page.locator("html")).not.toHaveClass(/dark/);
+    expect(await page.evaluate(() => localStorage.getItem("theme"))).toBe("light");
+
+    // System follows the OS preference live, not just at load.
+    await page.getByRole("radio", { name: "System", exact: true }).click();
+    await page.emulateMedia({ colorScheme: "dark" });
+    await expect(page.locator("html")).toHaveClass(/dark/);
+    await page.emulateMedia({ colorScheme: "light" });
+    await expect(page.locator("html")).not.toHaveClass(/dark/);
+  });
+
   await test.step("create a trip from the empty state", async () => {
     await expect(page.getByText("Start your trip")).toBeVisible();
     await page.getByLabel("Trip name").fill("Llangollen 2027");
