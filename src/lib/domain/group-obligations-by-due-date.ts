@@ -6,6 +6,9 @@ export type ObligationForGrouping = {
   amountTargetUsd: number;
   amountConservativeUsd: number;
   dueDate: string;
+  /** Where it came from -- see BuiltObligation.origin. Optional so plain
+   * obligations (tests, older callers) still group. */
+  origin?: { kind: string };
 };
 
 /** An obligation's amount at the given basis. */
@@ -35,6 +38,7 @@ export type DeadlineGroup<T extends ObligationForGrouping = ObligationForGroupin
 /**
  * Groups obligations sharing the same due date into one deadline, summing
  * their amounts (at the given basis) and combining their descriptions.
+ * An unallocated remainder that's zero at this basis is left out.
  * Sorted ascending by due date -- the shared starting point for both
  * buildPhasedSavingsPlan() and buildParallelSavingsPlan().
  *
@@ -51,6 +55,11 @@ export function groupObligationsByDueDate<T extends ObligationForGrouping>(
 ): DeadlineGroup<T>[] {
   const byDate = new Map<string, T[]>();
   for (const obligation of obligations) {
+    // A line's unallocated remainder is built once for all three bases,
+    // so it can be zero at this one (its payments cover the minimum, not
+    // the target). Nothing to save means nothing to list -- and no
+    // deadline, if it was the only thing due that day.
+    if (obligation.origin?.kind === "unallocated" && obligationAmount(obligation, basis) <= 0) continue;
     const group = byDate.get(obligation.dueDate) ?? [];
     group.push(obligation);
     byDate.set(obligation.dueDate, group);

@@ -375,6 +375,7 @@ describe("buildObligations at the minimum basis", () => {
     });
     if (result.status !== "ready") throw new Error("expected ready");
     const hotel = result.obligations[0];
+    expect(hotel.origin).toEqual({ kind: "unallocated", budgetLineId: "L1", partlyCovered: false });
     expect(hotel.amountMinimumUsd).toBeCloseTo(300 * 1.1, 5);
     expect(hotel.amountTargetUsd).toBeCloseTo(400 * 1.1, 5);
     expect(hotel.amountConservativeUsd).toBeCloseTo(500 * 1.15, 5);
@@ -411,6 +412,7 @@ describe("buildObligations at the minimum basis", () => {
     if (result.status !== "ready") throw new Error("expected ready");
     const remainder = result.obligations.find((o) => o.description === "Hotel (unallocated)")!;
     expect(remainder).toMatchObject({ amountMinimumUsd: 0, amountTargetUsd: 50, amountConservativeUsd: 150 });
+    expect(remainder.origin).toEqual({ kind: "unallocated", budgetLineId: "L1", partlyCovered: true });
   });
 
   it("satisfies (sum of obligations) - availableUsd === (scenario total) - (total savings) at the minimum too", () => {
@@ -538,6 +540,50 @@ describe("buildObligations: a planned estimate payment moves with its budget lin
       const payment = obligations.find((o) => o.origin.kind === "payment")!;
       expect(payment.originalAmounts).toEqual({ minimum: 400, target: 400, conservative: 400 });
       expect(payment.amountMinimumUsd).toBeCloseTo(payment.amountTargetUsd, 6);
+    });
+  }
+});
+
+describe("buildObligations: a line fully covered by its payment has no unallocated remainder", () => {
+  // Fictional amounts, chosen because scaling the payment by its line's
+  // ratio doesn't land exactly on the line's own figure in floating point
+  // (39 * (31 / 39) is 30.999999999999996), which used to leave a
+  // remainder of a few billionths of a cent behind -- shown as "$0.00".
+  const cases: { line: BudgetLineForObligations; currency: string }[] = [
+    { line: { id: "L1", description: "Coach to the festival", amountMin: 31, amountTarget: 39, amountConservative: 52, currency: "USD" }, currency: "USD" },
+    { line: { id: "L1", description: "Rail to the festival", amountMin: 15, amountTarget: 22, amountConservative: 29, currency: "GBP" }, currency: "GBP" },
+    { line: { id: "L1", description: "Museum passes", amountMin: 29, amountTarget: 67, amountConservative: 80, currency: "EUR" }, currency: "EUR" },
+  ];
+  const rates = ["GBP", "EUR"].flatMap((currency) => [
+    { currency, rateToUsd: 1.27, rateDate: "2027-01-01", rateKind: "planning_base" as const },
+    { currency, rateToUsd: 1.33, rateDate: "2027-01-01", rateKind: "planning_conservative" as const },
+  ]);
+
+  for (const { line, currency } of cases) {
+    it(`produces no unallocated entry at any basis (${line.description}, ${currency})`, () => {
+      const payment: PaymentForObligations = {
+        id: "P1",
+        budgetLineId: "L1",
+        description: line.description,
+        totalAmount: line.amountTarget,
+        paidAmount: 0,
+        currency,
+        dueDate: "2027-05-01",
+        status: "planned",
+        informationState: "estimate",
+      };
+      const result = buildObligations({
+        payments: [payment],
+        allTripPayments: [payment],
+        budgetLines: [line],
+        savingsEntries: [],
+        rates,
+        departureDate: DEPARTURE,
+        departureDateConfirmed: true,
+        asOfDate: "2027-01-15",
+      });
+      if (result.status !== "ready") throw new Error("expected ready");
+      expect(result.obligations.filter((o) => o.origin.kind === "unallocated")).toEqual([]);
     });
   }
 });
