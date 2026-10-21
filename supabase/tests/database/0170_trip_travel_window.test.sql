@@ -77,12 +77,17 @@ select results_eq(
   'the window was saved, and nothing else on the trip changed'
 );
 
-select is(
-  (select reason from change_log
-   where table_name = 'trips' and row_id = 'b1000000-0000-0000-0000-000000000001' and action = 'update'
-   order by changed_at desc limit 1),
-  'pgTAP: flights booked',
-  'the edit is in change_log with its reason'
+-- Looked up by its reason, not "latest by changed_at": changed_at is
+-- now(), the same for every write in this one test transaction.
+select ok(
+  exists (
+    select 1 from change_log
+    where table_name = 'trips' and row_id = 'b1000000-0000-0000-0000-000000000001' and action = 'update'
+      and reason = 'pgTAP: flights booked'
+      and new_data ->> 'departure_date' = '2028-07-02'
+      and new_data ->> 'travel_dates_state' = 'confirmed'
+  ),
+  'the edit is in change_log with its reason and new values'
 );
 
 select lives_ok(
