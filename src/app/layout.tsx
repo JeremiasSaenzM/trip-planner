@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
+import { THEME_INIT_SCRIPT } from "@/lib/theme";
+
 import { DemoBanner } from "./demo-banner";
 
 const geistSans = Geist({
@@ -36,7 +38,17 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      // The inline script below adds "dark" to this element's classList
+      // before React hydrates, so its class attribute won't match what
+      // the server rendered -- expected, not a bug, so hydration doesn't
+      // need to warn about it.
+      suppressHydrationWarning
     >
+      <head>
+        {/* Blocking and inline, not a useEffect: it must run before first
+            paint to avoid a flash of the wrong theme (see theme.ts). */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
       <body className="min-h-full flex flex-col">
         <DemoBanner />
         {children}
