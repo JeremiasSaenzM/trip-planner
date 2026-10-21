@@ -6,6 +6,7 @@ import { buildParallelSavingsPlan } from "./build-parallel-savings-plan";
 import { buildPhasedSavingsPlan } from "./build-phased-savings-plan";
 import { calculateRequiredSavings, cumulativeAt, requiredMonthlyAt } from "./calculate-required-savings";
 import type { FxRate } from "./convert-to-usd";
+import { TRAVELLER_INCOME_CADENCE } from "./income-cadence";
 import { resolveDepartureDate } from "./resolve-departure-date";
 import { BASES } from "./types";
 
@@ -22,6 +23,9 @@ import { BASES } from "./types";
 const AS_OF = "2026-10-20";
 const FESTIVAL_START = "2028-07-05";
 const TRIP_DEPARTURE = "2028-07-02";
+// Month-end income: the last income date before TRIP_DEPARTURE, and so
+// the saving deadline for everything owed at departure.
+const DEPARTURE_SAVE_BY = "2028-06-30";
 
 const RATES: FxRate[] = ["planning_base", "planning_conservative", "observed"].flatMap((rateKind) => [
   { currency: "GBP", rateKind: rateKind as FxRate["rateKind"], rateToUsd: rateKind === "planning_conservative" ? 1.35 : 1.25, rateDate: "2026-10-01" },
@@ -76,6 +80,16 @@ const BUDGET_LINES: BudgetLineForObligations[] = [
   { id: "L-food", description: "Food", amountMin: 300, amountTarget: 400, amountConservative: 550, currency: "USD" },
 ];
 
+// Everything buildDeadlinePots() needs from a ready result, bar the basis.
+function potInputs(result: Extract<ReturnType<typeof buildObligations>, { status: "ready" }>) {
+  return {
+    obligations: result.obligations,
+    asOfDate: AS_OF,
+    departureDate: result.departureDate,
+    availableUsd: result.availableUsd,
+  };
+}
+
 function runPipeline(departureDate: string) {
   const result = buildObligations({
     payments: PAYMENTS,
@@ -85,6 +99,7 @@ function runPipeline(departureDate: string) {
     rates: RATES,
     departureDate,
     departureDateConfirmed: false,
+    incomeCadence: TRAVELLER_INCOME_CADENCE,
     asOfDate: AS_OF,
   });
   if (result.status !== "ready") throw new Error("expected ready");
@@ -107,7 +122,7 @@ describe("the savings pipeline: headline, schedule and pots agree on one payment
   for (const basis of BASES) {
     it(`every fundable payment is in exactly one pot, and nothing else is (${basis})`, () => {
       const { result } = runPipeline(TRIP_DEPARTURE);
-      const pots = buildDeadlinePots({ obligations: result.obligations, basis, asOfDate: AS_OF });
+      const pots = buildDeadlinePots({ ...potInputs(result), basis });
 
       const paymentIdsInPots = pots
         .flatMap((pot) => pot.items)
@@ -124,7 +139,7 @@ describe("the savings pipeline: headline, schedule and pots agree on one payment
 
     it(`the pots add up to the schedule's final cumulative total, and each pot to its own items (${basis})`, () => {
       const { result, savings } = runPipeline(TRIP_DEPARTURE);
-      const pots = buildDeadlinePots({ obligations: result.obligations, basis, asOfDate: AS_OF });
+      const pots = buildDeadlinePots({ ...potInputs(result), basis });
 
       const potTotal = pots.reduce((sum, pot) => sum + pot.amountUsd, 0);
       expect(potTotal).toBeCloseTo(cumulativeAt(savings.schedule.at(-1)!, basis), 6);
@@ -152,7 +167,7 @@ describe("the savings pipeline: headline, schedule and pots agree on one payment
 
     it(`the phased and parallel plans plan for the same total as the pots (${basis})`, () => {
       const { result } = runPipeline(TRIP_DEPARTURE);
-      const pots = buildDeadlinePots({ obligations: result.obligations, basis, asOfDate: AS_OF });
+      const pots = buildDeadlinePots({ ...potInputs(result), basis });
       const potTotal = pots.reduce((sum, pot) => sum + pot.amountUsd, 0);
 
       const common = { obligations: result.obligations, availableUsd: result.availableUsd, asOfDate: AS_OF, basis };
@@ -169,10 +184,11 @@ describe("the savings pipeline: headline, schedule and pots agree on one payment
 describe("payments due after departure, and payments with no due date", () => {
   it("moves a payment due after departure into the departure pot, keeping its own date and amount", () => {
     const { result } = runPipeline(TRIP_DEPARTURE);
-    const pots = buildDeadlinePots({ obligations: result.obligations, basis: "target", asOfDate: AS_OF });
-    const departurePot = pots.find((pot) => pot.dueDate === TRIP_DEPARTURE)!;
+    const pots = buildDeadlinePots({ ...potInputs(result), basis: "target" });
+    const departurePot = pots.find((pot) => pot.includesDeparture)!;
 
-    expect(pots.at(-1)!.dueDate).toBe(TRIP_DEPARTURE);
+    expect(pots.at(-1)).toBe(departurePot);
+    expect(departurePot.dueDate).toBe(DEPARTURE_SAVE_BY);
     expect(departurePot.items).toContainEqual(
       expect.objectContaining({
         description: "City transport",
@@ -189,8 +205,8 @@ describe("payments due after departure, and payments with no due date", () => {
 
   it("assumes an undated payment is due at departure, and says so", () => {
     const { result } = runPipeline(TRIP_DEPARTURE);
-    const pots = buildDeadlinePots({ obligations: result.obligations, basis: "target", asOfDate: AS_OF });
-    const departurePot = pots.find((pot) => pot.dueDate === TRIP_DEPARTURE)!;
+    const pots = buildDeadlinePots({ ...potInputs(result), basis: "target" });
+    const departurePot = pots.find((pot) => pot.includesDeparture)!;
 
     expect(departurePot.items).toContainEqual(
       expect.objectContaining({
@@ -203,18 +219,23 @@ describe("payments due after departure, and payments with no due date", () => {
     );
   });
 
-  it("keeps a payment due before departure on its own date", () => {
+  it("keeps a payment due before departure on its own date, saved for by the last income before it", () => {
     const { result } = runPipeline(TRIP_DEPARTURE);
-    const pots = buildDeadlinePots({ obligations: result.obligations, basis: "target", asOfDate: AS_OF });
+    const pots = buildDeadlinePots({ ...potInputs(result), basis: "target" });
 
-    expect(pots.find((pot) => pot.dueDate === "2028-07-01")!.items).toEqual([
-      expect.objectContaining({ description: "Arrival night", timing: "on_date" }),
-    ]);
+    // Owed 1 July, the day before departure: not moved by the departure
+    // rule, but July's income comes too late for it -- so it shares the
+    // 30 June pot, still showing its own date.
+    const juneEnd = pots.find((pot) => pot.dueDate === DEPARTURE_SAVE_BY)!;
+    expect(juneEnd.items).toContainEqual(
+      expect.objectContaining({ description: "Arrival night", originalDueDate: "2028-07-01", timing: "on_date" }),
+    );
+    expect(juneEnd.owedLaterOn).toEqual(["2028-07-01", TRIP_DEPARTURE]);
   });
 
   it("lists the unpaid remainder of a part-paid payment, not its total", () => {
     const { result } = runPipeline(TRIP_DEPARTURE);
-    const pots = buildDeadlinePots({ obligations: result.obligations, basis: "target", asOfDate: AS_OF });
+    const pots = buildDeadlinePots({ ...potInputs(result), basis: "target" });
 
     expect(pots.flatMap((pot) => pot.items)).toContainEqual(
       expect.objectContaining({ description: "Deposit, part paid", originalAmount: 150, amountUsd: 150 }),
@@ -231,8 +252,13 @@ describe("payments due after departure, and payments with no due date", () => {
     const fromTrip = runPipeline(departure.date);
     const fromFestival = runPipeline(FESTIVAL_START);
 
-    expect(fromTrip.savings.schedule.at(-1)!.dueDate).toBe(TRIP_DEPARTURE);
-    // Same money, three days less to save it in: never a lower requirement.
+    // Owed on the trip's own date; both dates fall after the 30 June
+    // income, so both save toward it.
+    const undated = (run: typeof fromTrip) => run.result.obligations.find((o) => o.isEstimatedDueDate)!;
+    expect(undated(fromTrip).owedDate).toBe(TRIP_DEPARTURE);
+    expect(undated(fromFestival).owedDate).toBe(FESTIVAL_START);
+    expect(fromTrip.savings.schedule.at(-1)!.dueDate).toBe(DEPARTURE_SAVE_BY);
+    // Same money, never more time to save it in: never a lower requirement.
     expect(fromTrip.savings.bindingRequirement.target).toBeGreaterThanOrEqual(
       fromFestival.savings.bindingRequirement.target,
     );
@@ -269,13 +295,14 @@ describe("the chart data differs between bases when the amounts do", () => {
       rates: RATES,
       departureDate: TRIP_DEPARTURE,
       departureDateConfirmed: false,
+      incomeCadence: TRAVELLER_INCOME_CADENCE,
       asOfDate: AS_OF,
     });
     if (result.status !== "ready") throw new Error("expected ready");
     const savings = calculateRequiredSavings({ asOfDate: AS_OF, savingsEntries: [], obligations: result.obligations });
     return Object.fromEntries(
       BASES.map((basis) => {
-        const pots = buildDeadlinePots({ obligations: result.obligations, basis, asOfDate: AS_OF });
+        const pots = buildDeadlinePots({ ...potInputs(result), basis });
         const common = { obligations: result.obligations, availableUsd: 0, asOfDate: AS_OF, basis };
         return [
           basis,
@@ -313,7 +340,7 @@ describe("a remainder that's zero at the selected basis is never listed", () => 
   // A booked payment covers the line's minimum but not its target or
   // conservative: the line still has an unallocated remainder, just not
   // at the minimum basis.
-  const booked: PaymentForObligations = payment("hotel", "Hotel booking", 350, "USD", "2027-03-01", { status: "committed" });
+  const booked: PaymentForObligations = payment("hotel", "Hotel booking", 350, "USD", "2027-03-31", { status: "committed" });
   const line: BudgetLineForObligations = {
     id: booked.budgetLineId,
     description: "Hotel",
@@ -332,12 +359,13 @@ describe("a remainder that's zero at the selected basis is never listed", () => 
       rates: RATES,
       departureDate: TRIP_DEPARTURE,
       departureDateConfirmed: true,
+      incomeCadence: TRAVELLER_INCOME_CADENCE,
       asOfDate: AS_OF,
     });
     if (result.status !== "ready") throw new Error("expected ready");
     const common = { obligations: result.obligations, availableUsd: result.availableUsd, asOfDate: AS_OF, basis };
     return {
-      pots: buildDeadlinePots({ obligations: result.obligations, basis, asOfDate: AS_OF }),
+      pots: buildDeadlinePots({ ...potInputs(result), basis }),
       parallel: buildParallelSavingsPlan(common),
       phased: buildPhasedSavingsPlan(common),
     };
@@ -346,9 +374,9 @@ describe("a remainder that's zero at the selected basis is never listed", () => 
   it("leaves it out of the pots and both plans at the minimum basis", () => {
     const { pots, parallel, phased } = run("minimum");
     expect(pots.flatMap((pot) => pot.items).map((item) => item.timing)).toEqual(["on_date"]);
-    expect(pots.map((pot) => pot.dueDate)).toEqual(["2027-03-01"]);
-    expect(parallel.pots.map((pot) => pot.dueDate)).toEqual(["2027-03-01"]);
-    expect(phased.phases.map((phase) => phase.toDate)).toEqual(["2027-03-01"]);
+    expect(pots.map((pot) => pot.dueDate)).toEqual(["2027-03-31"]);
+    expect(parallel.pots.map((pot) => pot.dueDate)).toEqual(["2027-03-31"]);
+    expect(phased.phases.map((phase) => phase.toDate)).toEqual(["2027-03-31"]);
   });
 
   it("still lists it at the bases where something is left to cover", () => {
@@ -357,5 +385,89 @@ describe("a remainder that's zero at the selected basis is never listed", () => 
       const remainder = pots.flatMap((pot) => pot.items).find((item) => item.timing === "unallocated");
       expect(remainder).toMatchObject({ amountUsd: amount, partlyCovered: true });
     }
+  });
+});
+
+describe("saving deadlines snap back to the last income date (month-end income)", () => {
+  function potsFor(payments: PaymentForObligations[], savedUsd = 0, asOfDate = AS_OF) {
+    const result = buildObligations({
+      payments,
+      allTripPayments: payments,
+      budgetLines: payments.map((p) => ({
+        id: p.budgetLineId,
+        description: p.description,
+        amountMin: p.totalAmount,
+        amountTarget: p.totalAmount,
+        amountConservative: p.totalAmount,
+        currency: p.currency,
+      })),
+      savingsEntries: savedUsd > 0 ? [{ amountUsd: savedUsd, recordedOn: asOfDate }] : [],
+      rates: RATES,
+      departureDate: TRIP_DEPARTURE,
+      departureDateConfirmed: true,
+      incomeCadence: TRAVELLER_INCOME_CADENCE,
+      asOfDate,
+    });
+    if (result.status !== "ready") throw new Error("expected ready");
+    return {
+      result,
+      pots: buildDeadlinePots({ ...potInputs(result), asOfDate, basis: "target" }),
+    };
+  }
+
+  it("groups a payment due on the 1st of a month under the previous month-end", () => {
+    const { result, pots } = potsFor([payment("rail", "Rail pass", 120, "USD", "2028-03-01")]);
+
+    expect(pots.map((pot) => pot.dueDate)).toEqual(["2028-02-29"]);
+    expect(pots[0].owedLaterOn).toEqual(["2028-03-01"]);
+    // The payment's own due date is untouched -- only the saving deadline moved.
+    expect(pots[0].items[0]).toMatchObject({ originalDueDate: "2028-03-01", timing: "on_date" });
+    expect(result.obligations[0]).toMatchObject({ owedDate: "2028-03-01", dueDate: "2028-02-29" });
+  });
+
+  it("keeps a payment due exactly on a month-end where it is", () => {
+    const { pots } = potsFor([payment("visa", "Visa fee", 60, "USD", "2028-01-31")]);
+
+    expect(pots.map((pot) => pot.dueDate)).toEqual(["2028-01-31"]);
+    expect(pots[0].owedLaterOn).toEqual([]);
+  });
+
+  it("puts two payments on either side of a month-end into different pots", () => {
+    // 29 April is before April's income arrives, so it's saved for by 31
+    // March; 1 May is after it, so 30 April's income still counts.
+    const { pots } = potsFor([
+      payment("before", "Hostel deposit", 40, "USD", "2028-04-29"),
+      payment("after", "Coach ticket", 25, "USD", "2028-05-01"),
+    ]);
+
+    expect(pots.map((pot) => [pot.dueDate, pot.items.map((item) => item.description)])).toEqual([
+      ["2028-03-31", ["Hostel deposit"]],
+      ["2028-04-30", ["Coach ticket"]],
+    ]);
+  });
+
+  it("merges payments owed on different days into one pot when they share an income date", () => {
+    const { pots } = potsFor([
+      payment("jun30", "Last night before leaving", 70, "USD", "2028-06-30"),
+      payment("jul1", "Airport transfer", 30, "USD", "2028-07-01"),
+      payment("undated", "Travel insurance", 50, "USD", null),
+    ]);
+
+    expect(pots).toHaveLength(1);
+    expect(pots[0]).toMatchObject({ dueDate: DEPARTURE_SAVE_BY, amountUsd: 150, includesDeparture: true });
+    expect(pots[0].owedLaterOn).toEqual(["2028-07-01", TRIP_DEPARTURE]);
+  });
+
+  it("treats a deadline already past as paid from savings when they cover it, and as a shortfall only when they don't", () => {
+    // Owed 25 Oct, today 20 Oct: October's income arrives on the 31st,
+    // too late, so the deadline is 30 Sep -- already behind us.
+    const owed = [payment("soon", "Registration fee", 100, "USD", "2026-10-25")];
+
+    const covered = potsFor(owed, 150).pots[0];
+    expect(covered).toMatchObject({ dueDate: "2026-09-30", isPastDue: true, shortfallNow: null });
+
+    const short = potsFor(owed, 60).pots[0];
+    expect(short).toMatchObject({ dueDate: "2026-09-30", isPastDue: true });
+    expect(short.shortfallNow).toBeCloseTo(40, 6);
   });
 });

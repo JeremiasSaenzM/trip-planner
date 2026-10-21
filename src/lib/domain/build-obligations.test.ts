@@ -9,7 +9,11 @@ import {
   type PaymentForObligations,
 } from "./build-obligations";
 
+import { TRAVELLER_INCOME_CADENCE } from "./income-cadence";
 const DEPARTURE = "2027-07-05";
+// The last month-end on or before DEPARTURE: the saving deadline for
+// anything owed at departure (TRAVELLER_INCOME_CADENCE).
+const DEPARTURE_SAVE_BY = "2027-06-30";
 
 describe("buildObligations", () => {
   it("does not double-count a budget line that's fully covered by its own payment", () => {
@@ -35,6 +39,7 @@ describe("buildObligations", () => {
       rates: [],
       departureDate: DEPARTURE,
       departureDateConfirmed: true,
+      incomeCadence: TRAVELLER_INCOME_CADENCE,
       asOfDate: "2027-01-01",
     });
 
@@ -68,6 +73,7 @@ describe("buildObligations", () => {
       rates: [],
       departureDate: DEPARTURE,
       departureDateConfirmed: true,
+      incomeCadence: TRAVELLER_INCOME_CADENCE,
       asOfDate: "2027-01-01",
     });
 
@@ -100,12 +106,18 @@ describe("buildObligations", () => {
       rates: [],
       departureDate: DEPARTURE,
       departureDateConfirmed: true,
+      incomeCadence: TRAVELLER_INCOME_CADENCE,
       asOfDate: "2027-01-01",
     });
 
     if (result.status !== "ready") throw new Error("expected ready");
     const obligation = result.obligations.find((o) => o.description === "Final balance");
-    expect(obligation).toMatchObject({ dueDate: DEPARTURE, isEstimatedDueDate: true, clampedToDeparture: false });
+    expect(obligation).toMatchObject({
+      owedDate: DEPARTURE,
+      dueDate: DEPARTURE_SAVE_BY,
+      isEstimatedDueDate: true,
+      clampedToDeparture: false,
+    });
   });
 
   it("converts a GBP payment and a EUR budget line correctly, each at the matching planning rate", () => {
@@ -140,6 +152,7 @@ describe("buildObligations", () => {
       rates,
       departureDate: DEPARTURE,
       departureDateConfirmed: true,
+      incomeCadence: TRAVELLER_INCOME_CADENCE,
       asOfDate: "2027-01-15",
     });
 
@@ -164,6 +177,7 @@ describe("buildObligations", () => {
       budgetLines: [] as BudgetLineForObligations[],
       savingsEntries: [],
       rates: [],
+      incomeCadence: TRAVELLER_INCOME_CADENCE,
       asOfDate: "2027-01-01",
     };
 
@@ -196,6 +210,7 @@ describe("buildObligations", () => {
       rates: [],
       departureDate: null,
       departureDateConfirmed: false,
+      incomeCadence: TRAVELLER_INCOME_CADENCE,
       asOfDate: "2027-01-01",
     });
 
@@ -225,12 +240,13 @@ describe("buildObligations", () => {
       rates: [],
       departureDate: DEPARTURE,
       departureDateConfirmed: true,
+      incomeCadence: TRAVELLER_INCOME_CADENCE,
       asOfDate: "2027-01-01",
     });
 
     if (result.status !== "ready") throw new Error("expected ready");
     const obligation = result.obligations.find((o) => o.description.startsWith("Hotel balance"))!;
-    expect(obligation).toMatchObject({ dueDate: DEPARTURE, clampedToDeparture: true });
+    expect(obligation).toMatchObject({ owedDate: DEPARTURE, dueDate: DEPARTURE_SAVE_BY, clampedToDeparture: true });
 
     const clamped = calculateRequiredSavings({
       asOfDate: "2027-01-01",
@@ -284,6 +300,7 @@ describe("buildObligations", () => {
       rates,
       departureDate: DEPARTURE,
       departureDateConfirmed: true,
+      incomeCadence: TRAVELLER_INCOME_CADENCE,
       asOfDate: "2027-01-15",
     });
     if (obligationsResult.status !== "ready") throw new Error("expected ready");
@@ -344,6 +361,7 @@ describe("buildObligations", () => {
       rates: [],
       departureDate: DEPARTURE,
       departureDateConfirmed: true,
+      incomeCadence: TRAVELLER_INCOME_CADENCE,
       asOfDate: "2027-01-01",
     });
 
@@ -358,6 +376,7 @@ describe("buildObligations at the minimum basis", () => {
     savingsEntries: [],
     departureDate: DEPARTURE,
     departureDateConfirmed: true,
+    incomeCadence: TRAVELLER_INCOME_CADENCE,
     asOfDate: "2027-01-15",
   };
   const rates = [
@@ -504,20 +523,21 @@ describe("buildObligations: a planned estimate payment moves with its budget lin
       rates,
       departureDate: DEPARTURE,
       departureDateConfirmed: true,
+      incomeCadence: TRAVELLER_INCOME_CADENCE,
       asOfDate: "2027-01-15",
     });
     if (result.status !== "ready") throw new Error("expected ready");
     return result.obligations;
   }
 
-  it("takes its line's minimum and conservative, on the payment's own due date", () => {
+  it("takes its line's minimum and conservative, owed on the payment's own due date", () => {
     const obligations = run(planned);
 
     // Fully covered at every basis: no unallocated remainder at all, so
     // the conservative extra isn't parked at departure.
     expect(obligations).toHaveLength(1);
     expect(obligations[0]).toMatchObject({
-      dueDate: "2027-05-01",
+      owedDate: "2027-05-01",
       originalAmounts: { minimum: 300, target: 400, conservative: 500 },
     });
     expect(obligations[0].amountMinimumUsd).toBeCloseTo(300 * 1.1, 6);
@@ -580,6 +600,7 @@ describe("buildObligations: a line fully covered by its payment has no unallocat
         rates,
         departureDate: DEPARTURE,
         departureDateConfirmed: true,
+        incomeCadence: TRAVELLER_INCOME_CADENCE,
         asOfDate: "2027-01-15",
       });
       if (result.status !== "ready") throw new Error("expected ready");

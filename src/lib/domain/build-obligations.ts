@@ -1,5 +1,6 @@
 import { convertToUsd, type FxRate } from "./convert-to-usd";
 import type { SavingsEntry } from "./calculate-required-savings";
+import { lastIncomeDateOnOrBefore, type IncomeCadence } from "./income-cadence";
 import type { Basis, InfoState, RateKind } from "./types";
 
 export type PaymentForObligations = {
@@ -73,7 +74,15 @@ export type BuiltObligation = {
    * undated payment or an unallocated remainder. dueDate below is where
    * the plan actually puts it. */
   originalDueDate: string | null;
-  /** YYYY-MM-DD. Never after departureDate -- see clampedToDeparture. */
+  /** YYYY-MM-DD, when the money is owed as far as the plan is concerned:
+   * the payment's own date, or departure when it was undated or due after
+   * leaving (see clampedToDeparture). Never after departureDate. */
+  owedDate: string;
+  /** YYYY-MM-DD, the saving deadline: the last income date on or before
+   * owedDate (lastIncomeDateOnOrBefore()), because money owed on 1 July
+   * can't be saved from income arriving 31 July. This is the date every
+   * savings figure groups and counts by. Equal to owedDate when that's
+   * already an income date. */
   dueDate: string;
   /** True when there was no due date to use and this was set to
    * departureDate (an undated payment, or an unallocated remainder). */
@@ -129,6 +138,10 @@ export type BuildObligationsInput = {
   departureDate: string | null;
   /** competition.dates_state === 'confirmed', resolved by the caller. */
   departureDateConfirmed: boolean;
+  /** When the traveller's income arrives (TRAVELLER_INCOME_CADENCE) --
+   * every saving deadline snaps back to the last income date on or
+   * before the day its money is owed. */
+  incomeCadence: IncomeCadence;
   /** YYYY-MM-DD, "today" -- used only to convert already-paid amounts
    * (observed rate) and to filter which savings entries count so far.
    * Never used as a due date. */
@@ -156,6 +169,11 @@ export type BuildObligationsResult =
       /** True when departureDateConfirmed is false. */
       provisional: boolean;
       missingRates: MissingObligationRate[];
+      /** YYYY-MM-DD, the departure date every obligation was clamped to. */
+      departureDate: string;
+      /** YYYY-MM-DD, the last income date on or before departure -- the
+       * saving deadline for everything owed at departure. */
+      departureSaveBy: string;
     };
 
 /**
@@ -176,6 +194,13 @@ export type BuildObligationsResult =
  * reason: it's the latest date the money could still be saved by. Each
  * keeps its original amount, currency and due date, so the plan can show
  * what was moved and why (see obligationTiming()).
+ *
+ * The income rule, applied after the departure rule: an obligation's
+ * saving deadline (dueDate) is the last income date on or before the day
+ * it's owed (owedDate), at the traveller's incomeCadence -- money owed on
+ * 1 or 2 July has to be saved by 30 June when income arrives at month
+ * end. Like the departure rule it moves only the saving deadline, never
+ * the payment's own due date (originalDueDate).
  *
  * Bases: minimum converts at planning_base, like target (same as
  * rollUpBudgetByScenario); conservative at planning_conservative. A
@@ -227,6 +252,7 @@ export function buildObligations(input: BuildObligationsInput): BuildObligations
     return { status: "no_departure_date", availableUsd, missingRates };
   }
   const departureDate = input.departureDate;
+  const departureSaveBy = lastIncomeDateOnOrBefore(departureDate, input.incomeCadence);
 
   const activePayments = input.payments.filter((payment) => payment.status !== "cancelled");
   const obligations: BuiltObligation[] = [];
@@ -265,10 +291,10 @@ export function buildObligations(input: BuildObligationsInput): BuildObligations
     if (usd === null) continue;
 
     const isEstimatedDueDate = payment.dueDate === null;
-    let dueDate = payment.dueDate ?? departureDate;
+    let owedDate = payment.dueDate ?? departureDate;
     let clampedToDeparture = false;
-    if (!isEstimatedDueDate && dueDate > departureDate) {
-      dueDate = departureDate;
+    if (!isEstimatedDueDate && owedDate > departureDate) {
+      owedDate = departureDate;
       clampedToDeparture = true;
     }
 
@@ -281,7 +307,8 @@ export function buildObligations(input: BuildObligationsInput): BuildObligations
       amountMinimumUsd: usd.minimum,
       amountTargetUsd: usd.target,
       amountConservativeUsd: usd.conservative,
-      dueDate,
+      owedDate,
+      dueDate: lastIncomeDateOnOrBefore(owedDate, input.incomeCadence),
       isEstimatedDueDate,
       clampedToDeparture,
     });
@@ -330,7 +357,8 @@ export function buildObligations(input: BuildObligationsInput): BuildObligations
       amountMinimumUsd: remainderMinimumUsd,
       amountTargetUsd: remainderTargetUsd,
       amountConservativeUsd: remainderConservativeUsd,
-      dueDate: departureDate,
+      owedDate: departureDate,
+      dueDate: departureSaveBy,
       isEstimatedDueDate: true,
       clampedToDeparture: false,
     });
@@ -342,5 +370,7 @@ export function buildObligations(input: BuildObligationsInput): BuildObligations
     availableUsd,
     provisional: !input.departureDateConfirmed,
     missingRates,
+    departureDate,
+    departureSaveBy,
   };
 }

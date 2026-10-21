@@ -85,7 +85,7 @@ export function SavingsScheduleChart({
   bindingRequirementUsd,
   asOfDate,
   basis,
-  departureDate,
+  departureSaveBy,
 }: {
   schedule: ScheduleEntry[];
   obligations: BuiltObligation[];
@@ -93,7 +93,9 @@ export function SavingsScheduleChart({
   bindingRequirementUsd: number;
   asOfDate: string;
   basis: Basis;
-  departureDate: string | null;
+  /** The last income date before departure -- where everything owed at
+   * departure is saved for, so its deadline reads "Before departure". */
+  departureSaveBy: string | null;
 }) {
   const future = schedule.filter((entry) => !entry.isPastDue);
 
@@ -104,7 +106,7 @@ export function SavingsScheduleChart({
   // schedule entries carry only amounts/dates -- the obligation's own
   // description (what the tooltip names) has to be looked up by due date.
   const deadlineNames = new Map(
-    groupObligationsByDueDate(obligations, basis, departureDate).map((group) => [group.dueDate, group.description]),
+    groupObligationsByDueDate(obligations, basis, departureSaveBy).map((group) => [group.dueDate, group.description]),
   );
 
   const asOfTs = toTimestamp(asOfDate);

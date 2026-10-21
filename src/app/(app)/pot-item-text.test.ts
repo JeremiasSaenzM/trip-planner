@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { DeadlinePotItem } from "@/lib/domain/build-deadline-pots";
 
-import { departureAnchorText, potItemText } from "./pot-item-text";
+import { departureAnchorText, potIncomeNote, potItemText } from "./pot-item-text";
 
 function item(overrides: Partial<DeadlinePotItem>): DeadlinePotItem {
   return {
@@ -53,14 +53,38 @@ describe("potItemText", () => {
 
 describe("departureAnchorText", () => {
   it("names the trip's own departure date when that's the anchor", () => {
-    expect(departureAnchorText({ date: "2028-07-02", source: "trip", confirmed: false })).toBe(
+    expect(departureAnchorText({ date: "2028-07-02", source: "trip", confirmed: false }, null)).toBe(
       "Saving toward your departure on Jul 2, 2028.",
     );
   });
 
   it("says the festival's first day is a stand-in when the trip has no departure date", () => {
-    expect(departureAnchorText({ date: "2028-07-05", source: "competition", confirmed: true })).toBe(
+    expect(departureAnchorText({ date: "2028-07-05", source: "competition", confirmed: true }, "2028-07-05")).toBe(
       "No departure date set for the trip yet, so saving toward the festival's first day, Jul 5, 2028.",
+    );
+  });
+
+  it("names the last income before departure when that's earlier", () => {
+    expect(departureAnchorText({ date: "2028-07-02", source: "trip", confirmed: false }, "2028-06-30")).toBe(
+      "Saving toward your departure on Jul 2, 2028. Your last income before then arrives Jun 30, 2028.",
+    );
+  });
+});
+
+describe("potIncomeNote", () => {
+  it("says nothing when everything in the pot is owed on its own date", () => {
+    expect(potIncomeNote({ owedLaterOn: [] }, "2028-07-02")).toBeNull();
+  });
+
+  it("names each later date, marking the departure date", () => {
+    expect(potIncomeNote({ owedLaterOn: ["2028-07-01", "2028-07-02"] }, "2028-07-02")).toBe(
+      "Your last income before Jul 1, 2028 and Jul 2, 2028 (you leave) -- what's owed then has to be saved by here.",
+    );
+  });
+
+  it("names a single moved date", () => {
+    expect(potIncomeNote({ owedLaterOn: ["2028-03-01"] }, "2028-07-02")).toBe(
+      "Your last income before Mar 1, 2028 -- what's owed then has to be saved by here.",
     );
   });
 });

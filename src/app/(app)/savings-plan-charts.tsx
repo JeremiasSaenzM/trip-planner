@@ -158,12 +158,18 @@ export function PhasedSavingsChart({
 function PhasedSavingsList({ pastDue, future }: { pastDue: PhasedSavingsPhase[]; future: PhasedSavingsPhase[] }) {
   return (
     <ul data-testid="phased-savings-list" className="mt-2 space-y-1 text-sm text-zinc-600 dark:text-zinc-400">
-      {pastDue.map((phase, i) => (
-        <li key={`past-${i}`} className="text-red-700 dark:text-red-400">
-          Overdue since {formatDate(phase.toDate)} · short {formatUsd(phase.shortfallNow ?? 0)} now ·{" "}
-          {phase.description}
-        </li>
-      ))}
+      {pastDue.map((phase, i) =>
+        phase.shortfallNow === null ? (
+          <li key={`past-${i}`}>
+            {formatDate(phase.toDate)} · from money already set aside · {phase.description}
+          </li>
+        ) : (
+          <li key={`past-${i}`} className="text-red-700 dark:text-red-400">
+            Overdue since {formatDate(phase.toDate)} · short {formatUsd(phase.shortfallNow)} now ·{" "}
+            {phase.description}
+          </li>
+        ),
+      )}
       {future.map((phase, i) => (
         <li key={i}>
           {formatDate(phase.fromDate)} → {formatDate(phase.toDate)} · save {formatUsd(phase.monthlySaving ?? 0)}
@@ -285,11 +291,17 @@ function ParallelSavingsList({
 }) {
   return (
     <ul className="mt-2 space-y-1 text-sm text-zinc-600 dark:text-zinc-400">
-      {pastDue.map((pot, i) => (
-        <li key={`past-${i}`} className="text-red-700 dark:text-red-400">
-          Overdue since {formatDate(pot.dueDate)} · short {formatUsd(pot.shortfallNow ?? 0)} now · {pot.description}
-        </li>
-      ))}
+      {pastDue.map((pot, i) =>
+        pot.shortfallNow === null ? (
+          <li key={`past-${i}`}>
+            {formatDate(pot.dueDate)} · from money already set aside · {pot.description}
+          </li>
+        ) : (
+          <li key={`past-${i}`} className="text-red-700 dark:text-red-400">
+            Overdue since {formatDate(pot.dueDate)} · short {formatUsd(pot.shortfallNow)} now · {pot.description}
+          </li>
+        ),
+      )}
       {periods.map((period, i) => (
         <li key={i}>
           {formatDate(period.fromDate)} → {formatDate(period.toDate)} ·{" "}
