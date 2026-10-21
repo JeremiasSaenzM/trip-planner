@@ -19,7 +19,9 @@ export function potItemText(item: DeadlinePotItem): string {
     case "undated":
       return `${item.description} — ${amount}, no due date, assumed due at departure`;
     case "unallocated":
-      return `${item.description} — ${amount}, no payment recorded yet, assumed due at departure`;
+      return item.partlyCovered
+        ? `${item.description} — ${amount}, not covered by its recorded payments, assumed due at departure`
+        : `${item.description} — ${amount}, no payment recorded yet, assumed due at departure`;
   }
 }
 

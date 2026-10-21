@@ -53,8 +53,12 @@ export type BudgetLineForObligations = {
 export type BuiltObligation = {
   /** What this obligation was built from -- one payment's unpaid
    * remainder, or the part of a budget line no payment covers yet. Lets
-   * a caller check every payment ended up in exactly one deadline. */
-  origin: { kind: "payment"; paymentId: string } | { kind: "unallocated"; budgetLineId: string };
+   * a caller check every payment ended up in exactly one deadline.
+   * partlyCovered: the line has active payments, just not enough to
+   * cover it -- as opposed to no payment recorded against it at all. */
+  origin:
+    | { kind: "payment"; paymentId: string }
+    | { kind: "unallocated"; budgetLineId: string; partlyCovered: boolean };
   description: string;
   amountMinimumUsd: number;
   amountTargetUsd: number;
@@ -311,7 +315,7 @@ export function buildObligations(input: BuildObligationsInput): BuildObligations
     if (remainderMinimumUsd === 0 && remainderTargetUsd === 0 && remainderConservativeUsd === 0) continue;
 
     obligations.push({
-      origin: { kind: "unallocated", budgetLineId: line.id },
+      origin: { kind: "unallocated", budgetLineId: line.id, partlyCovered: linkedPayments.length > 0 },
       description: `${line.description} (unallocated)`,
       // The remainder is netted in USD (its payments may be in another
       // currency than the line), so there's no original-currency figure

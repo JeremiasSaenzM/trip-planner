@@ -12,6 +12,9 @@ export type DeadlinePotItem = {
   /** The payment's own due date, null when it had none. */
   originalDueDate: string | null;
   timing: ObligationTiming;
+  /** Only for an unallocated remainder: its line has payments, they just
+   * don't cover all of it. False for everything else. */
+  partlyCovered: boolean;
 };
 
 export type DeadlinePot = {
@@ -55,6 +58,7 @@ export function buildDeadlinePots(input: {
         originalCurrency: obligation.originalCurrency,
         originalDueDate: obligation.originalDueDate,
         timing: obligationTiming(obligation),
+        partlyCovered: obligation.origin.kind === "unallocated" && obligation.origin.partlyCovered,
       }))
       .sort(
         (a, b) =>

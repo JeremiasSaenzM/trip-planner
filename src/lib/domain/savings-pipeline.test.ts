@@ -355,7 +355,7 @@ describe("a remainder that's zero at the selected basis is never listed", () => 
     for (const [basis, amount] of [["target", 50], ["conservative", 150]] as const) {
       const { pots } = run(basis);
       const remainder = pots.flatMap((pot) => pot.items).find((item) => item.timing === "unallocated");
-      expect(remainder?.amountUsd).toBe(amount);
+      expect(remainder).toMatchObject({ amountUsd: amount, partlyCovered: true });
     }
   });
 });

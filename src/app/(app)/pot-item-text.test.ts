@@ -12,6 +12,7 @@ function item(overrides: Partial<DeadlinePotItem>): DeadlinePotItem {
     originalCurrency: "USD",
     originalDueDate: null,
     timing: "on_date",
+    partlyCovered: false,
     ...overrides,
   };
 }
@@ -41,6 +42,12 @@ describe("potItemText", () => {
     expect(potItemText(item({ description: "Food (unallocated)", originalAmount: 400, timing: "unallocated" }))).toBe(
       "Food (unallocated) — $400, no payment recorded yet, assumed due at departure",
     );
+  });
+
+  it("says a remainder its line's payments don't fully cover is not covered by them -- not that there's no payment", () => {
+    expect(
+      potItemText(item({ description: "Hotel (unallocated)", originalAmount: 50, timing: "unallocated", partlyCovered: true })),
+    ).toBe("Hotel (unallocated) — $50, not covered by its recorded payments, assumed due at departure");
   });
 });
 

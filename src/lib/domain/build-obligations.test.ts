@@ -375,6 +375,7 @@ describe("buildObligations at the minimum basis", () => {
     });
     if (result.status !== "ready") throw new Error("expected ready");
     const hotel = result.obligations[0];
+    expect(hotel.origin).toEqual({ kind: "unallocated", budgetLineId: "L1", partlyCovered: false });
     expect(hotel.amountMinimumUsd).toBeCloseTo(300 * 1.1, 5);
     expect(hotel.amountTargetUsd).toBeCloseTo(400 * 1.1, 5);
     expect(hotel.amountConservativeUsd).toBeCloseTo(500 * 1.15, 5);
@@ -411,6 +412,7 @@ describe("buildObligations at the minimum basis", () => {
     if (result.status !== "ready") throw new Error("expected ready");
     const remainder = result.obligations.find((o) => o.description === "Hotel (unallocated)")!;
     expect(remainder).toMatchObject({ amountMinimumUsd: 0, amountTargetUsd: 50, amountConservativeUsd: 150 });
+    expect(remainder.origin).toEqual({ kind: "unallocated", budgetLineId: "L1", partlyCovered: true });
   });
 
   it("satisfies (sum of obligations) - availableUsd === (scenario total) - (total savings) at the minimum too", () => {
