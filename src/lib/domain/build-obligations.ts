@@ -3,6 +3,7 @@ import type { SavingsEntry } from "./calculate-required-savings";
 import type { RateKind } from "./types";
 
 export type PaymentForObligations = {
+  id: string;
   budgetLineId: string;
   description: string;
   totalAmount: number;
@@ -27,18 +28,51 @@ export type BudgetLineForObligations = {
 // calculateRequiredSavings() without mapping -- same pattern as
 // BudgetLineForRollup/FxRate elsewhere in this directory.
 export type BuiltObligation = {
+  /** What this obligation was built from -- one payment's unpaid
+   * remainder, or the part of a budget line no payment covers yet. Lets
+   * a caller check every payment ended up in exactly one deadline. */
+  origin: { kind: "payment"; paymentId: string } | { kind: "unallocated"; budgetLineId: string };
   description: string;
   amountMinimumUsd: number;
   amountTargetUsd: number;
   amountConservativeUsd: number;
+  /** The same amount in the currency it was recorded in, before any
+   * conversion -- what the traveller will recognise ("£330", not "$419"). */
+  originalAmount: number;
+  originalCurrency: string;
+  /** YYYY-MM-DD, the payment's own due date as recorded -- null for an
+   * undated payment or an unallocated remainder. dueDate below is where
+   * the plan actually puts it. */
+  originalDueDate: string | null;
   /** YYYY-MM-DD. Never after departureDate -- see clampedToDeparture. */
   dueDate: string;
-  /** True when the source had no due date and this was set to departureDate. */
+  /** True when there was no due date to use and this was set to
+   * departureDate (an undated payment, or an unallocated remainder). */
   isEstimatedDueDate: boolean;
   /** True when an explicit due date after departure was pulled back to it:
    * money needed during the trip must be saved before leaving. */
   clampedToDeparture: boolean;
 };
+
+export type ObligationTiming = "on_date" | "moved_to_departure" | "undated" | "unallocated";
+
+/**
+ * How an obligation's place in the plan relates to its own due date, so
+ * the UI can say it in words instead of silently showing the moved date:
+ *   on_date            -- due on its own date, before departure
+ *   moved_to_departure -- due after departure; saved for by departure
+ *   undated            -- a payment with no due date; assumed due at departure
+ *   unallocated        -- part of a budget line no payment covers yet;
+ *                         also assumed due at departure
+ */
+export function obligationTiming(
+  obligation: Pick<BuiltObligation, "origin" | "clampedToDeparture" | "isEstimatedDueDate">,
+): ObligationTiming {
+  if (obligation.origin.kind === "unallocated") return "unallocated";
+  if (obligation.clampedToDeparture) return "moved_to_departure";
+  if (obligation.isEstimatedDueDate) return "undated";
+  return "on_date";
+}
 
 export type MissingObligationRate = {
   description: string;
@@ -60,9 +94,9 @@ export type BuildObligationsInput = {
   /** Already USD. Trip-level, same reasoning as allTripPayments. */
   savingsEntries: SavingsEntry[];
   rates: FxRate[];
-  /** YYYY-MM-DD, the scenario's competition's start_date (the first
-   * official festival day) -- resolved by the caller. null if the
-   * scenario has no competition yet. */
+  /** YYYY-MM-DD, the day the traveller leaves -- resolved by the caller
+   * with resolveDepartureDate() (the trip's own departure date, else the
+   * competition's first official day). null if neither exists. */
   departureDate: string | null;
   /** competition.dates_state === 'confirmed', resolved by the caller. */
   departureDateConfirmed: boolean;
@@ -102,8 +136,17 @@ export type BuildObligationsResult =
  * budget line adds a "due at departure" obligation only for whatever its
  * linked payments don't already cover. Cancelled payments are excluded
  * from obligation-building (but their paid amount still reduces
- * availableUsd). Obligations with no due date, or a due date after
- * departure, are pinned to departureDate.
+ * availableUsd).
+ *
+ * The departure rule: every obligation is due on or before departureDate.
+ * One due after it (a hotel paid at the property mid-trip, a rail pass
+ * bought on arrival) is moved back to departureDate, because money spent
+ * during the trip can't be saved from income earned during the trip --
+ * it has to be set aside before leaving. An undated payment, and a budget
+ * line's unallocated remainder, are assumed due at departure for the same
+ * reason: it's the latest date the money could still be saved by. Each
+ * keeps its original amount, currency and due date, so the plan can show
+ * what was moved and why (see obligationTiming()).
  *
  * Minimum converts at planning_base, like target (same as
  * rollUpBudgetByScenario). A payment is a quoted amount, not a
@@ -159,7 +202,11 @@ export function buildObligations(input: BuildObligationsInput): BuildObligations
     }
 
     obligations.push({
+      origin: { kind: "payment", paymentId: payment.id },
       description: payment.description,
+      originalAmount: remainder,
+      originalCurrency: payment.currency,
+      originalDueDate: payment.dueDate,
       amountMinimumUsd: targetUsd,
       amountTargetUsd: targetUsd,
       amountConservativeUsd: conservativeUsd,
@@ -194,7 +241,14 @@ export function buildObligations(input: BuildObligationsInput): BuildObligations
     if (remainderMinimumUsd <= 0 && remainderTargetUsd <= 0 && remainderConservativeUsd <= 0) continue;
 
     obligations.push({
+      origin: { kind: "unallocated", budgetLineId: line.id },
       description: `${line.description} (unallocated)`,
+      // The remainder is netted in USD (its payments may be in another
+      // currency than the line), so there's no single original-currency
+      // figure for it -- the target remainder in USD stands in.
+      originalAmount: remainderTargetUsd,
+      originalCurrency: "USD",
+      originalDueDate: null,
       amountMinimumUsd: remainderMinimumUsd,
       amountTargetUsd: remainderTargetUsd,
       amountConservativeUsd: remainderConservativeUsd,

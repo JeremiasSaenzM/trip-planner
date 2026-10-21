@@ -22,6 +22,13 @@ export type Trip = {
   id: string;
   name: string;
   status: TripStatus;
+  /** The traveller's own travel window -- trip-level, the same for every
+   * scenario. departureDate is what the savings plan anchors on when set
+   * (see resolveDepartureDate()). Either can be null (not decided yet). */
+  departureDate: string | null;
+  returnDate: string | null;
+  travelDatesState: InfoState;
+  travelDatesSourceId: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -292,6 +299,14 @@ export type ProposalItem = {
 // src/lib/validation is structurally identical to the matching type
 // below, so it's passed straight through with no mapping step.
 export type CreateTripWrite = { name: string };
+export type UpdateTripTravelWindowWrite = {
+  tripId: string;
+  departureDate?: string;
+  returnDate?: string;
+  travelDatesState: InfoState;
+  travelDatesSourceId?: string;
+  reason: string;
+};
 
 type CompetitionFieldsWrite = {
   name: string;
@@ -486,6 +501,7 @@ export type DataSource = {
   getProposalBatches(): Promise<ProposalBatch[]>;
   getProposalItems(): Promise<ProposalItem[]>;
   createTrip(input: CreateTripWrite): Promise<Trip>;
+  updateTripTravelWindow(input: UpdateTripTravelWindowWrite): Promise<Trip>;
   createCompetition(input: CreateCompetitionWrite): Promise<Competition>;
   updateCompetition(input: UpdateCompetitionWrite): Promise<Competition>;
   createScenario(input: CreateScenarioWrite): Promise<Scenario>;

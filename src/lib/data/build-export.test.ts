@@ -26,9 +26,9 @@ describe("buildExportPayload", () => {
 
     expect(result.exportedAt).toBe("2026-10-15T12:00:00.000Z");
     expect(result.schemaVersion).toBe(EXPORT_SCHEMA_VERSION);
-    // Pinned: proposal tables (20261021090000) changed the exported
-    // shape, so this has to have moved past 3.
-    expect(EXPORT_SCHEMA_VERSION).toBe(4);
+    // Pinned: the trip travel window (20261022090000) changed the
+    // exported shape, so this has to have moved past 4.
+    expect(EXPORT_SCHEMA_VERSION).toBe(5);
     expect(result.data.trips).toBe(fixtures.trips);
     expect(result.data.changeLog).toBe(fixtures.changeLog);
     expect(Object.keys(result.data)).toEqual([
