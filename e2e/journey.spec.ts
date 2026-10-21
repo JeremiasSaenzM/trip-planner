@@ -362,7 +362,7 @@ test("the full first-run journey, starting from a signed-out, empty account", as
   await test.step("switch the basis to Minimum: the figures drop to the observed floor, with a note", async () => {
     // Flight deposit is now 90 / 110 / 120 EUR with no payment of its
     // own, so the departure deadline -- the last phase of "one phase at
-    // a time", from the 1 March payment to departure -- is smaller at
+    // a time", from the 1 March payments' deadline to departure's -- is smaller at
     // the minimum. That phase's dates are fixed, so its monthly figure
     // doesn't depend on what day the test runs.
     const departurePhaseSaving = async () => {
@@ -574,15 +574,19 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await page.goto(`/?scenario=${firstScenarioId}`);
     // No travel window yet: the festival's first official day stands in.
     await expect(page.getByTestId("departure-anchor")).toHaveText(
-      "No departure date set for the trip yet, so saving toward the festival's first day, Jul 6, 2027.",
+      "No departure date set for the trip yet, so saving toward the festival's first day, Jul 6, 2027. " +
+        "Your last income before then arrives Jun 30, 2027.",
     );
     const pots = page.getByTestId("deadline-pots");
     await expect(pots.getByText("Post-festival hotel — $120, due Jul 15, 2027, needed before you leave")).toBeVisible();
     await expect(pots.getByText("Choir arrangement — $80, no due date, assumed due at departure")).toBeVisible();
     await expect(pots.getByText("Registration fee — $300, due Feb 1, 2027")).toBeVisible();
 
+    // Saved for by the last month-end income before leaving, not the
+    // departure day itself -- and the pot says why.
     const departurePot = page.getByTestId("deadline-pot").filter({ hasText: "Post-festival hotel" });
-    await expect(departurePot).toContainText("By Jul 6, 2027 · departure");
+    await expect(departurePot).toContainText("By Jun 30, 2027 · last income before you leave");
+    await expect(departurePot.getByTestId("pot-income-note")).toContainText("Jul 6, 2027 (you leave)");
     await expect(departurePot).toContainText("Choir arrangement");
   });
 
@@ -599,10 +603,12 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await expect(page.getByTestId("travel-window")).toContainText("Leave: Jul 3, 2027 · Return: Jul 14, 2027");
 
     await page.goto(`/?scenario=${firstScenarioId}`);
-    await expect(page.getByTestId("departure-anchor")).toHaveText("Saving toward your departure on Jul 3, 2027.");
-    await expect(page.getByTestId("deadline-pot").filter({ hasText: "Post-festival hotel" })).toContainText(
-      "By Jul 3, 2027 · departure",
+    await expect(page.getByTestId("departure-anchor")).toHaveText(
+      "Saving toward your departure on Jul 3, 2027. Your last income before then arrives Jun 30, 2027.",
     );
+    const departurePot = page.getByTestId("deadline-pot").filter({ hasText: "Post-festival hotel" });
+    await expect(departurePot).toContainText("By Jun 30, 2027 · last income before you leave");
+    await expect(departurePot.getByTestId("pot-income-note")).toContainText("Jul 3, 2027 (you leave)");
     await expect(page.getByText(/departure date is on or after the festival/)).toHaveCount(0);
 
     // Trip-wide: a scenario whose competition has no dates now has a

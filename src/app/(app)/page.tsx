@@ -151,7 +151,7 @@ async function Overview({ searchParams }: { searchParams: PageProps<"/">["search
             </p>
             {departure && (
               <p data-testid="departure-anchor" className="text-xs text-zinc-500 dark:text-zinc-400">
-                {departureAnchorText(departure)}
+                {departureAnchorText(departure, data.departureSaveBy)}
               </p>
             )}
           </>
@@ -223,7 +223,7 @@ async function Overview({ searchParams }: { searchParams: PageProps<"/">["search
             bindingRequirementUsd={binding}
             asOfDate={data.asOfDate}
             basis={data.basis}
-            departureDate={departure?.date ?? null}
+            departureSaveBy={data.departureSaveBy}
           />
         </Card>
       )}

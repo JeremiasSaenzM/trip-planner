@@ -1,4 +1,4 @@
-import type { DeadlinePotItem } from "@/lib/domain/build-deadline-pots";
+import type { DeadlinePot, DeadlinePotItem } from "@/lib/domain/build-deadline-pots";
 import type { ResolvedDeparture } from "@/lib/domain/resolve-departure-date";
 
 import { formatAmountCompact, formatDate } from "./format";
@@ -25,11 +25,27 @@ export function potItemText(item: DeadlinePotItem): string {
   }
 }
 
+// Why a pot sits on an earlier date than some of what's in it: the
+// income rule moved it back to the last income date before they're
+// owed. Each item still names its own due date (potItemText()); this
+// names the rule. null when nothing in the pot was moved by it.
+export function potIncomeNote(pot: Pick<DeadlinePot, "owedLaterOn">, departureDate: string): string | null {
+  if (pot.owedLaterOn.length === 0) return null;
+  const dates = pot.owedLaterOn.map((date) => (date === departureDate ? `${formatDate(date)} (you leave)` : formatDate(date)));
+  const list = dates.length === 1 ? dates[0] : `${dates.slice(0, -1).join(", ")} and ${dates.at(-1)}`;
+  return `Your last income before ${list} -- what's owed then has to be saved by here.`;
+}
+
 // Which date the plan treats as "you leave", and why -- the anchor every
-// pot above is measured against.
-export function departureAnchorText(departure: ResolvedDeparture): string {
+// pot above is measured against -- plus the last income before it, when
+// that's earlier: the real deadline for everything owed at departure.
+export function departureAnchorText(departure: ResolvedDeparture, departureSaveBy: string | null): string {
   const date = formatDate(departure.date);
-  return departure.source === "trip"
-    ? `Saving toward your departure on ${date}.`
-    : `No departure date set for the trip yet, so saving toward the festival's first day, ${date}.`;
+  const anchor =
+    departure.source === "trip"
+      ? `Saving toward your departure on ${date}.`
+      : `No departure date set for the trip yet, so saving toward the festival's first day, ${date}.`;
+  return departureSaveBy && departureSaveBy !== departure.date
+    ? `${anchor} Your last income before then arrives ${formatDate(departureSaveBy)}.`
+    : anchor;
 }
