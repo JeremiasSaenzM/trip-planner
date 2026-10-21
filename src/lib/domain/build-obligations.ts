@@ -1,6 +1,6 @@
 import { convertToUsd, type FxRate } from "./convert-to-usd";
 import type { SavingsEntry } from "./calculate-required-savings";
-import type { RateKind } from "./types";
+import type { Basis, InfoState, RateKind } from "./types";
 
 export type PaymentForObligations = {
   id: string;
@@ -12,7 +12,30 @@ export type PaymentForObligations = {
   /** YYYY-MM-DD, or null -- a payment with no due date yet. */
   dueDate: string | null;
   status: "planned" | "committed" | "paid" | "cancelled";
+  /** The payment's own information_state (its amount), not its dates'. */
+  informationState: InfoState;
 };
+
+/**
+ * Whether a payment's amount is a fixed figure -- the same at every
+ * basis -- or a placeholder that moves with its budget line.
+ *
+ * Fixed when, and only when, one of these holds:
+ *   - status is "committed" or "paid": the money is promised or gone, so
+ *     there's no range left to it;
+ *   - information_state is "confirmed": the amount itself is a sourced
+ *     fact (a confirmed room rate, a quoted fare), even before booking.
+ * Everything else -- in practice "planned" with an estimate, assumption,
+ * pending, decision, historical or conflicting amount -- is a
+ * placeholder, usually copying its line's target. It scales with the
+ * line: minimum and conservative by the line's own min/target and
+ * conservative/target ratios. Recording a real booking (status
+ * committed/paid) or confirming the amount is what stops it scaling.
+ * ("cancelled" never reaches here: cancelled payments build no obligation.)
+ */
+export function paymentAmountIsFixed(payment: Pick<PaymentForObligations, "status" | "informationState">): boolean {
+  return payment.status === "committed" || payment.status === "paid" || payment.informationState === "confirmed";
+}
 
 export type BudgetLineForObligations = {
   id: string;
@@ -36,9 +59,11 @@ export type BuiltObligation = {
   amountMinimumUsd: number;
   amountTargetUsd: number;
   amountConservativeUsd: number;
-  /** The same amount in the currency it was recorded in, before any
-   * conversion -- what the traveller will recognise ("£330", not "$419"). */
-  originalAmount: number;
+  /** The same amount, per basis, in the currency it was recorded in,
+   * before any conversion -- what the traveller will recognise ("£330",
+   * not "$419"). Equal across bases for a fixed payment
+   * (paymentAmountIsFixed()); scaled with its line for a placeholder. */
+  originalAmounts: Record<Basis, number>;
   originalCurrency: string;
   /** YYYY-MM-DD, the payment's own due date as recorded -- null for an
    * undated payment or an unallocated remainder. dueDate below is where
@@ -148,10 +173,15 @@ export type BuildObligationsResult =
  * keeps its original amount, currency and due date, so the plan can show
  * what was moved and why (see obligationTiming()).
  *
- * Minimum converts at planning_base, like target (same as
- * rollUpBudgetByScenario). A payment is a quoted amount, not a
- * projection, so its minimum is its target; only a budget line's
- * unallocated remainder differs, taken from its amountMin.
+ * Bases: minimum converts at planning_base, like target (same as
+ * rollUpBudgetByScenario); conservative at planning_conservative. A
+ * fixed payment (paymentAmountIsFixed()) is the same amount at every
+ * basis. A placeholder payment takes its line's minimum/target/
+ * conservative shape, so a line fully covered by a planned estimate
+ * payment still shows its own range -- and that range is due on the
+ * payment's date, not at departure, because that's when the money is
+ * needed. Each line's unallocated remainder is netted per basis against
+ * its payments' amounts at that same basis.
  */
 export function buildObligations(input: BuildObligationsInput): BuildObligationsResult {
   const missingRates: MissingObligationRate[] = [];
@@ -184,14 +214,39 @@ export function buildObligations(input: BuildObligationsInput): BuildObligations
 
   const activePayments = input.payments.filter((payment) => payment.status !== "cancelled");
   const obligations: BuiltObligation[] = [];
+  const linesById = new Map(input.budgetLines.map((line) => [line.id, line]));
+
+  // An amount of this payment, per basis, in its own currency. A
+  // placeholder scales by its line's ratios; a fixed payment -- or one
+  // whose line isn't in this scenario's set, or has a zero target to
+  // take a ratio of -- stays as recorded.
+  function amountsByBasis(payment: PaymentForObligations, amount: number): Record<Basis, number> {
+    const line = linesById.get(payment.budgetLineId);
+    if (paymentAmountIsFixed(payment) || !line || line.amountTarget <= 0) {
+      return { minimum: amount, target: amount, conservative: amount };
+    }
+    return {
+      minimum: amount * (line.amountMin / line.amountTarget),
+      target: amount,
+      conservative: amount * (line.amountConservative / line.amountTarget),
+    };
+  }
+
+  function toUsdByBasis(amounts: Record<Basis, number>, currency: string, description: string) {
+    const minimum = toUsd(amounts.minimum, currency, "planning_base", description);
+    const target = toUsd(amounts.target, currency, "planning_base", description);
+    const conservative = toUsd(amounts.conservative, currency, "planning_conservative", description);
+    if (minimum === null || target === null || conservative === null) return null;
+    return { minimum, target, conservative };
+  }
 
   for (const payment of activePayments) {
     const remainder = payment.totalAmount - payment.paidAmount;
     if (remainder <= 0) continue;
 
-    const targetUsd = toUsd(remainder, payment.currency, "planning_base", payment.description);
-    const conservativeUsd = toUsd(remainder, payment.currency, "planning_conservative", payment.description);
-    if (targetUsd === null || conservativeUsd === null) continue;
+    const originalAmounts = amountsByBasis(payment, remainder);
+    const usd = toUsdByBasis(originalAmounts, payment.currency, payment.description);
+    if (usd === null) continue;
 
     const isEstimatedDueDate = payment.dueDate === null;
     let dueDate = payment.dueDate ?? departureDate;
@@ -204,12 +259,12 @@ export function buildObligations(input: BuildObligationsInput): BuildObligations
     obligations.push({
       origin: { kind: "payment", paymentId: payment.id },
       description: payment.description,
-      originalAmount: remainder,
+      originalAmounts,
       originalCurrency: payment.currency,
       originalDueDate: payment.dueDate,
-      amountMinimumUsd: targetUsd,
-      amountTargetUsd: targetUsd,
-      amountConservativeUsd: conservativeUsd,
+      amountMinimumUsd: usd.minimum,
+      amountTargetUsd: usd.target,
+      amountConservativeUsd: usd.conservative,
       dueDate,
       isEstimatedDueDate,
       clampedToDeparture,
@@ -219,14 +274,17 @@ export function buildObligations(input: BuildObligationsInput): BuildObligations
   for (const line of input.budgetLines) {
     const linkedPayments = activePayments.filter((payment) => payment.budgetLineId === line.id);
 
-    const linkedTargetUsd = linkedPayments.reduce((sum, payment) => {
-      const amount = toUsd(payment.totalAmount, payment.currency, "planning_base", payment.description);
-      return sum + (amount ?? 0);
-    }, 0);
-    const linkedConservativeUsd = linkedPayments.reduce((sum, payment) => {
-      const amount = toUsd(payment.totalAmount, payment.currency, "planning_conservative", payment.description);
-      return sum + (amount ?? 0);
-    }, 0);
+    // What the line's payments already cover, at each basis -- their
+    // full totals (paid part included), scaled the same way as their
+    // obligations above, so the line isn't counted twice at any basis.
+    const linked = { minimum: 0, target: 0, conservative: 0 };
+    for (const payment of linkedPayments) {
+      const usd = toUsdByBasis(amountsByBasis(payment, payment.totalAmount), payment.currency, payment.description);
+      if (usd === null) continue;
+      linked.minimum += usd.minimum;
+      linked.target += usd.target;
+      linked.conservative += usd.conservative;
+    }
 
     const lineTargetUsd = toUsd(line.amountTarget, line.currency, "planning_base", line.description);
     const lineConservativeUsd = toUsd(line.amountConservative, line.currency, "planning_conservative", line.description);
@@ -235,18 +293,22 @@ export function buildObligations(input: BuildObligationsInput): BuildObligations
     // so this can't be the one that's missing a rate.
     const lineMinimumUsd = toUsd(line.amountMin, line.currency, "planning_base", line.description) ?? 0;
 
-    const remainderMinimumUsd = Math.max(0, lineMinimumUsd - linkedTargetUsd);
-    const remainderTargetUsd = Math.max(0, lineTargetUsd - linkedTargetUsd);
-    const remainderConservativeUsd = Math.max(0, lineConservativeUsd - linkedConservativeUsd);
+    const remainderMinimumUsd = Math.max(0, lineMinimumUsd - linked.minimum);
+    const remainderTargetUsd = Math.max(0, lineTargetUsd - linked.target);
+    const remainderConservativeUsd = Math.max(0, lineConservativeUsd - linked.conservative);
     if (remainderMinimumUsd <= 0 && remainderTargetUsd <= 0 && remainderConservativeUsd <= 0) continue;
 
     obligations.push({
       origin: { kind: "unallocated", budgetLineId: line.id },
       description: `${line.description} (unallocated)`,
       // The remainder is netted in USD (its payments may be in another
-      // currency than the line), so there's no single original-currency
-      // figure for it -- the target remainder in USD stands in.
-      originalAmount: remainderTargetUsd,
+      // currency than the line), so there's no original-currency figure
+      // for it -- its USD remainders stand in, per basis.
+      originalAmounts: {
+        minimum: remainderMinimumUsd,
+        target: remainderTargetUsd,
+        conservative: remainderConservativeUsd,
+      },
       originalCurrency: "USD",
       originalDueDate: null,
       amountMinimumUsd: remainderMinimumUsd,

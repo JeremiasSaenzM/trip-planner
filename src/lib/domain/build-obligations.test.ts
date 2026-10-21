@@ -2,7 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import { calculateRequiredSavings } from "./calculate-required-savings";
 import { rollUpBudgetByScenario, type BudgetLineForRollup } from "./roll-up-budget-by-scenario";
-import { buildObligations, type BudgetLineForObligations, type PaymentForObligations } from "./build-obligations";
+import {
+  buildObligations,
+  paymentAmountIsFixed,
+  type BudgetLineForObligations,
+  type PaymentForObligations,
+} from "./build-obligations";
 
 const DEPARTURE = "2027-07-05";
 
@@ -18,6 +23,7 @@ describe("buildObligations", () => {
         currency: "USD",
         dueDate: "2027-06-01",
         status: "committed",
+        informationState: "estimate",
       },
     ];
 
@@ -48,6 +54,7 @@ describe("buildObligations", () => {
         currency: "USD",
         dueDate: "2027-02-01",
         status: "committed",
+        informationState: "estimate",
       },
     ];
 
@@ -79,6 +86,7 @@ describe("buildObligations", () => {
         currency: "USD",
         dueDate: null,
         status: "committed",
+        informationState: "estimate",
       },
     ];
 
@@ -117,6 +125,7 @@ describe("buildObligations", () => {
         currency: "GBP",
         dueDate: "2027-03-01",
         status: "committed",
+        informationState: "estimate",
       },
     ];
 
@@ -179,6 +188,7 @@ describe("buildObligations", () => {
           currency: "USD",
           dueDate: null,
           status: "paid",
+          informationState: "estimate",
         },
       ],
       budgetLines: [],
@@ -203,6 +213,7 @@ describe("buildObligations", () => {
         currency: "USD",
         dueDate: "2027-07-10", // the festival runs 2027-07-05..11; this is during the trip
         status: "committed",
+        informationState: "estimate",
       },
     ];
 
@@ -260,6 +271,7 @@ describe("buildObligations", () => {
         currency: "USD",
         dueDate: "2027-03-01",
         status: "committed",
+        informationState: "estimate",
       },
     ];
     const savingsEntries = [{ amountUsd: 1000, recordedOn: "2027-01-01" }];
@@ -320,6 +332,7 @@ describe("buildObligations", () => {
         currency: "USD",
         dueDate: "2027-03-01",
         status: "cancelled",
+        informationState: "estimate",
       },
     ];
 
@@ -369,8 +382,7 @@ describe("buildObligations at the minimum basis", () => {
 
   it("counts a payment at its real remaining amount: a quote, not a projection", () => {
     const payments: PaymentForObligations[] = [
-      { id: "P9",
- budgetLineId: "L1", description: "Flight", totalAmount: 600, paidAmount: 100, currency: "EUR", dueDate: "2027-03-01", status: "committed" },
+      { id: "P9", budgetLineId: "L1", description: "Flight", totalAmount: 600, paidAmount: 100, currency: "EUR", dueDate: "2027-03-01", status: "committed", informationState: "estimate" },
     ];
     const result = buildObligations({
       ...base,
@@ -387,8 +399,7 @@ describe("buildObligations at the minimum basis", () => {
 
   it("never goes below zero when a line's payments already exceed its minimum, while target still has a remainder", () => {
     const payments: PaymentForObligations[] = [
-      { id: "P10",
- budgetLineId: "L1", description: "Deposit", totalAmount: 350, paidAmount: 0, currency: "USD", dueDate: "2027-03-01", status: "committed" },
+      { id: "P10", budgetLineId: "L1", description: "Deposit", totalAmount: 350, paidAmount: 0, currency: "USD", dueDate: "2027-03-01", status: "committed", informationState: "estimate" },
     ];
     const result = buildObligations({
       ...base,
@@ -409,8 +420,7 @@ describe("buildObligations at the minimum basis", () => {
     ];
     // Under the line's minimum, so its remainder isn't clamped at zero.
     const payments: PaymentForObligations[] = [
-      { id: "P11",
- budgetLineId: "L1", description: "Flight deposit", totalAmount: 450, paidAmount: 200, currency: "USD", dueDate: "2027-03-01", status: "committed" },
+      { id: "P11", budgetLineId: "L1", description: "Flight deposit", totalAmount: 450, paidAmount: 200, currency: "USD", dueDate: "2027-03-01", status: "committed", informationState: "estimate" },
     ];
     const savingsEntries = [{ amountUsd: 1000, recordedOn: "2027-01-01" }];
 
@@ -439,4 +449,95 @@ describe("buildObligations at the minimum basis", () => {
     const sumMinimum = obligationsResult.obligations.reduce((sum, o) => sum + o.amountMinimumUsd, 0);
     expect(sumMinimum - obligationsResult.availableUsd).toBeCloseTo(rollup.totals.min - 1000, 5);
   });
+});
+
+describe("paymentAmountIsFixed: a quote versus a placeholder", () => {
+  it("is fixed once committed or paid, whatever the amount's information state", () => {
+    expect(paymentAmountIsFixed({ status: "committed", informationState: "estimate" })).toBe(true);
+    expect(paymentAmountIsFixed({ status: "paid", informationState: "estimate" })).toBe(true);
+  });
+
+  it("is fixed when the amount itself is confirmed, even while still planned", () => {
+    expect(paymentAmountIsFixed({ status: "planned", informationState: "confirmed" })).toBe(true);
+  });
+
+  it("is a placeholder while planned with any unconfirmed amount", () => {
+    for (const state of ["estimate", "assumption", "pending", "decision", "historical", "conflicting"] as const) {
+      expect(paymentAmountIsFixed({ status: "planned", informationState: state }), state).toBe(false);
+    }
+  });
+});
+
+describe("buildObligations: a planned estimate payment moves with its budget line", () => {
+  const rates = [
+    { currency: "EUR", rateToUsd: 1.1, rateDate: "2027-01-01", rateKind: "planning_base" as const },
+    { currency: "EUR", rateToUsd: 1.2, rateDate: "2027-01-01", rateKind: "planning_conservative" as const },
+  ];
+  const line: BudgetLineForObligations = {
+    id: "L1",
+    description: "Hotel",
+    amountMin: 300,
+    amountTarget: 400,
+    amountConservative: 500,
+    currency: "EUR",
+  };
+  const planned: PaymentForObligations = {
+    id: "P1",
+    budgetLineId: "L1",
+    description: "Hotel booking",
+    totalAmount: 400,
+    paidAmount: 0,
+    currency: "EUR",
+    dueDate: "2027-05-01",
+    status: "planned",
+    informationState: "estimate",
+  };
+
+  function run(payment: PaymentForObligations) {
+    const result = buildObligations({
+      payments: [payment],
+      allTripPayments: [payment],
+      budgetLines: [line],
+      savingsEntries: [],
+      rates,
+      departureDate: DEPARTURE,
+      departureDateConfirmed: true,
+      asOfDate: "2027-01-15",
+    });
+    if (result.status !== "ready") throw new Error("expected ready");
+    return result.obligations;
+  }
+
+  it("takes its line's minimum and conservative, on the payment's own due date", () => {
+    const obligations = run(planned);
+
+    // Fully covered at every basis: no unallocated remainder at all, so
+    // the conservative extra isn't parked at departure.
+    expect(obligations).toHaveLength(1);
+    expect(obligations[0]).toMatchObject({
+      dueDate: "2027-05-01",
+      originalAmounts: { minimum: 300, target: 400, conservative: 500 },
+    });
+    expect(obligations[0].amountMinimumUsd).toBeCloseTo(300 * 1.1, 6);
+    expect(obligations[0].amountTargetUsd).toBeCloseTo(400 * 1.1, 6);
+    expect(obligations[0].amountConservativeUsd).toBeCloseTo(500 * 1.2, 6);
+  });
+
+  it("scales a part-paid placeholder's remainder by the same ratios", () => {
+    const [obligation] = run({ ...planned, paidAmount: 100 });
+    expect(obligation.originalAmounts).toEqual({ minimum: 225, target: 300, conservative: 375 });
+  });
+
+  for (const [label, change] of [
+    ["recording it as committed (a real booking)", { status: "committed" as const }],
+    ["recording it as paid", { status: "paid" as const, paidAmount: 0 }],
+    ["confirming its amount", { informationState: "confirmed" as const }],
+  ] as const) {
+    it(`stops scaling after ${label}`, () => {
+      const obligations = run({ ...planned, ...change });
+      const payment = obligations.find((o) => o.origin.kind === "payment")!;
+      expect(payment.originalAmounts).toEqual({ minimum: 400, target: 400, conservative: 400 });
+      expect(payment.amountMinimumUsd).toBeCloseTo(payment.amountTargetUsd, 6);
+    });
+  }
 });

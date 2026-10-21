@@ -25,7 +25,8 @@ export function DeadlinePotList({
   return (
     <div className="space-y-4">
       <p className="text-xs text-zinc-500 dark:text-zinc-400">
-        Totals are in USD at the {basis} basis. Each payment shows the amount and currency it was recorded in.
+        Totals are in USD at the {basis} basis. Each payment shows its amount at that basis, in the currency it was
+        recorded in -- a planned estimate moves with its budget line; a committed, paid or confirmed one doesn&apos;t.
       </p>
       <ol data-testid="deadline-pots" className="space-y-4">
         {pots.map((pot) => (
