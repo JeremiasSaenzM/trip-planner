@@ -627,9 +627,15 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await expect(page.getByTestId("selected-basis")).toContainText("Showing the Target basis.");
     await expect(page.getByTestId("scenario-required-saving")).toBeVisible();
 
-    // The expanded pot list, same as on Overview.
+    // The expanded pot list, same as on Overview -- scoped to this page's
+    // own section: after a client-side navigation this Next.js version
+    // keeps the previous page (Overview, with its own pot list) mounted
+    // but hidden, and getByTestId doesn't skip hidden elements.
+    const whenNeeded = page
+      .locator("section")
+      .filter({ has: page.getByRole("heading", { name: "When money is needed" }) });
     await expect(
-      page.getByTestId("deadline-pots").getByText("Post-festival hotel — $120, due Jul 15, 2027, needed before you leave"),
+      whenNeeded.getByText("Post-festival hotel — $120, due Jul 15, 2027, needed before you leave"),
     ).toBeVisible();
 
     await expect(page.getByText("None of this scenario's budget lines has a source.")).toBeVisible();
@@ -639,7 +645,10 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await expect(page.getByTestId("lines-by-confidence")).toContainText("Not assessed:");
 
     await page.getByRole("link", { name: "Conservative", exact: true }).click();
-    await expect(page.getByTestId("selected-basis")).toContainText("Showing the Conservative basis.");
+    // visible: true -- same hidden-previous-page reason as above.
+    await expect(page.getByTestId("selected-basis").filter({ visible: true })).toContainText(
+      "Showing the Conservative basis.",
+    );
   });
 
   // The journey's only savings entry so far was recorded, edited, and
