@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 
 import { Nav } from "./nav";
+import { ThemeToggle } from "./theme-toggle";
 import { UserMenu } from "./user-menu";
 
 // Shell for every logged-in page. "(app)" is a route group: the parentheses keep
@@ -21,9 +22,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </Link>
             <Nav variant="top" />
           </div>
-          <Suspense fallback={<div className="h-9 w-20" />}>
-            <UserMenu />
-          </Suspense>
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <Suspense fallback={<div className="h-9 w-20" />}>
+              <UserMenu />
+            </Suspense>
+          </div>
         </div>
       </header>
 
