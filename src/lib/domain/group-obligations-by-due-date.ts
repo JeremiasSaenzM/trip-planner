@@ -46,7 +46,9 @@ export type DeadlineGroup<T extends ObligationForGrouping = ObligationForGroupin
  * obligations that all land on the departure date is buildObligations()'s
  * "due at departure" bundle (one per budget line with nothing else to pin
  * it to), so it reads as "Before departure (N items)" rather than the
- * generic "N payments".
+ * generic "N payments". Pass the date that bundle is saved by --
+ * BuildObligationsResult.departureSaveBy, the last income date before
+ * leaving -- since that's the date its obligations carry.
  */
 export function groupObligationsByDueDate<T extends ObligationForGrouping>(
   obligations: T[],

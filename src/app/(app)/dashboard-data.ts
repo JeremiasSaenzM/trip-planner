@@ -9,6 +9,7 @@ import { buildPhasedSavingsPlan, type BuildPhasedSavingsPlanResult } from "@/lib
 import { calculateRequiredSavings, type CalculateRequiredSavingsResult } from "@/lib/domain/calculate-required-savings";
 import { checkTravelWindow, type TravelWindowIssue } from "@/lib/domain/check-travel-window";
 import { findMissingFxRates, type MissingFxRate } from "@/lib/domain/find-missing-fx-rates";
+import { TRAVELLER_INCOME_CADENCE } from "@/lib/domain/income-cadence";
 import { resolveDepartureDate, type ResolvedDeparture } from "@/lib/domain/resolve-departure-date";
 import { rollUpBudgetByScenario, type RollUpBudgetByScenarioResult } from "@/lib/domain/roll-up-budget-by-scenario";
 import type { Basis } from "@/lib/domain/types";
@@ -34,6 +35,10 @@ export type DashboardData =
        * own departure date, else the competition's first official day
        * (resolveDepartureDate()). null when neither exists. */
       departure: ResolvedDeparture | null;
+      /** The traveller's last income date on or before departure -- the
+       * saving deadline for everything owed then (TRAVELLER_INCOME_CADENCE).
+       * null when departure is. */
+      departureSaveBy: string | null;
       /** The trip's travel window checked against this scenario's
        * festival period -- empty when it fits, or when there's nothing to
        * compare yet. */
@@ -176,6 +181,7 @@ export async function loadDashboardData(params: {
     rates,
     departureDate: departure?.date ?? null,
     departureDateConfirmed: departure?.confirmed ?? false,
+    incomeCadence: TRAVELLER_INCOME_CADENCE,
     asOfDate,
   });
 
@@ -190,6 +196,7 @@ export async function loadDashboardData(params: {
       asOfDate,
       rollup,
       departure,
+      departureSaveBy: null,
       travelWindowIssues,
       savings: null,
       noDepartureDate: true,
@@ -222,7 +229,7 @@ export async function loadDashboardData(params: {
     availableUsd: obligationsResult.availableUsd,
     asOfDate,
     basis,
-    departureDate: departure?.date ?? null,
+    departureDate: obligationsResult.departureSaveBy,
   });
 
   const parallelPlan = buildParallelSavingsPlan({
@@ -230,10 +237,16 @@ export async function loadDashboardData(params: {
     availableUsd: obligationsResult.availableUsd,
     asOfDate,
     basis,
-    departureDate: departure?.date ?? null,
+    departureDate: obligationsResult.departureSaveBy,
   });
 
-  const pots = buildDeadlinePots({ obligations: obligationsResult.obligations, basis, asOfDate });
+  const pots = buildDeadlinePots({
+    obligations: obligationsResult.obligations,
+    basis,
+    asOfDate,
+    departureDate: obligationsResult.departureDate,
+    availableUsd: obligationsResult.availableUsd,
+  });
 
   return {
     status: "ready",
@@ -245,6 +258,7 @@ export async function loadDashboardData(params: {
     asOfDate,
     rollup,
     departure,
+    departureSaveBy: obligationsResult.departureSaveBy,
     travelWindowIssues,
     savings,
     noDepartureDate: false,
