@@ -11,6 +11,7 @@ I'm a developer in the making. This project is for learning and for my portfolio
 - Write the code yourself. I learn by reading it: after each step, give a short explanation of what you did and why, especially for new concepts (React server components, SQL, RLS, migrations, testing). Don't offer exercises; I'll ask if I want to write something myself.
 - Work in small steps. Propose a plan before larger changes, and wait for my OK.
 - One focused commit per meaningful step, with a clear message (Conventional Commits: `feat:`, `fix:`, `chore:`, `docs:`, `test:`).
+- PRs are merged with **rebase and merge**, not squash, so every commit lands on `main` individually. Each commit should build and pass tests on its own where practical. Fold CI or review fixes into the commit they belong to before merging (`git commit --fixup`, `git rebase --autosquash`, `git push --force-with-lease`) rather than adding "fix CI" commits.
 - Don't add libraries without saying why.
 - Never add Co-Authored-By or 'Generated with Claude Code' lines to commits or pull requests.
 - This project is worked on from two machines (a Windows PC and a Mac). Always git pull on main before starting, and push or open a PR before switching machines. Never leave uncommitted work on one machine.
