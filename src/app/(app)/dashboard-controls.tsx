@@ -16,7 +16,7 @@ const BASIS_ACTIVE_CLASSES: Record<Basis, string> = {
     "aria-[current=page]:bg-chart-conservative aria-[current=page]:text-zinc-950 dark:aria-[current=page]:text-white",
 };
 
-const BASIS_LABELS: Record<Basis, string> = {
+export const BASIS_LABELS: Record<Basis, string> = {
   minimum: "Minimum",
   target: "Target",
   conservative: "Conservative",
@@ -50,6 +50,12 @@ export function DashboardControls({
               {scenario.name}
             </Link>
           ))}
+        <Link
+          href={`/scenario?scenario=${activeScenarioId}&basis=${basis}`}
+          className="px-2 py-1 text-xs font-medium text-zinc-600 underline dark:text-zinc-400"
+        >
+          About this scenario
+        </Link>
         {/* Always shown, even with a single scenario -- it's also the
             way to add a second one. */}
         <Link
