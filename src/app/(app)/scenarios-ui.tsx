@@ -2,14 +2,14 @@
 
 import { useActionState, useEffect, useId, useState } from "react";
 
-import type { Competition, Scenario, Source } from "@/lib/data/types";
+import type { Competition, Scenario, Source, Trip } from "@/lib/data/types";
 import type { InfoState } from "@/lib/domain/types";
 
 import { CompetitionSelect } from "./bootstrap-forms";
 import { initialFormActionState } from "./form-action-state";
 import { buttonClass, FormError, inputClass, labelClass, secondaryButtonClass } from "./form-styles";
 import { INFO_STATE_LABELS, INFO_STATE_ORDER } from "./info-state-labels";
-import { deleteScenario, updateCompetition, updateScenario } from "./scenario-actions";
+import { deleteScenario, updateCompetition, updateScenario, updateTripTravelWindow } from "./scenario-actions";
 import { SourcePicker } from "./source-picker";
 
 // The footer region of a scenario's card on /scenarios, swapping between
@@ -292,6 +292,136 @@ function EditCompetitionForm({
         required={false}
         value={datesSourceChoice}
         onChange={setDatesSourceChoice}
+      />
+      <div className="space-y-1.5">
+        <label htmlFor={fieldId("reason")} className={labelClass}>
+          Reason for this change
+        </label>
+        <input id={fieldId("reason")} name="reason" required className={inputClass} />
+      </div>
+      {clientError && <FormError message={clientError} />}
+      {state.status === "error" && <FormError message={state.message} />}
+      <div className="flex gap-2">
+        <button type="submit" disabled={pending} className={buttonClass}>
+          {pending ? "Saving…" : "Save"}
+        </button>
+        <button type="button" onClick={onDone} className={secondaryButtonClass}>
+          Cancel
+        </button>
+      </div>
+    </form>
+  );
+}
+
+// The trip's own travel window (trip-wide, the same for every scenario).
+// Shown read-only by TravelWindowSummary on the page; this is the edit
+// toggle and form underneath it.
+export function TravelWindowActions({ trip, sources }: { trip: Trip; sources: Source[] }) {
+  const [editing, setEditing] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+
+  if (editing) {
+    return <EditTravelWindowForm key={attempt} trip={trip} sources={sources} onDone={() => setEditing(false)} />;
+  }
+
+  return (
+    <div className="mt-2 flex flex-wrap gap-3 text-sm">
+      <button
+        type="button"
+        onClick={() => {
+          setAttempt((value) => value + 1);
+          setEditing(true);
+        }}
+        className="text-zinc-600 underline dark:text-zinc-400"
+      >
+        {trip.departureDate || trip.returnDate ? "Edit travel window" : "Set travel window"}
+      </button>
+    </div>
+  );
+}
+
+function EditTravelWindowForm({ trip, sources, onDone }: { trip: Trip; sources: Source[]; onDone: () => void }) {
+  const [state, formAction, pending] = useActionState(updateTripTravelWindow, initialFormActionState);
+  const formId = useId();
+  const fieldId = (field: string) => `${formId}-${field}`;
+
+  const [datesState, setDatesState] = useState<InfoState>(trip.travelDatesState);
+  const [sourceChoice, setSourceChoice] = useState(trip.travelDatesSourceId ?? "");
+  const [clientError, setClientError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (state.status === "success") onDone();
+  }, [state, onDone]);
+
+  // Mirrors trips_travel_dates_confirmed_needs_source, same as the
+  // competition form; the date rules come back from the server action.
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    if (datesState === "confirmed" && sourceChoice === "") {
+      event.preventDefault();
+      setClientError("Confirmed travel dates need a source -- add one, or set them back to an estimate.");
+      return;
+    }
+    setClientError(null);
+  }
+
+  return (
+    <form action={formAction} onSubmit={handleSubmit} className="mt-2 space-y-2.5">
+      <input type="hidden" name="tripId" value={trip.id} />
+      <div className="grid grid-cols-2 gap-2.5">
+        <div className="space-y-1.5">
+          <label htmlFor={fieldId("departure")} className={labelClass}>
+            Departure date
+          </label>
+          <input
+            id={fieldId("departure")}
+            name="departureDate"
+            type="date"
+            defaultValue={trip.departureDate ?? ""}
+            className={inputClass}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <label htmlFor={fieldId("return")} className={labelClass}>
+            Return date
+          </label>
+          <input
+            id={fieldId("return")}
+            name="returnDate"
+            type="date"
+            defaultValue={trip.returnDate ?? ""}
+            className={inputClass}
+          />
+        </div>
+      </div>
+      <p className="text-xs text-zinc-500 dark:text-zinc-400">
+        The day you leave home and the day you get back. Every savings deadline is measured against the departure
+        date: money you&apos;ll spend during the trip has to be set aside before you leave.
+      </p>
+      <div className="space-y-1.5">
+        <label htmlFor={fieldId("state")} className={labelClass}>
+          Information state (travel dates)
+        </label>
+        <select
+          id={fieldId("state")}
+          name="travelDatesState"
+          value={datesState}
+          onChange={(event) => setDatesState(event.target.value as InfoState)}
+          className={inputClass}
+        >
+          {INFO_STATE_ORDER.map((value) => (
+            <option key={value} value={value}>
+              {INFO_STATE_LABELS[value]}
+            </option>
+          ))}
+        </select>
+      </div>
+      <SourcePicker
+        name="travelDatesSource"
+        label="Source (travel dates)"
+        sources={sources}
+        required={false}
+        value={sourceChoice}
+        onChange={setSourceChoice}
       />
       <div className="space-y-1.5">
         <label htmlFor={fieldId("reason")} className={labelClass}>

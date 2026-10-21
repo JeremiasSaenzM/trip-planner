@@ -9,8 +9,10 @@ import { AddCompetitionForm, CreateScenarioForm, CreateTripForm } from "./bootst
 import { BudgetByCategoryChart, SavingsScheduleChart } from "./charts";
 import { DashboardControls } from "./dashboard-controls";
 import { loadDashboardData } from "./dashboard-data";
-import { Card, CardLabel, Caveat, noDatesReason, RangeFigure } from "./dashboard-ui";
+import { Card, CardLabel, Caveat, noDepartureReason, RangeFigure } from "./dashboard-ui";
+import { DeadlinePotList } from "./deadline-pots-ui";
 import { formatUsd } from "./format";
+import { departureAnchorText } from "./pot-item-text";
 import { ParallelSavingsChart, PhasedSavingsChart } from "./savings-plan-charts";
 import { RecordSavingsEntryForm, SavingsEntryList } from "./savings-entries-ui";
 
@@ -63,6 +65,9 @@ async function Overview({ searchParams }: { searchParams: PageProps<"/">["search
     parallelPlan,
     competition,
     savingsEntries,
+    departure,
+    travelWindowIssues,
+    pots,
   } = data;
   const binding = savings?.bindingRequirement[data.basis] ?? null;
 
@@ -94,10 +99,23 @@ async function Overview({ searchParams }: { searchParams: PageProps<"/">["search
         </p>
       )}
 
-      {provisional && (
+      {provisional && departure && (
         <Caveat>
-          The festival dates for this scenario aren&apos;t confirmed yet, so every savings figure below is
-          provisional.
+          {departure.source === "trip"
+            ? "Your departure date isn't confirmed yet"
+            : "The festival dates for this scenario aren't confirmed yet"}
+          , so every savings figure below is provisional.
+        </Caveat>
+      )}
+
+      {travelWindowIssues.includes("leaves_too_late") && (
+        <Caveat tone="danger">
+          Your departure date is on or after the festival&apos;s first day -- you need to be there before it begins.
+        </Caveat>
+      )}
+      {travelWindowIssues.includes("returns_too_early") && (
+        <Caveat tone="danger">
+          Your return date is on or before the festival&apos;s final day -- you can only leave once it has ended.
         </Caveat>
       )}
 
@@ -121,14 +139,33 @@ async function Overview({ searchParams }: { searchParams: PageProps<"/">["search
           // Never $0 here: that would read as "nothing to save", when the
           // truth is "can't say yet".
           <p data-testid="no-savings-requirement" className="mt-1 text-base text-zinc-600 dark:text-zinc-400">
-            {noDatesReason(competition)}, so there&apos;s no savings requirement to compute.
+            {noDepartureReason(competition)}, so there&apos;s no savings requirement to compute.{" "}
+            <Link href={`/scenarios?scenario=${data.scenario.id}&basis=${data.basis}`} className="underline">
+              Set the trip&apos;s travel window
+            </Link>
           </p>
         ) : (
-          <p data-testid="required-monthly-saving" className="text-3xl font-semibold tracking-tight">
-            {formatUsd(binding ?? 0)}
-          </p>
+          <>
+            <p data-testid="required-monthly-saving" className="text-3xl font-semibold tracking-tight">
+              {formatUsd(binding ?? 0)}
+            </p>
+            {departure && (
+              <p data-testid="departure-anchor" className="text-xs text-zinc-500 dark:text-zinc-400">
+                {departureAnchorText(departure)}
+              </p>
+            )}
+          </>
         )}
       </Card>
+
+      {pots && departure && (
+        <Card>
+          <CardLabel>When money is needed</CardLabel>
+          <div className="mt-2">
+            <DeadlinePotList pots={pots} departure={departure} basis={data.basis} />
+          </div>
+        </Card>
+      )}
 
       <Card>
         <CardLabel>Money set aside</CardLabel>
@@ -186,7 +223,7 @@ async function Overview({ searchParams }: { searchParams: PageProps<"/">["search
             bindingRequirementUsd={binding}
             asOfDate={data.asOfDate}
             basis={data.basis}
-            departureDate={competition?.startDate ?? null}
+            departureDate={departure?.date ?? null}
           />
         </Card>
       )}

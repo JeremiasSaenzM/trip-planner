@@ -6,6 +6,7 @@ import { dataSource } from "@/lib/data";
 import { translatePostgresError } from "@/lib/data/error-messages";
 import { updateCompetitionInput } from "@/lib/validation/competitions";
 import { deleteScenarioInput, updateScenarioInput } from "@/lib/validation/scenarios";
+import { updateTripTravelWindowInput } from "@/lib/validation/trips";
 
 import { initialFormActionState, type FormActionState } from "./form-action-state";
 import { firstIssueMessage, optionalText } from "./server-action-helpers";
@@ -93,4 +94,38 @@ export async function deleteScenario(_previous: FormActionState, formData: FormD
 
   revalidateAll();
   return initialFormActionState;
+}
+
+// The trip's travel window. Its departure date moves every savings
+// deadline (resolveDepartureDate()), so -- like the competition edits
+// above -- this revalidates everything.
+export async function updateTripTravelWindow(
+  _previous: FormActionState,
+  formData: FormData,
+): Promise<FormActionState> {
+  let travelDatesSourceId: string | undefined;
+  try {
+    travelDatesSourceId = await resolveSourceId(formData, "travelDatesSource");
+  } catch (error) {
+    return { status: "error", message: (error as Error).message };
+  }
+
+  const parsed = updateTripTravelWindowInput.safeParse({
+    tripId: formData.get("tripId"),
+    departureDate: optionalText(formData.get("departureDate")),
+    returnDate: optionalText(formData.get("returnDate")),
+    travelDatesState: formData.get("travelDatesState"),
+    travelDatesSourceId,
+    reason: formData.get("reason"),
+  });
+  if (!parsed.success) return { status: "error", message: firstIssueMessage(parsed.error) };
+
+  try {
+    await dataSource.updateTripTravelWindow(parsed.data);
+  } catch (error) {
+    return { status: "error", message: translatePostgresError(error as { message: string }) };
+  }
+
+  revalidateAll();
+  return { status: "success" };
 }

@@ -8,6 +8,18 @@ export function formatAmount(amount: number, currency: string): string {
   return amount.toLocaleString("en-US", { style: "currency", currency, maximumFractionDigits: 2 });
 }
 
+// Same, without trailing ".00" on a whole amount -- for prose, where
+// "$1,005" reads better than "$1,005.00" and a real fraction ("£96.50")
+// still shows.
+export function formatAmountCompact(amount: number, currency: string): string {
+  return amount.toLocaleString("en-US", {
+    style: "currency",
+    currency,
+    minimumFractionDigits: Number.isInteger(amount) ? 0 : 2,
+    maximumFractionDigits: 2,
+  });
+}
+
 // YYYY-MM-DD values are calendar dates, not instants -- they must never
 // go through a time-zone conversion. Parsing as UTC and formatting as
 // the runtime's local zone (what the old Date-based version here did)
