@@ -84,6 +84,7 @@ These come from the planning system. Encode them in the schema and in tested fun
 - A payment due after departure (a hotel paid at the property, local transport bought on arrival) is moved to the departure date.
 - A payment with no due date, and the part of a budget line no payment covers yet, are assumed due at departure: the latest date they could still be saved by.
 - Moving is never silent: every savings pot lists its payments with their own amount, currency and real due date, and says which were moved or undated (`buildDeadlinePots()`).
+- A payment is a fixed figure — the same at Minimum, Target and Conservative — only once it's `committed` or `paid`, or its amount's `information_state` is `confirmed` (`paymentAmountIsFixed()`). Until then it's a placeholder and moves with its budget line's own min/target/conservative, due on the payment's own date. Recording a real booking, or confirming the amount, is what stops it moving.
 - The headline figure, the schedule, both savings charts and the pot list are all built from the same obligations (`buildObligations()`), so they can't disagree about what's in the plan. `savings-pipeline.test.ts` fails if they do.
 
 **Payment timing matters as much as cost.** Track for each obligation: total, paid now, due later, due date, cancellation deadline, timing type (paid now, due on date, pay before arrival, pay at property, unknown, optional).

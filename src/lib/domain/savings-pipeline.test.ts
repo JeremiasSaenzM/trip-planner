@@ -36,7 +36,18 @@ function payment(
   dueDate: string | null,
   overrides: Partial<PaymentForObligations> = {},
 ): PaymentForObligations {
-  return { id, budgetLineId: `L-${id}`, description, totalAmount, paidAmount: 0, currency, dueDate, status: "planned", ...overrides };
+  return {
+    id,
+    budgetLineId: `L-${id}`,
+    description,
+    totalAmount,
+    paidAmount: 0,
+    currency,
+    dueDate,
+    status: "planned",
+    informationState: "estimate",
+    ...overrides,
+  };
 }
 
 const PAYMENTS: PaymentForObligations[] = [
@@ -229,5 +240,71 @@ describe("payments due after departure, and payments with no due date", () => {
       cumulativeAt(fromFestival.savings.schedule.at(-1)!, "target"),
       6,
     );
+  });
+});
+
+// What #33 missed: every line covered by a planned estimate payment for
+// its target amount, with the line's minimum below target and its
+// conservative above. #33's tests only exercised minimum through
+// unallocated remainders, so they passed while every chart came out the
+// same at all three bases.
+describe("the chart data differs between bases when the amounts do", () => {
+  const COVERED_PAYMENTS: PaymentForObligations[] = [
+    payment("flights", "Flights", 1500, "USD", "2028-01-31", { informationState: "estimate" }),
+    payment("stay", "Stay", 600, "GBP", "2028-06-30", { informationState: "estimate" }),
+    payment("transport", "Transport", 100, "EUR", "2028-07-12", { informationState: "estimate" }),
+  ];
+  const COVERED_LINES: BudgetLineForObligations[] = [
+    { id: "L-flights", description: "Flights", amountMin: 1200, amountTarget: 1500, amountConservative: 1900, currency: "USD" },
+    { id: "L-stay", description: "Stay", amountMin: 350, amountTarget: 600, amountConservative: 700, currency: "GBP" },
+    { id: "L-transport", description: "Transport", amountMin: 80, amountTarget: 100, amountConservative: 130, currency: "EUR" },
+  ];
+
+  function chartData() {
+    const result = buildObligations({
+      payments: COVERED_PAYMENTS,
+      allTripPayments: COVERED_PAYMENTS,
+      budgetLines: COVERED_LINES,
+      savingsEntries: [],
+      rates: RATES,
+      departureDate: TRIP_DEPARTURE,
+      departureDateConfirmed: false,
+      asOfDate: AS_OF,
+    });
+    if (result.status !== "ready") throw new Error("expected ready");
+    const savings = calculateRequiredSavings({ asOfDate: AS_OF, savingsEntries: [], obligations: result.obligations });
+    return Object.fromEntries(
+      BASES.map((basis) => {
+        const pots = buildDeadlinePots({ obligations: result.obligations, basis, asOfDate: AS_OF });
+        const common = { obligations: result.obligations, availableUsd: 0, asOfDate: AS_OF, basis };
+        return [
+          basis,
+          {
+            headline: savings.bindingRequirement[basis],
+            cumulative: savings.schedule.map((entry) => cumulativeAt(entry, basis)),
+            pots: pots.map((pot) => pot.amountUsd),
+            parallel: buildParallelSavingsPlan(common).pots.map((pot) => pot.amountUsd),
+            phased: buildPhasedSavingsPlan(common).phases.map((phase) => phase.monthlySaving),
+          },
+        ];
+      }),
+    ) as unknown as Record<(typeof BASES)[number], Record<string, unknown>>;
+  }
+
+  it("headline, schedule, pots and both plans differ between minimum, target and conservative", () => {
+    const data = chartData();
+    for (const key of ["headline", "cumulative", "pots", "parallel", "phased"]) {
+      expect(data.minimum[key], `${key}: minimum vs target`).not.toEqual(data.target[key]);
+      expect(data.conservative[key], `${key}: conservative vs target`).not.toEqual(data.target[key]);
+    }
+  });
+
+  it("totals each basis at its lines' own figures: minimum, target, conservative", () => {
+    const data = chartData();
+    const usd = (usdAmount: number, gbp: number, eur: number, kind: "planning_base" | "planning_conservative") =>
+      usdAmount + gbp * (kind === "planning_base" ? 1.25 : 1.35) + eur * (kind === "planning_base" ? 1.08 : 1.15);
+    expect((data.minimum.cumulative as number[]).at(-1)).toBeCloseTo(usd(1200, 350, 80, "planning_base"), 6);
+    expect((data.target.cumulative as number[]).at(-1)).toBeCloseTo(usd(1500, 600, 100, "planning_base"), 6);
+    expect((data.conservative.cumulative as number[]).at(-1)).toBeCloseTo(usd(1900, 700, 130, "planning_conservative"), 6);
   });
 });

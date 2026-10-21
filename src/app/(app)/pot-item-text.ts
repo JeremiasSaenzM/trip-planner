@@ -6,8 +6,9 @@ import { formatAmountCompact, formatDate } from "./format";
 // One line per obligation in a savings pot, saying in words what
 // buildObligations() did with it -- so a payment that was moved, or
 // never had a date, is never silently shown under a date that isn't its
-// own. Amounts are as recorded (original currency), not converted: the
-// pot's own total carries the converted figure.
+// own. Amounts are in the payment's own currency, not converted (the
+// pot's total carries the converted figure), at the selected basis --
+// see paymentAmountIsFixed() for which payments move with the basis.
 export function potItemText(item: DeadlinePotItem): string {
   const amount = formatAmountCompact(item.originalAmount, item.originalCurrency);
   switch (item.timing) {

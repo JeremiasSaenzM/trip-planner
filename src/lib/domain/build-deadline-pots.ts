@@ -6,7 +6,7 @@ export type DeadlinePotItem = {
   description: string;
   /** At the selected basis, converted -- these sum to the pot's amountUsd. */
   amountUsd: number;
-  /** As recorded, before conversion -- see BuiltObligation.originalAmount. */
+  /** In its own currency, at the selected basis -- see BuiltObligation.originalAmounts. */
   originalAmount: number;
   originalCurrency: string;
   /** The payment's own due date, null when it had none. */
@@ -51,7 +51,7 @@ export function buildDeadlinePots(input: {
       .map((obligation) => ({
         description: obligation.description,
         amountUsd: obligationAmount(obligation, input.basis),
-        originalAmount: obligation.originalAmount,
+        originalAmount: obligation.originalAmounts[input.basis],
         originalCurrency: obligation.originalCurrency,
         originalDueDate: obligation.originalDueDate,
         timing: obligationTiming(obligation),
