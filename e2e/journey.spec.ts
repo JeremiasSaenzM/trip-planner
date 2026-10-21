@@ -612,6 +612,45 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await expect(page.getByTestId("no-savings-requirement")).toHaveCount(0);
   });
 
+  await test.step("the Scenario Overview explains what this scenario is, and says what isn't stored", async () => {
+    await page.goto(`/?scenario=${firstScenarioId}`);
+    await page.getByRole("link", { name: "About this scenario" }).click();
+    await expect(page).toHaveURL(new RegExp(`/scenario\\?scenario=${firstScenarioId}`));
+
+    await expect(page.getByTestId("scenario-name")).toHaveText("Llangollen 2027");
+    const whatThisIs = page.locator("section").filter({ has: page.getByRole("heading", { name: "What this is" }) });
+    await expect(whatThisIs.getByText(FIRST_COMPETITION)).toBeVisible();
+    await expect(whatThisIs.getByText("Leave Jul 3, 2027 · return Jul 14, 2027")).toBeVisible();
+    // Nothing invented for what isn't stored.
+    await expect(whatThisIs.getByText(/No notes recorded for this scenario/)).toBeVisible();
+
+    await expect(page.getByTestId("selected-basis")).toContainText("Showing the Target basis.");
+    await expect(page.getByTestId("scenario-required-saving")).toBeVisible();
+
+    // The expanded pot list, same as on Overview -- scoped to this page's
+    // own section: after a client-side navigation this Next.js version
+    // keeps the previous page (Overview, with its own pot list) mounted
+    // but hidden, and getByTestId doesn't skip hidden elements.
+    const whenNeeded = page
+      .locator("section")
+      .filter({ has: page.getByRole("heading", { name: "When money is needed" }) });
+    await expect(
+      whenNeeded.getByText("Post-festival hotel — $120, due Jul 15, 2027, needed before you leave"),
+    ).toBeVisible();
+
+    await expect(page.getByText("None of this scenario's budget lines has a source.")).toBeVisible();
+    await expect(page.getByTestId("unsourced-lines")).toContainText("Flight deposit");
+    await expect(page.getByTestId("unsourced-lines")).toContainText("Registration fee");
+    await expect(page.getByTestId("lines-by-confidence")).toContainText("Medium: 1");
+    await expect(page.getByTestId("lines-by-confidence")).toContainText("Not assessed:");
+
+    await page.getByRole("link", { name: "Conservative", exact: true }).click();
+    // visible: true -- same hidden-previous-page reason as above.
+    await expect(page.getByTestId("selected-basis").filter({ visible: true })).toContainText(
+      "Showing the Conservative basis.",
+    );
+  });
+
   // The journey's only savings entry so far was recorded, edited, and
   // then deleted earlier (see "delete the entry with a reason") -- a
   // fresh one here is what the export step below actually checks for,
