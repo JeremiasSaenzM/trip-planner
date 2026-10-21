@@ -1,6 +1,5 @@
-import { DateTime } from "luxon";
-
 import { groupObligationsByDueDate, type ObligationForGrouping } from "./group-obligations-by-due-date";
+import { incomeDatesBetween, type IncomeCadence } from "./income-cadence";
 import type { Basis } from "./types";
 
 export type SavingsPot = {
@@ -27,8 +26,8 @@ export type ParallelSavingsPeriod = {
   /** The combined monthly saving across every pot still open during this period. */
   totalMonthlySaving: number;
   openPotCount: number;
-  /** fromDate to toDate, in months (the same "shorter than a month counts
-   * as 1" clamp as everywhere else) -- how long this period's rate applies. */
+  /** The income dates from fromDate to toDate -- how many times this
+   * period's rate is set aside. */
   monthsInPeriod: number;
 };
 
@@ -39,6 +38,9 @@ export type BuildParallelSavingsPlanInput = {
   availableUsd: number;
   asOfDate: string;
   basis: Basis;
+  /** When the traveller's income arrives -- monthly figures divide by
+   * the income dates in each stretch (monthsBetween()). */
+  incomeCadence: IncomeCadence;
   /** Labeling hint only, passed through to groupObligationsByDueDate() --
    * see its own doc comment. */
   departureDate?: string | null;
@@ -49,8 +51,13 @@ export type BuildParallelSavingsPlanResult = {
   periods: ParallelSavingsPeriod[];
 };
 
-function monthsBetween(fromDate: string, toDate: string): number {
-  return Math.max(1, DateTime.fromISO(toDate).diff(DateTime.fromISO(fromDate), "months").months);
+// Income dates after `fromDate` up to `toDate` (incomeDatesBetween()) --
+// what a monthly saving divides by: whole months at month-end cadence,
+// never a fraction. Never below 1: only a deadline that isn't itself an
+// income date can have none before it, and buildObligations() never
+// builds one.
+function monthsBetween(fromDate: string, toDate: string, cadence: IncomeCadence): number {
+  return Math.max(1, incomeDatesBetween(fromDate, toDate, cadence));
 }
 
 /**
@@ -87,7 +94,7 @@ export function buildParallelSavingsPlan(input: BuildParallelSavingsPlanInput): 
       continue;
     }
 
-    const months = monthsBetween(input.asOfDate, deadline.dueDate);
+    const months = monthsBetween(input.asOfDate, deadline.dueDate, input.incomeCadence);
     const monthlySaving = Math.max(0, (deadline.amountUsd - share) / months);
 
     pots.push({

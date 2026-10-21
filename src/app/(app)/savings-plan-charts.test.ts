@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { buildParallelSavingsPlan } from "@/lib/domain/build-parallel-savings-plan";
 import { buildPhasedSavingsPlan } from "@/lib/domain/build-phased-savings-plan";
 import type { ObligationForGrouping } from "@/lib/domain/group-obligations-by-due-date";
+import { TRAVELLER_INCOME_CADENCE } from "@/lib/domain/income-cadence";
 
 import { buildParallelSawtoothData, buildPhasedSawtoothData } from "./savings-plan-charts";
 
@@ -24,6 +25,7 @@ const AS_OF_DATE = "2027-01-01";
 describe("buildPhasedSawtoothData", () => {
   it("ends within $1 of zero after the final payment", () => {
     const plan = buildPhasedSavingsPlan({
+      incomeCadence: TRAVELLER_INCOME_CADENCE,
       obligations: THREE_DEADLINES_WITH_SHORT_GAP,
       availableUsd: 0,
       asOfDate: AS_OF_DATE,
@@ -40,6 +42,7 @@ describe("buildPhasedSawtoothData", () => {
 describe("buildParallelSawtoothData", () => {
   it("ends within $1 of zero after the final payment", () => {
     const plan = buildParallelSavingsPlan({
+      incomeCadence: TRAVELLER_INCOME_CADENCE,
       obligations: THREE_DEADLINES_WITH_SHORT_GAP,
       availableUsd: 0,
       asOfDate: AS_OF_DATE,

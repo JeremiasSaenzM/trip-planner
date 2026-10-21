@@ -112,18 +112,15 @@ export function SavingsScheduleChart({
   const asOfTs = toTimestamp(asOfDate);
   const data = [
     { timestamp: asOfTs, cumulativeRequired: 0, projectedSavings: availableUsd, payment: null as string | null },
-    ...future.map((entry) => {
-      const months = DateTime.fromISO(entry.dueDate, { zone: "utc" }).diff(
-        DateTime.fromISO(asOfDate, { zone: "utc" }),
-        "months",
-      ).months;
-      return {
-        timestamp: toTimestamp(entry.dueDate),
-        cumulativeRequired: cumulativeAt(entry, basis),
-        projectedSavings: availableUsd + bindingRequirementUsd * months,
-        payment: deadlineNames.get(entry.dueDate) ?? null,
-      };
-    }),
+    // Savings grow once per payday: the same income-date count the
+    // headline divides by (entry.monthsUntil), so the projected line
+    // meets the binding deadline's total exactly.
+    ...future.map((entry) => ({
+      timestamp: toTimestamp(entry.dueDate),
+      cumulativeRequired: cumulativeAt(entry, basis),
+      projectedSavings: availableUsd + bindingRequirementUsd * (entry.monthsUntil ?? 0),
+      payment: deadlineNames.get(entry.dueDate) ?? null,
+    })),
   ];
 
   const tightest = future.reduce((best, entry) =>

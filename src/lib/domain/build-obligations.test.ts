@@ -226,7 +226,7 @@ describe("buildObligations", () => {
         totalAmount: 800,
         paidAmount: 0,
         currency: "USD",
-        dueDate: "2027-07-10", // the festival runs 2027-07-05..11; this is during the trip
+        dueDate: "2027-08-10", // after departure (2027-07-05): a balance paid at checkout
         status: "committed",
         informationState: "estimate",
       },
@@ -249,14 +249,18 @@ describe("buildObligations", () => {
     expect(obligation).toMatchObject({ owedDate: DEPARTURE, dueDate: DEPARTURE_SAVE_BY, clampedToDeparture: true });
 
     const clamped = calculateRequiredSavings({
+      incomeCadence: TRAVELLER_INCOME_CADENCE,
       asOfDate: "2027-01-01",
       savingsEntries: [],
       obligations: [obligation],
     });
     const unclamped = calculateRequiredSavings({
+      incomeCadence: TRAVELLER_INCOME_CADENCE,
       asOfDate: "2027-01-01",
       savingsEntries: [],
-      obligations: [{ ...obligation, dueDate: "2027-07-10" }],
+      // Where it would be saved for without the departure rule: the last
+      // payday before its own date, a month later than before leaving.
+      obligations: [{ ...obligation, dueDate: "2027-07-31" }],
     });
 
     expect(clamped.bindingRequirement.target).toBeGreaterThan(unclamped.bindingRequirement.target);
