@@ -1,6 +1,9 @@
 import { DateTime } from "luxon";
 
+import type { Basis } from "./types";
+
 export type Obligation = {
+  amountMinimumUsd: number;
   amountTargetUsd: number;
   amountConservativeUsd: number;
   /** YYYY-MM-DD. Payments plus one synthetic "everything else, due at
@@ -24,12 +27,15 @@ export type CalculateRequiredSavingsInput = {
 
 export type ScheduleEntry = {
   dueDate: string;
+  cumulativeMinimum: number;
   cumulativeTarget: number;
   cumulativeConservative: number;
+  remainingMinimum: number;
   remainingTarget: number;
   remainingConservative: number;
   /** null for a past-due deadline -- dividing by "months until" makes no sense once it's already due. */
   monthsUntil: number | null;
+  requiredMonthlyMinimum: number | null;
   requiredMonthlyTarget: number | null;
   requiredMonthlyConservative: number | null;
   isPastDue: boolean;
@@ -38,17 +44,41 @@ export type ScheduleEntry = {
 export type CalculateRequiredSavingsResult = {
   schedule: ScheduleEntry[];
   /** The maximum required-monthly figure across future deadlines only -- a past-due deadline doesn't have a "monthly" rate, it has a shortfall. */
-  bindingRequirement: { target: number; conservative: number };
+  bindingRequirement: Record<Basis, number>;
   /** What's owed right now across every deadline that has already passed. */
-  shortfallNow: { target: number; conservative: number };
+  shortfallNow: Record<Basis, number>;
   hasPastDueShortfall: boolean;
 };
 
+/** A schedule entry's cumulative amount due at the given basis. */
+export function cumulativeAt(entry: ScheduleEntry, basis: Basis): number {
+  switch (basis) {
+    case "minimum":
+      return entry.cumulativeMinimum;
+    case "target":
+      return entry.cumulativeTarget;
+    case "conservative":
+      return entry.cumulativeConservative;
+  }
+}
+
+/** A schedule entry's required monthly saving at the given basis (null when past due). */
+export function requiredMonthlyAt(entry: ScheduleEntry, basis: Basis): number | null {
+  switch (basis) {
+    case "minimum":
+      return entry.requiredMonthlyMinimum;
+    case "target":
+      return entry.requiredMonthlyTarget;
+    case "conservative":
+      return entry.requiredMonthlyConservative;
+  }
+}
+
 /**
- * Required monthly saving, target and conservative, per deadline:
- * cumulative amount due by then, minus money already saved, divided by
- * the months until then. Never takes a "savings capacity" input --
- * only what's already been set aside.
+ * Required monthly saving, at each basis, per deadline: cumulative
+ * amount due by then, minus money already saved, divided by the months
+ * until then. Never takes a "savings capacity" input -- only what's
+ * already been set aside.
  */
 export function calculateRequiredSavings(input: CalculateRequiredSavingsInput): CalculateRequiredSavingsResult {
   const asOf = DateTime.fromISO(input.asOfDate);
@@ -60,8 +90,10 @@ export function calculateRequiredSavings(input: CalculateRequiredSavingsInput): 
 
   const schedule: ScheduleEntry[] = deadlines.map((dueDate) => {
     const dueSoFar = input.obligations.filter((obligation) => obligation.dueDate <= dueDate);
+    const cumulativeMinimum = dueSoFar.reduce((sum, o) => sum + o.amountMinimumUsd, 0);
     const cumulativeTarget = dueSoFar.reduce((sum, o) => sum + o.amountTargetUsd, 0);
     const cumulativeConservative = dueSoFar.reduce((sum, o) => sum + o.amountConservativeUsd, 0);
+    const remainingMinimum = Math.max(0, cumulativeMinimum - saved);
     const remainingTarget = Math.max(0, cumulativeTarget - saved);
     const remainingConservative = Math.max(0, cumulativeConservative - saved);
     const isPastDue = dueDate <= input.asOfDate;
@@ -69,11 +101,14 @@ export function calculateRequiredSavings(input: CalculateRequiredSavingsInput): 
     if (isPastDue) {
       return {
         dueDate,
+        cumulativeMinimum,
         cumulativeTarget,
         cumulativeConservative,
+        remainingMinimum,
         remainingTarget,
         remainingConservative,
         monthsUntil: null,
+        requiredMonthlyMinimum: null,
         requiredMonthlyTarget: null,
         requiredMonthlyConservative: null,
         isPastDue: true,
@@ -85,11 +120,14 @@ export function calculateRequiredSavings(input: CalculateRequiredSavingsInput): 
 
     return {
       dueDate,
+      cumulativeMinimum,
       cumulativeTarget,
       cumulativeConservative,
+      remainingMinimum,
       remainingTarget,
       remainingConservative,
       monthsUntil,
+      requiredMonthlyMinimum: remainingMinimum / monthsUntil,
       requiredMonthlyTarget: remainingTarget / monthsUntil,
       requiredMonthlyConservative: remainingConservative / monthsUntil,
       isPastDue: false,
@@ -97,14 +135,18 @@ export function calculateRequiredSavings(input: CalculateRequiredSavingsInput): 
   });
 
   const futureEntries = schedule.filter((entry) => !entry.isPastDue);
+  const bindingAt = (basis: Basis) =>
+    futureEntries.reduce((max, entry) => Math.max(max, requiredMonthlyAt(entry, basis) ?? 0), 0);
   const bindingRequirement = {
-    target: futureEntries.reduce((max, entry) => Math.max(max, entry.requiredMonthlyTarget ?? 0), 0),
-    conservative: futureEntries.reduce((max, entry) => Math.max(max, entry.requiredMonthlyConservative ?? 0), 0),
+    minimum: bindingAt("minimum"),
+    target: bindingAt("target"),
+    conservative: bindingAt("conservative"),
   };
 
   const pastDueEntries = schedule.filter((entry) => entry.isPastDue);
   const latestPastDue = pastDueEntries.at(-1);
   const shortfallNow = {
+    minimum: latestPastDue?.remainingMinimum ?? 0,
     target: latestPastDue?.remainingTarget ?? 0,
     conservative: latestPastDue?.remainingConservative ?? 0,
   };
@@ -113,6 +155,6 @@ export function calculateRequiredSavings(input: CalculateRequiredSavingsInput): 
     schedule,
     bindingRequirement,
     shortfallNow,
-    hasPastDueShortfall: shortfallNow.target > 0 || shortfallNow.conservative > 0,
+    hasPastDueShortfall: shortfallNow.minimum > 0 || shortfallNow.target > 0 || shortfallNow.conservative > 0,
   };
 }

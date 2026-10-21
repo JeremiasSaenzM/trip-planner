@@ -16,6 +16,7 @@ export type PaymentForObligations = {
 export type BudgetLineForObligations = {
   id: string;
   description: string;
+  amountMin: number;
   amountTarget: number;
   amountConservative: number;
   currency: string;
@@ -27,6 +28,7 @@ export type BudgetLineForObligations = {
 // BudgetLineForRollup/FxRate elsewhere in this directory.
 export type BuiltObligation = {
   description: string;
+  amountMinimumUsd: number;
   amountTargetUsd: number;
   amountConservativeUsd: number;
   /** YYYY-MM-DD. Never after departureDate -- see clampedToDeparture. */
@@ -102,6 +104,11 @@ export type BuildObligationsResult =
  * from obligation-building (but their paid amount still reduces
  * availableUsd). Obligations with no due date, or a due date after
  * departure, are pinned to departureDate.
+ *
+ * Minimum converts at planning_base, like target (same as
+ * rollUpBudgetByScenario). A payment is a quoted amount, not a
+ * projection, so its minimum is its target; only a budget line's
+ * unallocated remainder differs, taken from its amountMin.
  */
 export function buildObligations(input: BuildObligationsInput): BuildObligationsResult {
   const missingRates: MissingObligationRate[] = [];
@@ -153,6 +160,7 @@ export function buildObligations(input: BuildObligationsInput): BuildObligations
 
     obligations.push({
       description: payment.description,
+      amountMinimumUsd: targetUsd,
       amountTargetUsd: targetUsd,
       amountConservativeUsd: conservativeUsd,
       dueDate,
@@ -176,13 +184,18 @@ export function buildObligations(input: BuildObligationsInput): BuildObligations
     const lineTargetUsd = toUsd(line.amountTarget, line.currency, "planning_base", line.description);
     const lineConservativeUsd = toUsd(line.amountConservative, line.currency, "planning_conservative", line.description);
     if (lineTargetUsd === null || lineConservativeUsd === null) continue;
+    // Same currency and rate kind as lineTargetUsd, which just converted,
+    // so this can't be the one that's missing a rate.
+    const lineMinimumUsd = toUsd(line.amountMin, line.currency, "planning_base", line.description) ?? 0;
 
+    const remainderMinimumUsd = Math.max(0, lineMinimumUsd - linkedTargetUsd);
     const remainderTargetUsd = Math.max(0, lineTargetUsd - linkedTargetUsd);
     const remainderConservativeUsd = Math.max(0, lineConservativeUsd - linkedConservativeUsd);
-    if (remainderTargetUsd <= 0 && remainderConservativeUsd <= 0) continue;
+    if (remainderMinimumUsd <= 0 && remainderTargetUsd <= 0 && remainderConservativeUsd <= 0) continue;
 
     obligations.push({
       description: `${line.description} (unallocated)`,
+      amountMinimumUsd: remainderMinimumUsd,
       amountTargetUsd: remainderTargetUsd,
       amountConservativeUsd: remainderConservativeUsd,
       dueDate: departureDate,

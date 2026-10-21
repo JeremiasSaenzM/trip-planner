@@ -7,7 +7,7 @@ import type { ObligationForGrouping } from "@/lib/domain/group-obligations-by-du
 import { buildParallelSawtoothData, buildPhasedSawtoothData } from "./savings-plan-charts";
 
 function obligation(description: string, amountUsd: number, dueDate: string): ObligationForGrouping {
-  return { description, amountTargetUsd: amountUsd, amountConservativeUsd: amountUsd, dueDate };
+  return { description, amountMinimumUsd: amountUsd, amountTargetUsd: amountUsd, amountConservativeUsd: amountUsd, dueDate };
 }
 
 // Three deadlines, today being 2027-01-01. The gap between the first two

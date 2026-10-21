@@ -16,7 +16,7 @@ import {
 } from "recharts";
 
 import type { BuiltObligation } from "@/lib/domain/build-obligations";
-import type { ScheduleEntry } from "@/lib/domain/calculate-required-savings";
+import { cumulativeAt, requiredMonthlyAt, type ScheduleEntry } from "@/lib/domain/calculate-required-savings";
 import { groupObligationsByDueDate } from "@/lib/domain/group-obligations-by-due-date";
 import type { CategoryTotals } from "@/lib/domain/roll-up-budget-by-scenario";
 import type { BudgetCategory } from "@/lib/domain/types";
@@ -29,12 +29,23 @@ function formatUsdTick(value: number): string {
   return `$${Math.round(value).toLocaleString()}`;
 }
 
-export function BudgetByCategoryChart({ byCategory }: { byCategory: Record<BudgetCategory, CategoryTotals> }) {
+// Target and conservative bars always; a minimum bar in front of them
+// only while minimum is the selected basis, so the default view is
+// unchanged and the observed floor is there when asked for.
+export function BudgetByCategoryChart({
+  byCategory,
+  basis,
+}: {
+  byCategory: Record<BudgetCategory, CategoryTotals>;
+  basis: Basis;
+}) {
+  const showMinimum = basis === "minimum";
   const data = CATEGORY_ORDER.map((category) => ({
     category: CATEGORY_LABELS[category],
+    minimum: Math.round(byCategory[category].min),
     target: Math.round(byCategory[category].target),
     conservative: Math.round(byCategory[category].conservative),
-  })).filter((row) => row.target > 0 || row.conservative > 0);
+  })).filter((row) => row.target > 0 || row.conservative > 0 || (showMinimum && row.minimum > 0));
 
   if (data.length === 0) {
     return <p className="text-sm text-zinc-500 dark:text-zinc-400">No budget lines yet.</p>;
@@ -48,6 +59,7 @@ export function BudgetByCategoryChart({ byCategory }: { byCategory: Record<Budge
         <YAxis tick={{ fontSize: 11 }} width={44} tickFormatter={formatUsdTick} />
         <Tooltip formatter={(value) => formatUsdTick(Number(value))} />
         <Legend wrapperStyle={{ fontSize: 12 }} />
+        {showMinimum && <Bar dataKey="minimum" name="Minimum" fill="var(--chart-minimum)" radius={[3, 3, 0, 0]} />}
         <Bar dataKey="target" name="Target" fill="var(--chart-target)" radius={[3, 3, 0, 0]} />
         <Bar dataKey="conservative" name="Conservative" fill="var(--chart-conservative)" radius={[3, 3, 0, 0]} />
       </BarChart>
@@ -89,9 +101,6 @@ export function SavingsScheduleChart({
     return <p className="text-sm text-zinc-500 dark:text-zinc-400">No upcoming deadlines to schedule against yet.</p>;
   }
 
-  const cumulativeField = basis === "target" ? "cumulativeTarget" : "cumulativeConservative";
-  const requiredField = basis === "target" ? "requiredMonthlyTarget" : "requiredMonthlyConservative";
-
   // schedule entries carry only amounts/dates -- the obligation's own
   // description (what the tooltip names) has to be looked up by due date.
   const deadlineNames = new Map(
@@ -108,14 +117,16 @@ export function SavingsScheduleChart({
       ).months;
       return {
         timestamp: toTimestamp(entry.dueDate),
-        cumulativeRequired: entry[cumulativeField],
+        cumulativeRequired: cumulativeAt(entry, basis),
         projectedSavings: availableUsd + bindingRequirementUsd * months,
         payment: deadlineNames.get(entry.dueDate) ?? null,
       };
     }),
   ];
 
-  const tightest = future.reduce((best, entry) => ((entry[requiredField] ?? 0) > (best[requiredField] ?? 0) ? entry : best));
+  const tightest = future.reduce((best, entry) =>
+    (requiredMonthlyAt(entry, basis) ?? 0) > (requiredMonthlyAt(best, basis) ?? 0) ? entry : best,
+  );
   const savingsLabel = `Your savings at ${formatUsd(bindingRequirementUsd)}/month`;
 
   return (

@@ -10,6 +10,7 @@ import { findMissingFxRates, type MissingFxRate } from "@/lib/domain/find-missin
 import { rollUpBudgetByScenario, type RollUpBudgetByScenarioResult } from "@/lib/domain/roll-up-budget-by-scenario";
 import type { Basis } from "@/lib/domain/types";
 
+import { parseBasis } from "./dashboard-query";
 import { sortScenarios } from "./scenario-order";
 
 export type { Basis };
@@ -101,7 +102,7 @@ export async function loadDashboardData(params: {
   const scenario = tripScenarios.find((s) => s.id === params.scenarioId) ?? tripScenarios[0];
   if (!scenario) return { status: "no_scenario", trip, competitions: tripCompetitions };
 
-  const basis: Basis = params.basis === "conservative" ? "conservative" : "target";
+  const basis = parseBasis(params.basis);
   const asOfDate = new Date().toISOString().slice(0, 10);
 
   const tripBudgetLines = budgetLines.filter((line) => line.tripId === trip.id);

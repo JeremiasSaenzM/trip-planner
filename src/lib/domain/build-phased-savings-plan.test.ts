@@ -4,7 +4,7 @@ import { buildPhasedSavingsPlan } from "./build-phased-savings-plan";
 import type { ObligationForGrouping } from "./group-obligations-by-due-date";
 
 function obligation(description: string, amountUsd: number, dueDate: string): ObligationForGrouping {
-  return { description, amountTargetUsd: amountUsd, amountConservativeUsd: amountUsd, dueDate };
+  return { description, amountMinimumUsd: amountUsd, amountTargetUsd: amountUsd, amountConservativeUsd: amountUsd, dueDate };
 }
 
 const THREE_DEADLINES: ObligationForGrouping[] = [
@@ -88,5 +88,19 @@ describe("buildPhasedSavingsPlan", () => {
     const totalNeeded = THREE_DEADLINES.reduce((sum, o) => sum + o.amountTargetUsd, 0);
 
     expect(totalSaved + availableUsd).toBeCloseTo(totalNeeded, 5);
+  });
+});
+
+describe("buildPhasedSavingsPlan at the minimum basis", () => {
+  it("plans each phase against the minimum amounts", () => {
+    const obligations: ObligationForGrouping[] = [
+      { description: "Registration", amountMinimumUsd: 400, amountTargetUsd: 600, amountConservativeUsd: 700, dueDate: "2027-03-01" },
+      { description: "Flight", amountMinimumUsd: 600, amountTargetUsd: 900, amountConservativeUsd: 1000, dueDate: "2027-06-01" },
+    ];
+    const result = buildPhasedSavingsPlan({ obligations, availableUsd: 0, asOfDate: "2027-01-01", basis: "minimum" });
+    expect(result.phases.map((p) => ({ amount: p.balanceBeforePayment, saving: p.monthlySaving }))).toEqual([
+      { amount: 400, saving: 200 },
+      { amount: 600, saving: 200 },
+    ]);
   });
 });

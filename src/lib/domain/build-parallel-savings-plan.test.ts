@@ -4,7 +4,7 @@ import { buildParallelSavingsPlan } from "./build-parallel-savings-plan";
 import type { ObligationForGrouping } from "./group-obligations-by-due-date";
 
 function obligation(description: string, amountUsd: number, dueDate: string): ObligationForGrouping {
-  return { description, amountTargetUsd: amountUsd, amountConservativeUsd: amountUsd, dueDate };
+  return { description, amountMinimumUsd: amountUsd, amountTargetUsd: amountUsd, amountConservativeUsd: amountUsd, dueDate };
 }
 
 const THREE_DEADLINES: ObligationForGrouping[] = [
@@ -120,5 +120,19 @@ describe("buildParallelSavingsPlan", () => {
     const totalNeeded = obligations.reduce((sum, o) => sum + o.amountTargetUsd, 0);
 
     expect(totalSavedViaPeriods + availableUsd).toBeCloseTo(totalNeeded, 5);
+  });
+});
+
+describe("buildParallelSavingsPlan at the minimum basis", () => {
+  it("sizes every pot at its minimum amount", () => {
+    const obligations: ObligationForGrouping[] = [
+      { description: "Registration", amountMinimumUsd: 400, amountTargetUsd: 600, amountConservativeUsd: 700, dueDate: "2027-03-01" },
+      { description: "Flight", amountMinimumUsd: 500, amountTargetUsd: 900, amountConservativeUsd: 1000, dueDate: "2027-06-01" },
+    ];
+    const result = buildParallelSavingsPlan({ obligations, availableUsd: 100, asOfDate: "2027-01-01", basis: "minimum" });
+    expect(result.pots.map((p) => ({ amount: p.amountUsd, share: p.availableShareUsd, saving: p.monthlySaving }))).toEqual([
+      { amount: 400, share: 100, saving: 150 },
+      { amount: 500, share: 0, saving: 100 },
+    ]);
   });
 });
