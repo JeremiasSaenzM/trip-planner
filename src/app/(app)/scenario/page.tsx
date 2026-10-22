@@ -3,17 +3,21 @@ import Link from "next/link";
 import { Suspense } from "react";
 
 import { getCurrentUser } from "@/lib/auth";
-import type { BudgetLine, Competition, Trip } from "@/lib/data/types";
+import type { BudgetLine, Competition, Movement, Trip } from "@/lib/data/types";
 import type { InfoState } from "@/lib/domain/types";
+
+import type { ItineraryDay } from "@/lib/domain/build-itinerary-timeline";
 
 import { CATEGORY_LABELS } from "../category-labels";
 import { CONFIDENCE_LABELS, CONFIDENCE_NOT_ASSESSED } from "../confidence-labels";
 import { BASIS_LABELS, DashboardControls } from "../dashboard-controls";
-import { loadDashboardData } from "../dashboard-data";
+import { loadDashboardData, type DashboardData } from "../dashboard-data";
 import { Card, CardLabel, Caveat, EmptyState, noDepartureReason, RangeFigure } from "../dashboard-ui";
 import { DeadlinePotList } from "../deadline-pots-ui";
 import { formatDate, formatUsd } from "../format";
 import { INFO_STATE_LABELS } from "../info-state-labels";
+import { AddMovementForm, AddStayForm, MovementList, StayList } from "../itinerary-write-ui";
+import { MOVEMENT_MODE_LABELS } from "../itinerary-labels";
 import { departureAnchorText } from "../pot-item-text";
 import { summarizeBudgetEvidence } from "../scenario-evidence";
 import { SOURCE_TIER_LABELS } from "../source-labels";
@@ -100,6 +104,40 @@ async function ScenarioOverview({ searchParams }: { searchParams: PageProps<"/sc
               )}
             </Fact>
           </dl>
+        </Card>
+      </section>
+
+      <section aria-labelledby="itinerary" className="space-y-2">
+        <h2 id="itinerary" className="text-lg font-semibold">
+          Itinerary
+        </h2>
+        <Card>
+          <ItineraryChecks data={data} />
+          <div className="mt-4">
+            <CardLabel>Night by night</CardLabel>
+            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">{daysAwayText(data.itineraryTimeline)}</p>
+            <ItineraryStrip days={data.itineraryTimeline} />
+          </div>
+        </Card>
+
+        <Card>
+          <CardLabel>Stays</CardLabel>
+          <div className="mt-2">
+            <StayList stays={data.stays} budgetLines={data.budgetLines} sources={data.sources} />
+          </div>
+          <div className="mt-4 border-t border-zinc-200 pt-4 dark:border-zinc-800">
+            <AddStayForm scenarioId={scenario.id} budgetLines={data.budgetLines} sources={data.sources} />
+          </div>
+        </Card>
+
+        <Card>
+          <CardLabel>Movements</CardLabel>
+          <div className="mt-2">
+            <MovementList movements={data.movements} budgetLines={data.budgetLines} sources={data.sources} />
+          </div>
+          <div className="mt-4 border-t border-zinc-200 pt-4 dark:border-zinc-800">
+            <AddMovementForm scenarioId={scenario.id} budgetLines={data.budgetLines} sources={data.sources} />
+          </div>
         </Card>
       </section>
 
@@ -311,6 +349,117 @@ function InfoStateBadge({ state }: { state: InfoState }) {
 function HostText({ competition }: { competition: Competition }) {
   const place = [competition.venue, competition.city, competition.country].filter(Boolean).join(", ");
   return place ? <>{place}</> : <Missing>Host not announced yet</Missing>;
+}
+
+// The five Phase 6.4 checks -- warnings, never blocks. "unknown" (the
+// trip's travel window or the competition's festival dates aren't set
+// yet) is stated plainly rather than as a Caveat: there's nothing wrong
+// to flag, just nothing to compare against yet.
+function ItineraryChecks({ data }: { data: Extract<DashboardData, { status: "ready" }> }) {
+  const { stayNightsCheck, festivalStayCoverage, pathContinuityIssues, unaccountedNights, movementsMissingBudgetLine } =
+    data;
+
+  const nothingToReport =
+    stayNightsCheck.status !== "mismatch" &&
+    festivalStayCoverage.status !== "gap" &&
+    pathContinuityIssues.length === 0 &&
+    unaccountedNights.length === 0 &&
+    movementsMissingBudgetLine.length === 0;
+
+  return (
+    <div className="space-y-2">
+      {stayNightsCheck.status === "unknown" && (
+        <Missing>Travel window not set -- can&apos;t check whether the stays&apos; nights add up.</Missing>
+      )}
+      {stayNightsCheck.status === "mismatch" && (
+        <Caveat>
+          Stays total {stayNightsCheck.staysNights} night{stayNightsCheck.staysNights === 1 ? "" : "s"}, but the
+          trip&apos;s travel window is {stayNightsCheck.windowNights} night
+          {stayNightsCheck.windowNights === 1 ? "" : "s"}.
+        </Caveat>
+      )}
+      {festivalStayCoverage.status === "unknown" && (
+        <Missing>Festival dates not set -- can&apos;t check festival-stay coverage.</Missing>
+      )}
+      {festivalStayCoverage.status === "gap" && (
+        <Caveat>
+          No festival-kind stay covers {festivalStayCoverage.uncoveredNights.length} night
+          {festivalStayCoverage.uncoveredNights.length === 1 ? "" : "s"}:{" "}
+          {festivalStayCoverage.uncoveredNights.map((date) => formatDate(date)).join(", ")}.
+        </Caveat>
+      )}
+      {pathContinuityIssues.length > 0 && (
+        <Caveat>
+          {pathContinuityIssues.length} movement{pathContinuityIssues.length === 1 ? "" : "s"} in this scenario don&apos;t
+          connect to the one before: {" "}
+          {pathContinuityIssues
+            .map(
+              (issue) =>
+                `#${issue.sequence} starts from ${issue.actualFromLocation}, not ${issue.expectedFromLocation}`,
+            )
+            .join("; ")}
+          .
+        </Caveat>
+      )}
+      {unaccountedNights.length > 0 && (
+        <Caveat>
+          {unaccountedNights.length} night{unaccountedNights.length === 1 ? "" : "s"} with no stay recorded:{" "}
+          {unaccountedNights.map((night) => `${formatDate(night.date)} (${night.requiredLocation})`).join(", ")}.
+        </Caveat>
+      )}
+      {movementsMissingBudgetLine.length > 0 && (
+        <Caveat>
+          {movementsMissingBudgetLine.length} movement{movementsMissingBudgetLine.length === 1 ? "" : "s"} with no
+          budget line yet: {movementsMissingBudgetLine.map((m) => `${m.fromLocation} → ${m.toLocation}`).join(", ")}.
+        </Caveat>
+      )}
+      {nothingToReport && stayNightsCheck.status !== "unknown" && festivalStayCoverage.status !== "unknown" && (
+        <p className="text-sm text-zinc-600 dark:text-zinc-400">Every itinerary check passes.</p>
+      )}
+    </div>
+  );
+}
+
+// Generated, never typed in -- buildItineraryTimeline() walks the
+// movement chain once; this just renders what comes back.
+function ItineraryStrip({ days }: { days: ItineraryDay<Movement>[] }) {
+  if (days.length === 0) {
+    return <Missing>No movements recorded yet, so there&apos;s nothing to walk night by night.</Missing>;
+  }
+
+  return (
+    <ol data-testid="itinerary-strip" className="mt-2 space-y-1.5 text-sm">
+      {days.map((day) => (
+        <li key={day.date}>
+          <span className="font-medium">{formatDate(day.date)}</span>
+          {day.movements.length > 0 && (
+            <span className="text-zinc-600 dark:text-zinc-400">
+              {" — "}
+              {day.movements.map((movement, index) => (
+                <span key={movement.id}>
+                  {index > 0 ? " → " : ""}
+                  {movement.fromLocation} → {movement.toLocation} ({MOVEMENT_MODE_LABELS[movement.mode]})
+                </span>
+              ))}
+            </span>
+          )}
+          <span className="ml-1 text-zinc-500 dark:text-zinc-400">
+            {day.night.type === "at" && `Night: ${day.night.location}.`}
+            {day.night.type === "in_transit" && "Night: overnight travel."}
+            {day.night.type === "home" && "Home."}
+          </span>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+// So the food budget line (category E) can be eyeballed against it --
+// deliberately counted here, not parsed out of a description (CLAUDE.md:
+// that stays prose).
+function daysAwayText(days: ItineraryDay<Movement>[]): string {
+  const daysAway = days.filter((day) => day.night.type !== "home").length;
+  return `${daysAway} day${daysAway === 1 ? "" : "s"} on the ground.`;
 }
 
 function TravelWindowText({ trip }: { trip: Trip }) {
