@@ -7,14 +7,15 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
-select plan(59);
+select plan(72);
 
 select has_table('proposal_batches', 'proposal_batches exists');
 select has_table('proposal_items', 'proposal_items exists');
 select enum_has_labels('proposal_op', array[
   'create_source', 'create_competition', 'create_scenario', 'create_budget_line', 'create_payment', 'create_fx_rate',
-  'update_competition', 'update_scenario', 'update_budget_line', 'update_payment', 'update_fx_rate', 'update_savings_entry'
-], 'proposal_op is exactly the twelve v1 operations');
+  'update_competition', 'update_scenario', 'update_budget_line', 'update_payment', 'update_fx_rate', 'update_savings_entry',
+  'create_stay', 'create_movement', 'update_stay', 'update_movement'
+], 'proposal_op is exactly the sixteen operations (v1 plus stays and movements)');
 select enum_has_labels('proposal_status', array['pending', 'approved', 'rejected'], 'proposal_status is pending / approved / rejected');
 select ok((select relrowsecurity from pg_class where oid = 'proposal_batches'::regclass), 'RLS is on for proposal_batches');
 select ok((select relrowsecurity from pg_class where oid = 'proposal_items'::regclass), 'RLS is on for proposal_items');
@@ -56,6 +57,14 @@ insert into payments (
   'b2000000-0000-0000-0000-000000000006', 'b2000000-0000-0000-0000-000000000005',
   'b2000000-0000-0000-0000-000000000004', 'pgTAP deposit', 200, 'EUR', 'committed', 'refundable', true
 );
+insert into stays (id, scenario_id, location, start_date, nights, kind, information_state) values (
+  'b2000000-0000-0000-0000-000000000010', 'b2000000-0000-0000-0000-000000000004',
+  'pgTAP existing stay', '2027-07-01', 5, 'independent', 'estimate'
+);
+insert into movements (id, scenario_id, sequence, from_location, to_location, depart_date, arrive_date, mode, information_state) values (
+  'b2000000-0000-0000-0000-000000000011', 'b2000000-0000-0000-0000-000000000004',
+  1, 'Home', 'pgTAP existing stay', '2027-07-01', '2027-07-01', 'plane', 'estimate'
+);
 
 -- Saving a batch
 
@@ -91,7 +100,26 @@ select lives_ok(
          {"position": 8, "ref": "b1-foreign", "op": "create_budget_line", "reason": "pgTAP: someone else''s source",
           "payload": {"data": {"category": "E", "description": "Foreign source line", "amountMin": 1,
             "amountTarget": 1, "amountConservative": 1, "currency": "EUR", "informationState": "estimate",
-            "source": {"id": "b2000000-0000-0000-0000-000000000099"}}}}
+            "source": {"id": "b2000000-0000-0000-0000-000000000099"}}}},
+         {"position": 9, "ref": "b1-stay", "op": "create_stay", "reason": "pgTAP: a stay for the new scenario",
+          "payload": {"data": {"scenario": {"item": 1}, "location": "pgTAP stay", "startDate": "2027-07-01",
+            "nights": 3, "kind": "independent", "informationState": "estimate"}}, "dependsOn": [1]},
+         {"position": 10, "ref": "b1-move", "op": "create_movement", "reason": "pgTAP: a movement for the new scenario",
+          "payload": {"data": {"scenario": {"item": 1}, "sequence": 1, "fromLocation": "Home", "toLocation": "pgTAP stay",
+            "departDate": "2027-07-01", "arriveDate": "2027-07-01", "mode": "plane", "informationState": "estimate"}},
+          "dependsOn": [1]},
+         {"position": 11, "ref": "b1-update-stay", "op": "update_stay", "reason": "pgTAP: nights corrected",
+          "targetId": "b2000000-0000-0000-0000-000000000010",
+          "payload": {"changes": {"nights": {"from": 5, "to": 6}}}},
+         {"position": 12, "ref": "b1-update-stay-stale", "op": "update_stay", "reason": "pgTAP: written against old data",
+          "targetId": "b2000000-0000-0000-0000-000000000010",
+          "payload": {"changes": {"location": {"from": "wrong", "to": "pgTAP stay renamed"}}}},
+         {"position": 13, "ref": "b1-update-stay-field", "op": "update_stay", "reason": "pgTAP: not a field",
+          "targetId": "b2000000-0000-0000-0000-000000000010",
+          "payload": {"changes": {"scenarioId": {"from": null, "to": "b2000000-0000-0000-0000-000000000004"}}}},
+         {"position": 14, "ref": "b1-update-move", "op": "update_movement", "reason": "pgTAP: sequence corrected",
+          "targetId": "b2000000-0000-0000-0000-000000000011",
+          "payload": {"changes": {"sequence": {"from": 1, "to": 2}}}}
        ]'::jsonb
      ) $$,
   'create_proposal_batch saves a batch'
@@ -99,8 +127,16 @@ select lives_ok(
 
 select is(
   (select count(*)::int from proposal_items i join proposal_batches b on b.id = i.batch_id where b.note = 'pgTAP batch one'),
-  9,
+  15,
   'every item of the batch was saved, all pending'
+);
+
+select throws_like(
+  $$ select create_proposal_batch('b2000000-0000-0000-0000-000000000001', null, '{}',
+       '[{"position": 0, "op": "update_stay", "reason": "x", "targetId": "b2000000-0000-0000-0000-0000000000fd",
+          "payload": {"changes": {}}}]'::jsonb) $$,
+  '%the row it updates was not found (or not yours)%',
+  'an update_stay whose target doesn''t exist is refused when the batch is saved'
 );
 
 select throws_like(
@@ -195,6 +231,40 @@ select results_eq(
   'references inside the batch resolved to the rows the earlier approvals created'
 );
 
+-- Stays and movements: a plain insert, same as create_budget_line
+
+select lives_ok(
+  $$ select approve_proposal((select id from proposal_items where ref = 'b1-stay')) $$,
+  'the stay can be approved once its scenario is'
+);
+
+select results_eq(
+  $$ select scenario_id = (select result_id from proposal_items where ref = 'b1-scn'), location, nights, kind::text
+     from stays where location = 'pgTAP stay' $$,
+  $$ values (true, 'pgTAP stay'::text, 3::smallint, 'independent'::text) $$,
+  'the stay''s scenario reference resolved to the scenario the earlier approval created'
+);
+
+select results_eq(
+  $$ select actor, reason from change_log
+     where table_name = 'stays' and action = 'insert'
+       and row_id = (select result_id from proposal_items where ref = 'b1-stay') $$,
+  $$ values ('claude'::text, 'pgTAP: a stay for the new scenario'::text) $$,
+  'the stay''s creation is logged as Claude''s, with the proposal''s reason'
+);
+
+select lives_ok(
+  $$ select approve_proposal((select id from proposal_items where ref = 'b1-move')) $$,
+  'the movement can be approved once its scenario is'
+);
+
+select results_eq(
+  $$ select scenario_id = (select result_id from proposal_items where ref = 'b1-scn'), from_location, to_location
+     from movements where to_location = 'pgTAP stay' $$,
+  $$ values (true, 'Home'::text, 'pgTAP stay'::text) $$,
+  'the movement''s scenario reference resolved the same way'
+);
+
 -- Updates: same RPC as the edit form, refused when stale
 
 select lives_ok(
@@ -234,6 +304,50 @@ select throws_like(
   $$ select approve_proposal((select id from proposal_items where ref = 'b1-field')) $$,
   '%Proposal changes a field it can''t: tripId%',
   'a field outside the operation''s whitelist is refused, not ignored'
+);
+
+-- The same stale check and field whitelist, for update_stay and update_movement
+
+select lives_ok(
+  $$ select approve_proposal((select id from proposal_items where ref = 'b1-update-stay')) $$,
+  'an update_stay whose "from" still matches is approved'
+);
+
+select is(
+  (select nights from stays where id = 'b2000000-0000-0000-0000-000000000010'),
+  6::smallint,
+  'the update went through: nights is now 6'
+);
+
+select throws_like(
+  $$ select approve_proposal((select id from proposal_items where ref = 'b1-update-stay-stale')) $$,
+  '%Proposal is out of date: location is now%',
+  'an update_stay whose "from" no longer matches is refused, never applied over the current value'
+);
+
+select results_eq(
+  $$ select i.status::text, s.location
+     from proposal_items i, stays s
+     where i.ref = 'b1-update-stay-stale' and s.id = 'b2000000-0000-0000-0000-000000000010' $$,
+  $$ values ('pending'::text, 'pgTAP existing stay'::text) $$,
+  'the stale item stays pending and the stay is untouched'
+);
+
+select throws_like(
+  $$ select approve_proposal((select id from proposal_items where ref = 'b1-update-stay-field')) $$,
+  '%Proposal changes a field it can''t: scenarioId%',
+  'update_stay refuses a field outside its whitelist too -- a stay can''t be relocated to another scenario this way'
+);
+
+select lives_ok(
+  $$ select approve_proposal((select id from proposal_items where ref = 'b1-update-move')) $$,
+  'an update_movement whose "from" still matches is approved'
+);
+
+select is(
+  (select sequence from movements where id = 'b2000000-0000-0000-0000-000000000011'),
+  2::smallint,
+  'the update went through: sequence is now 2'
 );
 
 -- The same rules as manual entry
