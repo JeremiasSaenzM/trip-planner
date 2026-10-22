@@ -821,6 +821,32 @@ test("the full first-run journey, starting from a signed-out, empty account", as
         },
         { op: "create_scenario", ref: "abandoned", reason: "A second idea", data: { name: "Abandoned idea" } },
         { op: "create_budget_line", reason: "For the second idea", data: line("abandoned", "A", "Abandoned idea line", [1, 1, 1]) },
+        {
+          op: "create_stay",
+          reason: "Housing for the Olympics candidate -- nights don't match the travel window yet, on purpose",
+          data: {
+            scenario: { ref: "olympics-scn" },
+            location: "Olympics village",
+            startDate: "2027-07-03",
+            nights: 5,
+            kind: "independent",
+            informationState: "estimate",
+          },
+        },
+        {
+          op: "create_movement",
+          reason: "Outbound leg for the Olympics candidate",
+          data: {
+            scenario: { ref: "olympics-scn" },
+            sequence: 1,
+            fromLocation: "Home",
+            toLocation: "Olympics village",
+            departDate: "2027-07-03",
+            arriveDate: "2027-07-03",
+            mode: "plane",
+            informationState: "estimate",
+          },
+        },
       ],
     };
 
@@ -836,11 +862,11 @@ test("the full first-run journey, starting from a signed-out, empty account", as
 
   await test.step("Overview says proposals are waiting, and nothing is written yet", async () => {
     await page.goto("/");
-    await expect(page.getByRole("link", { name: "10 research proposals waiting for review" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "12 research proposals waiting for review" })).toBeVisible();
     await page.goto("/scenarios");
     await expect(scenarioCard(page, "Olympics 2028")).toHaveCount(0);
     await page.goto("/");
-    await page.getByRole("link", { name: "10 research proposals waiting for review" }).click();
+    await page.getByRole("link", { name: "12 research proposals waiting for review" }).click();
     await expect(page).toHaveURL("/import");
     await page.getByRole("link", { name: "Olympics research session" }).click();
     await expect(page).toHaveURL(batchUrl);
@@ -885,9 +911,9 @@ test("the full first-run journey, starting from a signed-out, empty account", as
 
   await test.step("approve all ready: the chain goes through in one click, the stale one stays", async () => {
     await page.getByRole("button", { name: /Approve all ready/ }).click();
-    await expect(page.getByRole("status")).toHaveText("Approved 6 items.");
+    await expect(page.getByRole("status")).toHaveText("Approved 8 items.");
 
-    for (const n of [1, 2, 3, 4, 5, 7]) {
+    for (const n of [1, 2, 3, 4, 5, 7, 11, 12]) {
       await expect(proposalCard(page, n).getByText("Approved -- written to your plan.")).toBeVisible();
     }
     await expect(proposalCard(page, 8).getByText("Out of date")).toBeVisible();
@@ -901,6 +927,22 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await expect(proposalCard(page, 8).getByText("Rejected: Minimum moved; asking for a fresh proposal")).toBeVisible();
     // Nothing left pending: the batch-wide buttons go away.
     await expect(page.getByRole("button", { name: /Approve all ready/ })).toHaveCount(0);
+  });
+
+  // The import path checks a proposal against the form it would have
+  // gone through (Zod validation) -- never against the 6.4 scenario
+  // checks (stay-nights-match-window and friends), which stay warnings
+  // everywhere else too. A stay whose nights don't fit the trip's
+  // travel window must still approve; the mismatch should only show up
+  // afterward, on the Scenario Overview, same as it would for a stay
+  // entered by hand.
+  await test.step("an import that produces a 6.4 warning still approves -- those checks are warnings, not blocks", async () => {
+    const after = await (await page.request.get("/export/download")).json();
+    const olympics = after.data.scenarios.find((s: { name: string }) => s.name === "Olympics 2028");
+    expect(after.data.stays.some((s: { location: string }) => s.location === "Olympics village")).toBe(true);
+
+    await page.goto(`/scenario?scenario=${olympics.id}`);
+    await expect(page.getByText("Stays total 5 nights, but the trip's travel window is 11 nights.")).toBeVisible();
   });
 
   await test.step("what was approved is in the plan, and nothing else", async () => {
@@ -1017,7 +1059,7 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     expect(exported.data.scenarios.some((s: { name: string }) => s.name === "Abandoned idea")).toBe(false);
 
     const proposals: { position: number; status: string; decisionReason: string | null }[] = exported.data.proposalItems;
-    expect(proposals.filter((p) => p.status === "approved")).toHaveLength(6);
+    expect(proposals.filter((p) => p.status === "approved")).toHaveLength(8);
     expect(proposals.filter((p) => p.status === "rejected")).toHaveLength(4);
     expect(proposals.find((p) => p.position === 9)!.decisionReason).toBe(
       "Rejected with item 9, which it depends on: Dropping this idea",
