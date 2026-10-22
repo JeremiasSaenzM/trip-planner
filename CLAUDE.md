@@ -112,6 +112,10 @@ Each phase ends with something working, committed, and pushed.
 6. **Claude bridge** — Supabase MCP (project-scoped) so research sessions can update data; migrate real numbers from the Project files; the Project's budget file then points to the database.
    - ✅ Claude reads the database through a read-only connector; it never writes directly.
    - ✅ Import proposals (`/import`): a research session's results are pasted as one JSON block (`src/lib/proposals/schema.ts`) and reviewed item by item. Approving runs the same write a form would (`approve_proposal()`), logged in change_log as actor `claude` with the proposal's reason. Rejecting records its reason; nothing is deleted. An update carries the `from` value it saw and is refused if the row has moved since. Actor `claude` is never exempt from the reason requirement, inserts included.
+6.4. **Scenario identity: stays and movements** — Added from using the app, not part of the original plan: night counts used to live only as prose inside budget-line descriptions, where a mismatch between the plan's assumed trip length and what's actually scheduled stayed invisible.
+   - `stays` (location, start date, nights, kind — festival/independent/transit — optional budget line, information state and source) and `movements` (a chain of legs, home to home, each with its own sequence, from/to location, depart and arrive dates/times, mode, optional budget line, booking reference, information state and source). Movements are stored, not derived from stays, so a routing choice is visible as something other than a differently-named budget line, and so Phase 6.5's hard-constraint checks have real legs to apply to.
+   - Five checks, surfaced on Scenario Overview as warnings, never blocks: stay nights add up to the trip's travel window; a festival-kind stay covers the night before the first festival day through the final night; the movement chain is continuous (each leg's from-location matches the previous leg's to-location); every night away is either crossed by a movement or covered by a stay at the right location; every movement has a budget line.
+   - A night-by-night strip on Scenario Overview is generated from the movement chain, never typed in, alongside a days-on-the-ground count to eyeball the food budget against.
 6.5. **Flights** — Record flight options and their segments, with a source for every fare. Run the existing domain checks against each option and show the result: no US/Canada stop (territories count as US), at the destination before the first official festival day begins, departure only after the final festival day ends, baggage allows one checked bag of about 23 kg. Show Effective Flight Cost and Total Itinerary Cost. Never rank or score by flight duration, number of connections, or which cities/airports a route passes through — those stay descriptive only.
    - Open question to solve first: there is no automated source of real fares available to this project. Fares are entered by hand from research until that changes.
    - Booked itinerary: once a ticket exists, record what was actually booked, not only the candidates — flight numbers, dates, times, airports, booking reference.
@@ -127,4 +131,4 @@ Each phase ends with something working, committed, and pushed.
 
 ## Current phase
 
-Phase 6 — Claude bridge.
+Phase 6.4 — Scenario identity: stays and movements.
