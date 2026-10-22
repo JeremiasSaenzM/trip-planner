@@ -8,7 +8,11 @@ import { defineConfig, devices } from "@playwright/test";
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: false,
-  retries: process.env.CI ? 1 : 0,
+  // No test-level retries: the journey assumes an empty account, and a retry
+  // reuses the same dirty database and app server, so it can only ever fail
+  // for the wrong reason. Re-run the whole job instead -- that rebuilds the
+  // stack from scratch and is a genuinely clean attempt.
+  retries: 0,
   reporter: process.env.CI ? [["html", { open: "never" }], ["github"]] : "list",
   use: {
     baseURL: process.env.E2E_BASE_URL ?? "http://127.0.0.1:3000",
