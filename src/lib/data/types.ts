@@ -1,4 +1,4 @@
-import type { BudgetCategory, Confidence, FlightBaggage, InfoState, RateKind } from "@/lib/domain/types";
+import type { BudgetCategory, Confidence, FlightBaggage, InfoState, RateKind, StayKind } from "@/lib/domain/types";
 
 export type TripStatus = "planning" | "confirmed" | "completed" | "cancelled";
 export type AcceptanceStatus = "pending" | "accepted" | "declined";
@@ -15,6 +15,10 @@ export type Refundability = "refundable" | "partially_refundable" | "non_refunda
 export type OpenItemCategory = "deadline" | "task" | "question";
 export type OpenItemStatus = "open" | "done" | "dismissed";
 export type FlightDirection = "outbound" | "return";
+/** How a movement travels -- purely descriptive (CLAUDE.md: mode is
+ * never a ranking criterion), so unlike StayKind no domain check
+ * branches on it. */
+export type MovementMode = "plane" | "train" | "bus" | "ferry" | "car" | "other";
 export type ChangeAction = "insert" | "update" | "delete";
 export type ChangeLogActor = "app" | "seed" | "claude";
 
@@ -223,6 +227,51 @@ export type FlightSegment = {
   isTechnicalStop: boolean;
 };
 
+// A scenario's itinerary identity (Phase 6.4): where the traveller
+// sleeps (stays) and how they get between places (movements). See
+// 20261023090000_stays_movements.sql for the reasoning behind storing
+// movements rather than deriving them from stays, and for why
+// source_id is nullable on both with nothing enforcing it yet.
+export type Stay = {
+  id: string;
+  scenarioId: string;
+  location: string;
+  startDate: string;
+  nights: number;
+  kind: StayKind;
+  budgetLineId: string | null;
+  informationState: InfoState;
+  sourceId: string | null;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type Movement = {
+  id: string;
+  scenarioId: string;
+  /** Explicit order along the home-to-home chain -- not derived from
+   * the dates, since two legs on the same day still need an order. */
+  sequence: number;
+  fromLocation: string;
+  toLocation: string;
+  departDate: string;
+  /** Local time of day, HH:MM:SS -- null until it's known. */
+  departTime: string | null;
+  /** Its own column, not derived from departDate, so an overnight leg
+   * can cross midnight with no stay needed for that night. */
+  arriveDate: string;
+  arriveTime: string | null;
+  mode: MovementMode;
+  budgetLineId: string | null;
+  bookingReference: string | null;
+  informationState: InfoState;
+  sourceId: string | null;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
 // The append-only audit trail every tracked table writes to
 // (supabase/migrations/20261012131400_change_log.sql) -- read-only from
 // the app's side (there is no owner write policy on this table at all,
@@ -427,6 +476,39 @@ export type UpdateBudgetLineWrite = {
 };
 export type DeleteBudgetLineWrite = { id: string; reason: string };
 
+type StayFieldsWrite = {
+  location: string;
+  startDate: string;
+  nights: number;
+  kind: StayKind;
+  budgetLineId?: string;
+  informationState: InfoState;
+  sourceId?: string;
+  notes?: string;
+};
+export type CreateStayWrite = StayFieldsWrite & { scenarioId: string };
+export type UpdateStayWrite = StayFieldsWrite & { id: string; reason: string };
+export type DeleteStayWrite = { id: string; reason: string };
+
+type MovementFieldsWrite = {
+  sequence: number;
+  fromLocation: string;
+  toLocation: string;
+  departDate: string;
+  departTime?: string;
+  arriveDate: string;
+  arriveTime?: string;
+  mode: MovementMode;
+  budgetLineId?: string;
+  bookingReference?: string;
+  informationState: InfoState;
+  sourceId?: string;
+  notes?: string;
+};
+export type CreateMovementWrite = MovementFieldsWrite & { scenarioId: string };
+export type UpdateMovementWrite = MovementFieldsWrite & { id: string; reason: string };
+export type DeleteMovementWrite = { id: string; reason: string };
+
 export type CreateFxRateWrite = {
   currency: string;
   rateToUsd: number;
@@ -497,6 +579,8 @@ export type DataSource = {
   getOpenItems(): Promise<OpenItem[]>;
   getFlightOptions(): Promise<FlightOption[]>;
   getFlightSegments(): Promise<FlightSegment[]>;
+  getStays(): Promise<Stay[]>;
+  getMovements(): Promise<Movement[]>;
   getChangeLog(): Promise<ChangeLogEntry[]>;
   getProposalBatches(): Promise<ProposalBatch[]>;
   getProposalItems(): Promise<ProposalItem[]>;
@@ -522,6 +606,12 @@ export type DataSource = {
   deleteBudgetLine(input: DeleteBudgetLineWrite): Promise<void>;
   createFxRate(input: CreateFxRateWrite): Promise<FxRate>;
   updateFxRate(input: UpdateFxRateWrite): Promise<FxRate>;
+  createStay(input: CreateStayWrite): Promise<Stay>;
+  updateStay(input: UpdateStayWrite): Promise<Stay>;
+  deleteStay(input: DeleteStayWrite): Promise<void>;
+  createMovement(input: CreateMovementWrite): Promise<Movement>;
+  updateMovement(input: UpdateMovementWrite): Promise<Movement>;
+  deleteMovement(input: DeleteMovementWrite): Promise<void>;
   /** Returns the new batch's id. */
   createProposalBatch(input: CreateProposalBatchWrite): Promise<string>;
   approveProposal(itemId: string): Promise<ProposalItem>;

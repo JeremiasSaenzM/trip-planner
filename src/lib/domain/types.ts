@@ -23,6 +23,12 @@ export type Basis = (typeof BASES)[number];
 
 export type FlightBaggage = "included" | "paid_addon" | "not_allowed" | "unknown";
 
+/** A stay's role in the trip -- check-festival-stay-coverage.ts filters
+ * on "festival" specifically, which is what makes this a domain
+ * discriminant rather than just a data label (contrast MovementMode,
+ * in src/lib/data/types.ts, which no domain function branches on). */
+export type StayKind = "festival" | "independent" | "transit";
+
 export type ConstraintStatus = "pass" | "fail" | "unknown";
 
 export type HardConstraintResult = {
