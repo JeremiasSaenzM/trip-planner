@@ -23,6 +23,36 @@ jobs:
         with:
           version: 2.120.0
 
+      # DOCKERHUB_TOKEN expires never — regenerate at hub.docker.com
+      # Read-only on public images; it exists only to lift the
+      # anonymous pull rate limit that has failed this job three times.
+      # registry is explicit: a bare `docker login` stores credentials
+      # under the index.docker.io key, which some Docker CLI versions
+      # don't match against pulls resolved to registry-1.docker.io --
+      # pinning docker.io here is what makes supabase start's own pulls
+      # actually use this login instead of silently falling back to an
+      # anonymous one.
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3.3.0
+        with:
+          registry: docker.io
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # Proves the login above is actually in effect, rather than
+      # assuming it from a successful `docker login` -- Docker Hub's
+      # authenticated rate limit is well above the anonymous one, so a
+      # higher ratelimit-limit here confirms pulls below are
+      # authenticated, not silently anonymous.
+      - name: Confirm the Docker Hub login is being used for pulls
+        run: |
+          token=$(curl -sf -u "${{ secrets.DOCKERHUB_USERNAME }}:${{ secrets.DOCKERHUB_TOKEN }}" \
+            "https://auth.docker.io/token?service=registry.docker.io&scope=repository:library/alpine:pull" \
+            | sed -E 's/.*"token":"([^"]+)".*/\1/')
+          curl -sI -H "Authorization: Bearer $token" \
+            "https://registry-1.docker.io/v2/library/alpine/manifests/latest" \
+            | grep -i ratelimit
+
       - name: Start the local Supabase stack
         run: supabase start
 
