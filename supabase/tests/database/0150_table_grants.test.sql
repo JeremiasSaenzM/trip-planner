@@ -12,7 +12,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
-select plan(48);
+select plan(54);
 
 select set_eq(
   $$ select c.relname::text from pg_class c
@@ -20,7 +20,8 @@ select set_eq(
   array[
     'trips', 'sources', 'competitions', 'scenarios', 'decisions', 'budget_lines',
     'payments', 'savings_entries', 'fx_rates', 'open_items', 'flight_options',
-    'flight_segments', 'change_log', 'proposal_batches', 'proposal_items'
+    'flight_segments', 'change_log', 'proposal_batches', 'proposal_items',
+    'stays', 'movements'
   ],
   'every table in public has its expected grants declared in this file'
 );
@@ -89,6 +90,14 @@ select table_privs_are('public', 'flight_options', 'anon', array[]::text[], 'ano
 select table_privs_are('public', 'flight_segments', 'authenticated', array['SELECT', 'INSERT', 'UPDATE', 'DELETE'], 'authenticated: flight_segments');
 select table_privs_are('public', 'flight_segments', 'service_role', array['SELECT', 'INSERT', 'UPDATE', 'DELETE'], 'service_role: flight_segments');
 select table_privs_are('public', 'flight_segments', 'anon', array[]::text[], 'anon: nothing on flight_segments');
+
+select table_privs_are('public', 'stays', 'authenticated', array['SELECT', 'INSERT', 'UPDATE', 'DELETE'], 'authenticated: stays');
+select table_privs_are('public', 'stays', 'service_role', array['SELECT', 'INSERT', 'UPDATE', 'DELETE'], 'service_role: stays');
+select table_privs_are('public', 'stays', 'anon', array[]::text[], 'anon: nothing on stays');
+
+select table_privs_are('public', 'movements', 'authenticated', array['SELECT', 'INSERT', 'UPDATE', 'DELETE'], 'authenticated: movements');
+select table_privs_are('public', 'movements', 'service_role', array['SELECT', 'INSERT', 'UPDATE', 'DELETE'], 'service_role: movements');
+select table_privs_are('public', 'movements', 'anon', array[]::text[], 'anon: nothing on movements');
 
 -- change_log is append-only and written only by its security definer
 -- trigger: read-only for everyone, service_role included.
