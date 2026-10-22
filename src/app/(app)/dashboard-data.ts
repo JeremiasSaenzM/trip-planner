@@ -1,14 +1,40 @@
 import "server-only";
 
 import { dataSource } from "@/lib/data";
-import type { BudgetLine, Competition, FxRate, OpenItem, Payment, SavingsEntry, Scenario, Source, Trip } from "@/lib/data/types";
+import type {
+  BudgetLine,
+  Competition,
+  FxRate,
+  Movement,
+  OpenItem,
+  Payment,
+  SavingsEntry,
+  Scenario,
+  Source,
+  Stay,
+  Trip,
+} from "@/lib/data/types";
 import { buildDeadlinePots, type DeadlinePot } from "@/lib/domain/build-deadline-pots";
+import {
+  buildItineraryTimeline,
+  checkNightsAccountedFor,
+  checkPathContinuity,
+  type ItineraryDay,
+  type PathContinuityIssue,
+  type UnaccountedNight,
+} from "@/lib/domain/build-itinerary-timeline";
 import { buildObligations, type BuiltObligation, type MissingObligationRate } from "@/lib/domain/build-obligations";
 import { buildParallelSavingsPlan, type BuildParallelSavingsPlanResult } from "@/lib/domain/build-parallel-savings-plan";
 import { buildPhasedSavingsPlan, type BuildPhasedSavingsPlanResult } from "@/lib/domain/build-phased-savings-plan";
 import { calculateRequiredSavings, type CalculateRequiredSavingsResult } from "@/lib/domain/calculate-required-savings";
+import { checkFestivalStayCoverage, type FestivalStayCoverageResult } from "@/lib/domain/check-festival-stay-coverage";
+import { checkStayNightsMatchWindow, type StayNightsCheckResult } from "@/lib/domain/check-stay-nights-match-window";
 import { checkTravelWindow, type TravelWindowIssue } from "@/lib/domain/check-travel-window";
 import { findMissingFxRates, type MissingFxRate } from "@/lib/domain/find-missing-fx-rates";
+import {
+  findMovementsMissingBudgetLine,
+  type MovementMissingBudgetLine,
+} from "@/lib/domain/find-movements-missing-budget-line";
 import { TRAVELLER_INCOME_CADENCE } from "@/lib/domain/income-cadence";
 import { resolveDepartureDate, type ResolvedDeparture } from "@/lib/domain/resolve-departure-date";
 import { rollUpBudgetByScenario, type RollUpBudgetByScenarioResult } from "@/lib/domain/roll-up-budget-by-scenario";
@@ -88,6 +114,23 @@ export type DashboardData =
        * payments) -- the Budget Lines page's FX section renders this
        * directly, see findMissingFxRates(). */
       missingFxRates: MissingFxRate[];
+      /** Scenario-scoped -- unlike budget lines, a stay or movement
+       * belongs to exactly one scenario (stays_movements.sql's
+       * scenario_id is not null, with no shared/null option). */
+      stays: Stay[];
+      movements: Movement[];
+      /** The night-by-night strip the Scenario Overview page renders --
+       * generated from this scenario's movements, never typed in.
+       * Parameterized by Movement (not the default TimelineMovement) so
+       * each day's own movements keep their mode, times and reference
+       * ids for display. */
+      itineraryTimeline: ItineraryDay<Movement>[];
+      /** Phase 6.4's five itinerary checks -- warnings, not blocks. */
+      stayNightsCheck: StayNightsCheckResult;
+      festivalStayCoverage: FestivalStayCoverageResult;
+      pathContinuityIssues: PathContinuityIssue[];
+      unaccountedNights: UnaccountedNight[];
+      movementsMissingBudgetLine: MovementMissingBudgetLine[];
     };
 
 // The one place every dashboard page (Overview, Payments, Deadlines)
@@ -99,7 +142,7 @@ export async function loadDashboardData(params: {
   scenarioId?: string;
   basis?: string;
 }): Promise<DashboardData> {
-  const [trips, scenarios, competitions, budgetLines, payments, savingsEntries, rates, openItems, sources] =
+  const [trips, scenarios, competitions, budgetLines, payments, savingsEntries, rates, openItems, sources, stays, movements] =
     await Promise.all([
       dataSource.getTrips(),
       dataSource.getScenarios(),
@@ -110,6 +153,8 @@ export async function loadDashboardData(params: {
       dataSource.getFxRates(),
       dataSource.getOpenItems(),
       dataSource.getSources(),
+      dataSource.getStays(),
+      dataSource.getMovements(),
     ]);
 
   const trip = trips[0];
@@ -170,6 +215,33 @@ export async function loadDashboardData(params: {
     festivalEndDate: competition?.endDate ?? null,
   });
 
+  const scenarioStays = stays.filter((stay) => stay.scenarioId === scenario.id);
+  // Sorted here, once, rather than relying on the database's row order
+  // (unspecified without an explicit "order by") -- every check and the
+  // night-by-night strip below reads this same, now-deterministic list.
+  const scenarioMovements = movements
+    .filter((movement) => movement.scenarioId === scenario.id)
+    .sort((a, b) => a.sequence - b.sequence);
+
+  const itineraryTimeline = buildItineraryTimeline(scenarioMovements);
+  // Mirrors trip.departureDate/returnDate exactly, never departure's
+  // own resolveDepartureDate() fallback -- see this check's own
+  // comment for why a consistency check can't guess what the savings
+  // plan is allowed to.
+  const stayNightsCheck = checkStayNightsMatchWindow({
+    stays: scenarioStays,
+    tripDepartureDate: trip.departureDate,
+    tripReturnDate: trip.returnDate,
+  });
+  const festivalStayCoverage = checkFestivalStayCoverage({
+    stays: scenarioStays,
+    festivalStartDate: competition?.startDate ?? null,
+    festivalEndDate: competition?.endDate ?? null,
+  });
+  const pathContinuityIssues = checkPathContinuity(scenarioMovements);
+  const unaccountedNights = checkNightsAccountedFor(scenarioMovements, scenarioStays);
+  const movementsMissingBudgetLine = findMovementsMissingBudgetLine(scenarioMovements);
+
   const tripOpenItems = openItems.filter((item) => item.tripId === trip.id);
   const tripSavingsEntries = savingsEntries.filter((entry) => entry.tripId === trip.id);
 
@@ -215,6 +287,14 @@ export async function loadDashboardData(params: {
       sources,
       fxRates: rates,
       missingFxRates,
+      stays: scenarioStays,
+      movements: scenarioMovements,
+      itineraryTimeline,
+      stayNightsCheck,
+      festivalStayCoverage,
+      pathContinuityIssues,
+      unaccountedNights,
+      movementsMissingBudgetLine,
     };
   }
 
@@ -280,5 +360,13 @@ export async function loadDashboardData(params: {
     sources,
     fxRates: rates,
     missingFxRates,
+    stays: scenarioStays,
+    movements: scenarioMovements,
+    itineraryTimeline,
+    stayNightsCheck,
+    festivalStayCoverage,
+    pathContinuityIssues,
+    unaccountedNights,
+    movementsMissingBudgetLine,
   };
 }
