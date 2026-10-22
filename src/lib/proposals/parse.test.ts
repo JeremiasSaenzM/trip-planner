@@ -76,6 +76,40 @@ describe("parseProposalPaste: a valid batch", () => {
     });
   });
 
+  it("links a stay and a movement to a scenario created earlier in the same paste", () => {
+    const stay = {
+      op: "create_stay",
+      reason: "Fixed accommodation",
+      data: { scenario: { ref: "scn" }, location: "Fontvieux", startDate: "2027-07-04", nights: 8, kind: "festival", informationState: "estimate" },
+    };
+    const movement = {
+      op: "create_movement",
+      reason: "Outbound flight",
+      data: {
+        scenario: { ref: "scn" },
+        sequence: 1,
+        fromLocation: "Madrid",
+        toLocation: "Fontvieux",
+        departDate: "2027-07-04",
+        arriveDate: "2027-07-04",
+        mode: "plane",
+        informationState: "estimate",
+      },
+    };
+    const result = parseProposalPaste(paste([competition, scenario, stay, movement]));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.items.map((item) => [item.position, item.op, item.dependsOn])).toEqual([
+      [0, "create_competition", []],
+      [1, "create_scenario", [0]],
+      [2, "create_stay", [1]],
+      [3, "create_movement", [1]],
+    ]);
+    expect((result.items[2].payload as { data: { scenario: unknown } }).data.scenario).toEqual({ item: 1 });
+    expect((result.items[3].payload as { data: { scenario: unknown } }).data.scenario).toEqual({ item: 1 });
+  });
+
   it("keeps {id} references to existing rows as they are, lower-cased", () => {
     const result = parseProposalPaste(
       paste([{ ...line, data: { ...line.data, scenario: { id: SCENARIO_ID.toUpperCase() } } }]),
@@ -140,7 +174,7 @@ describe("parseProposalPaste: malformed input", () => {
 
   it("refuses an operation outside the whitelist", () => {
     expect(problemsOf(paste([{ op: "delete_trip", reason: "x", data: {} }]))[0]).toMatch(
-      /^Item 1 \(delete_trip\): "op" must be one of create_source, .*update_savings_entry\.$/,
+      /^Item 1 \(delete_trip\): "op" must be one of create_source, .*update_movement\.$/,
     );
   });
 

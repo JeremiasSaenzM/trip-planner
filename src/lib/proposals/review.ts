@@ -255,6 +255,14 @@ function describeTarget(op: ProposalItem["op"], id: string, rows: ReviewRows): s
       const entry = rows.savingsEntries.find((e) => e.id === id);
       return entry ? `Savings entry of ${entry.recordedOn}` : null;
     }
+    case "update_stay": {
+      const stay = rows.stays.find((s) => s.id === id);
+      return stay ? `${stay.location}, ${stay.startDate}` : null;
+    }
+    case "update_movement": {
+      const movement = rows.movements.find((m) => m.id === id);
+      return movement ? `${movement.fromLocation} → ${movement.toLocation}, ${movement.departDate}` : null;
+    }
     default:
       return null;
   }

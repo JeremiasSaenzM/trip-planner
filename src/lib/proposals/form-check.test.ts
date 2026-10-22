@@ -18,6 +18,8 @@ const rows: CurrentRows = {
   payments: fixtures.payments,
   fxRates: fixtures.fxRates,
   savingsEntries: fixtures.savingsEntries,
+  stays: fixtures.stays,
+  movements: fixtures.movements,
 };
 
 const resolveIds: ResolveReference = (reference) => ("id" in reference ? reference.id : null);
@@ -93,6 +95,30 @@ describe("checkAgainstForm: creates go through the form's own schema", () => {
   it("refuses a payload that doesn't match its operation", () => {
     expect(check("create_budget_line", { changes: {} })).toEqual({ ok: false, message: "This proposal's contents can't be read." });
   });
+
+  it("accepts a valid stay", () => {
+    expect(
+      check("create_stay", {
+        data: { scenario: { id: SCENARIO_ID }, location: "Fontvieux", startDate: "2027-07-04", nights: 8, kind: "festival", informationState: "estimate" },
+      }),
+    ).toEqual({ ok: true });
+  });
+
+  it("refuses a movement that arrives before it departs, a form-only cross-field rule", () => {
+    const result = check("create_movement", {
+      data: {
+        scenario: { id: SCENARIO_ID },
+        sequence: 1,
+        fromLocation: "Madrid",
+        toLocation: "Fontvieux",
+        departDate: "2027-07-04",
+        arriveDate: "2027-07-03",
+        mode: "plane",
+        informationState: "estimate",
+      },
+    });
+    expect(result.ok).toBe(false);
+  });
 });
 
 describe("checkAgainstForm: updates are checked as the row would end up", () => {
@@ -123,6 +149,21 @@ describe("checkAgainstForm: updates are checked as the row would end up", () => 
     );
     expect(result).toEqual({ ok: true });
   });
+
+  it("applies a stay update on top of the current values", () => {
+    const stay = fixtures.stays[0];
+    expect(check("update_stay", { changes: { nights: { from: stay.nights, to: 9 } } }, stay.id)).toEqual({ ok: true });
+  });
+
+  it("refuses a movement update that would break the form's arrive-after-depart rule", () => {
+    const movement = fixtures.movements[0];
+    const result = check(
+      "update_movement",
+      { changes: { arriveDate: { from: movement.arriveDate, to: "2027-07-01" } } },
+      movement.id,
+    );
+    expect(result.ok).toBe(false);
+  });
 });
 
 // currentFields() is the TypeScript twin of approve_proposal()'s
@@ -136,6 +177,8 @@ describe("currentFields", () => {
     update_payment: fixtures.payments[0].id,
     update_fx_rate: fixtures.fxRates[0].id,
     update_savings_entry: fixtures.savingsEntries[0].id,
+    update_stay: fixtures.stays[0].id,
+    update_movement: fixtures.movements[0].id,
   };
 
   it.each(Object.keys(targets) as UpdateOp[])("covers exactly the fields %s can change", (op) => {

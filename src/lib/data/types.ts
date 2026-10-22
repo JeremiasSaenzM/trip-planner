@@ -304,7 +304,11 @@ export type ProposalOp =
   | "update_budget_line"
   | "update_payment"
   | "update_fx_rate"
-  | "update_savings_entry";
+  | "update_savings_entry"
+  | "create_stay"
+  | "create_movement"
+  | "update_stay"
+  | "update_movement";
 export type ProposalStatus = "pending" | "approved" | "rejected";
 
 export type ProposalBatch = {

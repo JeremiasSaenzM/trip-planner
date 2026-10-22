@@ -36,7 +36,7 @@ async function BatchScreen({ params }: { params: PageProps<"/import/[batch]">["p
   await getCurrentUser();
   const { batch: batchId } = await params;
 
-  const [batches, allItems, sources, competitions, scenarios, budgetLines, payments, fxRates, savingsEntries] =
+  const [batches, allItems, sources, competitions, scenarios, budgetLines, payments, fxRates, savingsEntries, stays, movements] =
     await Promise.all([
       dataSource.getProposalBatches(),
       dataSource.getProposalItems(),
@@ -47,6 +47,8 @@ async function BatchScreen({ params }: { params: PageProps<"/import/[batch]">["p
       dataSource.getPayments(),
       dataSource.getFxRates(),
       dataSource.getSavingsEntries(),
+      dataSource.getStays(),
+      dataSource.getMovements(),
     ]);
 
   const batch = batches.find((candidate) => candidate.id === batchId);
@@ -54,7 +56,7 @@ async function BatchScreen({ params }: { params: PageProps<"/import/[batch]">["p
 
   const reviews = reviewBatch(
     allItems.filter((item) => item.batchId === batch.id),
-    { sources, competitions, scenarios, budgetLines, payments, fxRates, savingsEntries },
+    { sources, competitions, scenarios, budgetLines, payments, fxRates, savingsEntries, stays, movements },
   );
   const pendingCount = reviews.filter((review) => review.item.status === "pending").length;
   const readyCount = reviews.filter((review) => review.state.kind === "ready").length;

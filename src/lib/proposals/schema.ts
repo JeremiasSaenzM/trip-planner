@@ -3,8 +3,10 @@ import { z } from "zod";
 import type { ProposalOp } from "@/lib/data/types";
 import { budgetCategory } from "@/lib/validation/budget-lines";
 import { rateKind } from "@/lib/validation/fx-rates";
+import { movementMode } from "@/lib/validation/movements";
 import { paymentTiming, refundability } from "@/lib/validation/payments";
 import { confidence, currencyCode, httpUrl, id, infoState } from "@/lib/validation/shared";
+import { stayKind } from "@/lib/validation/stays";
 
 // The format a research chat pastes in: one JSON document listing
 // proposed changes. Everything about it is untrusted -- every object is
@@ -32,6 +34,10 @@ export const PROPOSAL_OPS = [
   "update_payment",
   "update_fx_rate",
   "update_savings_entry",
+  "create_stay",
+  "create_movement",
+  "update_stay",
+  "update_movement",
 ] as const satisfies readonly ProposalOp[];
 
 export type CreateOp = Extract<ProposalOp, `create_${string}`>;
@@ -59,6 +65,10 @@ export const REFERENCE_FIELDS: Record<ProposalOp, Record<string, ReferenceKind>>
   update_payment: { datesSource: "source", source: "source" },
   update_fx_rate: { source: "source" },
   update_savings_entry: {},
+  create_stay: { scenario: "scenario", budgetLine: "budget_line", source: "source" },
+  create_movement: { scenario: "scenario", budgetLine: "budget_line", source: "source" },
+  update_stay: { budgetLine: "budget_line", source: "source" },
+  update_movement: { budgetLine: "budget_line", source: "source" },
 };
 
 // Ids are compared as text against what Postgres returns (always lower
@@ -92,6 +102,7 @@ const isoDate = z
     const parsed = new Date(`${value}T00:00:00Z`);
     return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
   }, "That isn't a real date");
+const isoTime = z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/, "Use an HH:MM time");
 const reason = z.string().trim().min(1, "Every proposal needs a reason").max(1000, "Keep the reason under 1000 characters");
 
 function change<T extends z.ZodType>(value: T) {
@@ -169,6 +180,33 @@ export const CREATE_DATA = {
     informationState: infoState,
     source: reference,
   }),
+  create_stay: z.strictObject({
+    scenario: reference,
+    location: name,
+    startDate: isoDate,
+    nights: z.number().int().positive(),
+    kind: stayKind,
+    budgetLine: reference.optional(),
+    informationState: infoState,
+    source: reference.optional(),
+    notes: freeText.optional(),
+  }),
+  create_movement: z.strictObject({
+    scenario: reference,
+    sequence: z.number().int(),
+    fromLocation: name,
+    toLocation: name,
+    departDate: isoDate,
+    departTime: isoTime.optional(),
+    arriveDate: isoDate,
+    arriveTime: isoTime.optional(),
+    mode: movementMode,
+    budgetLine: reference.optional(),
+    bookingReference: freeText.optional(),
+    informationState: infoState,
+    source: reference.optional(),
+    notes: freeText.optional(),
+  }),
 } satisfies Record<CreateOp, z.ZodType>;
 
 // What each update operation may change, field by field, as {"from":
@@ -242,6 +280,35 @@ export const UPDATE_CHANGES = {
       note: change(freeText.nullable()).optional(),
     })
     .refine(atLeastOneChange, "An update needs at least one change"),
+  update_stay: z
+    .strictObject({
+      location: change(name).optional(),
+      startDate: change(isoDate).optional(),
+      nights: change(z.number().int().positive()).optional(),
+      kind: change(stayKind).optional(),
+      budgetLine: referenceChange.optional(),
+      informationState: change(infoState).optional(),
+      source: referenceChange.optional(),
+      notes: change(freeText.nullable()).optional(),
+    })
+    .refine(atLeastOneChange, "An update needs at least one change"),
+  update_movement: z
+    .strictObject({
+      sequence: change(z.number().int()).optional(),
+      fromLocation: change(name).optional(),
+      toLocation: change(name).optional(),
+      departDate: change(isoDate).optional(),
+      departTime: change(isoTime.nullable()).optional(),
+      arriveDate: change(isoDate).optional(),
+      arriveTime: change(isoTime.nullable()).optional(),
+      mode: change(movementMode).optional(),
+      budgetLine: referenceChange.optional(),
+      bookingReference: change(freeText.nullable()).optional(),
+      informationState: change(infoState).optional(),
+      source: referenceChange.optional(),
+      notes: change(freeText.nullable()).optional(),
+    })
+    .refine(atLeastOneChange, "An update needs at least one change"),
 } satisfies Record<UpdateOp, z.ZodType>;
 
 export type CreateData<Op extends CreateOp> = z.infer<(typeof CREATE_DATA)[Op]>;
@@ -269,6 +336,10 @@ export const pastedItem = z.discriminatedUnion("op", [
   updateItem("update_payment"),
   updateItem("update_fx_rate"),
   updateItem("update_savings_entry"),
+  createItem("create_stay"),
+  createItem("create_movement"),
+  updateItem("update_stay"),
+  updateItem("update_movement"),
 ]);
 export type PastedItem = z.infer<typeof pastedItem>;
 

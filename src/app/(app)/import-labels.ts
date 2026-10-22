@@ -5,6 +5,7 @@ import type { ReferenceLabel } from "@/lib/proposals/review";
 import { CATEGORY_LABELS } from "./category-labels";
 import { CONFIDENCE_LABELS, CONFIDENCE_NOT_ASSESSED } from "./confidence-labels";
 import { INFO_STATE_LABELS } from "./info-state-labels";
+import { MOVEMENT_MODE_LABELS, STAY_KIND_LABELS } from "./itinerary-labels";
 import { REFUNDABILITY_LABELS, TIMING_LABELS } from "./payment-labels";
 
 // Words for the /import review screen. Values are shown with the same
@@ -24,6 +25,10 @@ export const OP_LABELS: Record<ProposalOp, string> = {
   update_payment: "Change payment",
   update_fx_rate: "Change FX rate",
   update_savings_entry: "Change savings entry",
+  create_stay: "New stay",
+  create_movement: "New movement",
+  update_stay: "Change stay",
+  update_movement: "Change movement",
 };
 
 const FIELD_LABELS: Record<string, string> = {
@@ -68,6 +73,18 @@ const FIELD_LABELS: Record<string, string> = {
   rateKind: "Rate kind",
   amount: "Amount (USD)",
   recordedOn: "Date",
+  location: "Location",
+  nights: "Nights",
+  kind: "Kind",
+  fromLocation: "From",
+  toLocation: "To",
+  departDate: "Depart date",
+  departTime: "Depart time",
+  arriveDate: "Arrive date",
+  arriveTime: "Arrive time",
+  sequence: "Order in the chain",
+  mode: "Mode",
+  bookingReference: "Booking reference",
 };
 
 const RATE_KIND_LABELS: Record<string, string> = {
@@ -113,6 +130,10 @@ export function formatProposalValue(field: string, value: unknown): string {
       return TIMING_LABELS[value as keyof typeof TIMING_LABELS] ?? value;
     case "rateKind":
       return RATE_KIND_LABELS[value] ?? value;
+    case "kind":
+      return STAY_KIND_LABELS[value as keyof typeof STAY_KIND_LABELS] ?? value;
+    case "mode":
+      return MOVEMENT_MODE_LABELS[value as keyof typeof MOVEMENT_MODE_LABELS] ?? value;
     default:
       return value;
   }

@@ -37,17 +37,31 @@ function revalidateAll() {
 }
 
 async function loadRows(): Promise<ReviewRows & { tripId: string | null }> {
-  const [trips, sources, competitions, scenarios, budgetLines, payments, fxRates, savingsEntries] = await Promise.all([
-    dataSource.getTrips(),
-    dataSource.getSources(),
-    dataSource.getCompetitions(),
-    dataSource.getScenarios(),
-    dataSource.getBudgetLines(),
-    dataSource.getPayments(),
-    dataSource.getFxRates(),
-    dataSource.getSavingsEntries(),
-  ]);
-  return { tripId: trips[0]?.id ?? null, sources, competitions, scenarios, budgetLines, payments, fxRates, savingsEntries };
+  const [trips, sources, competitions, scenarios, budgetLines, payments, fxRates, savingsEntries, stays, movements] =
+    await Promise.all([
+      dataSource.getTrips(),
+      dataSource.getSources(),
+      dataSource.getCompetitions(),
+      dataSource.getScenarios(),
+      dataSource.getBudgetLines(),
+      dataSource.getPayments(),
+      dataSource.getFxRates(),
+      dataSource.getSavingsEntries(),
+      dataSource.getStays(),
+      dataSource.getMovements(),
+    ]);
+  return {
+    tripId: trips[0]?.id ?? null,
+    sources,
+    competitions,
+    scenarios,
+    budgetLines,
+    payments,
+    fxRates,
+    savingsEntries,
+    stays,
+    movements,
+  };
 }
 
 // A reference to an item of the paste has no id yet when the paste is
