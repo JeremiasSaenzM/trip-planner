@@ -256,3 +256,28 @@ insert into flight_segments (owner_id, flight_option_id, direction, segment_orde
 insert into flight_segments (owner_id, flight_option_id, direction, segment_order, from_airport, to_airport, from_country, to_country, flight_number, depart_at, arrive_at, is_technical_stop) values
   ('10000000-0000-0000-0000-000000000001', 'c0000000-0000-0000-0000-000000000005', 'outbound', 1, 'MAD', 'CDG', 'ES', 'FR', 'FX501', '2027-07-04 17:30:00+02', '2027-07-04 20:00:00+02', false),
   ('10000000-0000-0000-0000-000000000001', 'c0000000-0000-0000-0000-000000000005', 'return', 1, 'CDG', 'MAD', 'FR', 'ES', 'FX502', '2027-07-12 19:00:00+02', '2027-07-12 21:30:00+02', false);
+
+-- Candidate A's itinerary: one festival stay in Fontvieux (matching the
+-- accepted festival dates, 2027-07-05 to 2027-07-11) and the two legs
+-- of flightOptions[0]'s clean route either side of it. The return leg
+-- is an overnight flight (departs 07-12, lands 07-13) -- the night of
+-- 07-12 needs no stay, a live example of check 4 not requiring a bed
+-- for a night spent in the air. The return leg is deliberately left
+-- without a budget line, to show that warning too.
+insert into stays (id, owner_id, scenario_id, location, start_date, nights, kind, budget_line_id, information_state) values
+  ('f2000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001',
+   '50000000-0000-0000-0000-000000000001', 'Fontvieux', '2027-07-04', 8, 'festival',
+   '70000000-0000-0000-0000-000000000003', 'estimate');
+
+insert into movements (
+  id, owner_id, scenario_id, sequence, from_location, to_location,
+  depart_date, depart_time, arrive_date, arrive_time, mode, budget_line_id, information_state, notes
+) values
+  ('f3000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001',
+   '50000000-0000-0000-0000-000000000001', 1, 'Madrid', 'Fontvieux',
+   '2027-07-04', '09:00:00', '2027-07-04', '22:30:00', 'plane',
+   '70000000-0000-0000-0000-000000000002', 'estimate', null),
+  ('f3000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000001',
+   '50000000-0000-0000-0000-000000000001', 2, 'Fontvieux', 'Madrid',
+   '2027-07-12', '10:00:00', '2027-07-13', '03:30:00', 'plane',
+   null, 'estimate', 'Return leg not yet priced separately.');
