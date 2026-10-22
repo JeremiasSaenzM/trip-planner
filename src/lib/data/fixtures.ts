@@ -6,6 +6,7 @@ import type {
   FlightOption,
   FlightSegment,
   FxRate,
+  Movement,
   OpenItem,
   Payment,
   ProposalBatch,
@@ -13,6 +14,7 @@ import type {
   SavingsEntry,
   Scenario,
   Source,
+  Stay,
   Trip,
 } from "./types";
 
@@ -786,6 +788,74 @@ export const flightSegments: FlightSegment[] = [
     departAt: "2027-07-12T22:00:00-04:00",
     arriveAt: "2027-07-13T11:30:00+02:00",
     isTechnicalStop: false,
+  },
+];
+
+// Candidate A's itinerary: one festival stay in Fontvieux (matching the
+// accepted festival dates, 2027-07-05 to 2027-07-11 -- the stay starts
+// the night before and covers through the final night, satisfying the
+// festival-coverage check) and the two legs of flightOptions[0]'s clean
+// route either side of it. The night of the return (an overnight
+// flight, landing the next day) has no stay -- a live example of the
+// "every night is accounted for" check not requiring a bed for a night
+// spent in the air. The return leg is deliberately left without a
+// budget line, to show that warning too; the outbound leg and the stay
+// both point at the lines they're actually priced into.
+export const stays: Stay[] = [
+  {
+    id: "f2000000-0000-0000-0000-000000000001",
+    scenarioId: "50000000-0000-0000-0000-000000000001",
+    location: "Fontvieux",
+    startDate: "2027-07-04",
+    nights: 8,
+    kind: "festival",
+    budgetLineId: "70000000-0000-0000-0000-000000000003",
+    informationState: "estimate",
+    sourceId: null,
+    notes: null,
+    createdAt: "2026-10-05T00:00:00Z",
+    updatedAt: "2026-10-05T00:00:00Z",
+  },
+];
+
+export const movements: Movement[] = [
+  {
+    id: "f3000000-0000-0000-0000-000000000001",
+    scenarioId: "50000000-0000-0000-0000-000000000001",
+    sequence: 1,
+    fromLocation: "Madrid",
+    toLocation: "Fontvieux",
+    departDate: "2027-07-04",
+    departTime: "09:00:00",
+    arriveDate: "2027-07-04",
+    arriveTime: "22:30:00",
+    mode: "plane",
+    budgetLineId: "70000000-0000-0000-0000-000000000002",
+    bookingReference: null,
+    informationState: "estimate",
+    sourceId: null,
+    notes: null,
+    createdAt: "2026-10-05T00:00:00Z",
+    updatedAt: "2026-10-05T00:00:00Z",
+  },
+  {
+    id: "f3000000-0000-0000-0000-000000000002",
+    scenarioId: "50000000-0000-0000-0000-000000000001",
+    sequence: 2,
+    fromLocation: "Fontvieux",
+    toLocation: "Madrid",
+    departDate: "2027-07-12",
+    departTime: "10:00:00",
+    arriveDate: "2027-07-13",
+    arriveTime: "03:30:00",
+    mode: "plane",
+    budgetLineId: null,
+    bookingReference: null,
+    informationState: "estimate",
+    sourceId: null,
+    notes: "Return leg not yet priced separately.",
+    createdAt: "2026-10-05T00:00:00Z",
+    updatedAt: "2026-10-05T00:00:00Z",
   },
 ];
 

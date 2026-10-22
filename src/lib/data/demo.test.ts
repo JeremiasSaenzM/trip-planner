@@ -203,5 +203,63 @@ describe("demoDataSource writes", () => {
         reason: "Test",
       }),
     ).rejects.toThrow(/disabled in demo mode/);
+    await expect(
+      demoDataSource.createStay({
+        scenarioId: "50000000-0000-0000-0000-000000000001",
+        location: "Test",
+        startDate: "2027-01-01",
+        nights: 1,
+        kind: "independent",
+        informationState: "estimate",
+      }),
+    ).rejects.toThrow(/disabled in demo mode/);
+    await expect(
+      demoDataSource.updateStay({
+        id: "f2000000-0000-0000-0000-000000000001",
+        location: "Test",
+        startDate: "2027-01-01",
+        nights: 1,
+        kind: "independent",
+        informationState: "estimate",
+        reason: "Test",
+      }),
+    ).rejects.toThrow(/disabled in demo mode/);
+    await expect(
+      demoDataSource.deleteStay({
+        id: "f2000000-0000-0000-0000-000000000001",
+        reason: "Test",
+      }),
+    ).rejects.toThrow(/disabled in demo mode/);
+    await expect(
+      demoDataSource.createMovement({
+        scenarioId: "50000000-0000-0000-0000-000000000001",
+        sequence: 1,
+        fromLocation: "Test",
+        toLocation: "Test",
+        departDate: "2027-01-01",
+        arriveDate: "2027-01-01",
+        mode: "plane",
+        informationState: "estimate",
+      }),
+    ).rejects.toThrow(/disabled in demo mode/);
+    await expect(
+      demoDataSource.updateMovement({
+        id: "f3000000-0000-0000-0000-000000000001",
+        sequence: 1,
+        fromLocation: "Test",
+        toLocation: "Test",
+        departDate: "2027-01-01",
+        arriveDate: "2027-01-01",
+        mode: "plane",
+        informationState: "estimate",
+        reason: "Test",
+      }),
+    ).rejects.toThrow(/disabled in demo mode/);
+    await expect(
+      demoDataSource.deleteMovement({
+        id: "f3000000-0000-0000-0000-000000000001",
+        reason: "Test",
+      }),
+    ).rejects.toThrow(/disabled in demo mode/);
   });
 });

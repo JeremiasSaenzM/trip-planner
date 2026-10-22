@@ -12,6 +12,7 @@ import type {
   FlightOption,
   FlightSegment,
   FxRate,
+  Movement,
   OpenItem,
   Payment,
   ProposalBatch,
@@ -19,6 +20,7 @@ import type {
   SavingsEntry,
   Scenario,
   Source,
+  Stay,
   Trip,
 } from "./types";
 
@@ -163,6 +165,45 @@ function mapBudgetLineRow(row: Record<string, unknown>): BudgetLine {
     notes: row.notes as string | null,
     confidence: row.confidence as BudgetLine["confidence"],
     autoCreated: row.auto_created as boolean,
+    createdAt: row.created_at as string,
+    updatedAt: row.updated_at as string,
+  };
+}
+
+function mapStayRow(row: Record<string, unknown>): Stay {
+  return {
+    id: row.id as string,
+    scenarioId: row.scenario_id as string,
+    location: row.location as string,
+    startDate: row.start_date as string,
+    nights: row.nights as number,
+    kind: row.kind as Stay["kind"],
+    budgetLineId: row.budget_line_id as string | null,
+    informationState: row.information_state as Stay["informationState"],
+    sourceId: row.source_id as string | null,
+    notes: row.notes as string | null,
+    createdAt: row.created_at as string,
+    updatedAt: row.updated_at as string,
+  };
+}
+
+function mapMovementRow(row: Record<string, unknown>): Movement {
+  return {
+    id: row.id as string,
+    scenarioId: row.scenario_id as string,
+    sequence: row.sequence as number,
+    fromLocation: row.from_location as string,
+    toLocation: row.to_location as string,
+    departDate: row.depart_date as string,
+    departTime: row.depart_time as string | null,
+    arriveDate: row.arrive_date as string,
+    arriveTime: row.arrive_time as string | null,
+    mode: row.mode as Movement["mode"],
+    budgetLineId: row.budget_line_id as string | null,
+    bookingReference: row.booking_reference as string | null,
+    informationState: row.information_state as Movement["informationState"],
+    sourceId: row.source_id as string | null,
+    notes: row.notes as string | null,
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
   };
@@ -354,6 +395,20 @@ export const realDataSource: DataSource = {
         isTechnicalStop: row.is_technical_stop,
       }),
     );
+  },
+
+  async getStays() {
+    const supabase = await createClient();
+    const { data, error } = await supabase.from("stays").select("*");
+    if (error) throw error;
+    return (data ?? []).map(mapStayRow);
+  },
+
+  async getMovements() {
+    const supabase = await createClient();
+    const { data, error } = await supabase.from("movements").select("*");
+    if (error) throw error;
+    return (data ?? []).map(mapMovementRow);
   },
 
   // Read-only: change_log has no owner write policy at all (only the
@@ -789,6 +844,120 @@ export const realDataSource: DataSource = {
     });
     if (error) throw error;
     return mapFxRateRow(data as Record<string, unknown>);
+  },
+
+  // Also a plain insert -- nothing existed before to justify changing,
+  // same reasoning as createBudgetLine.
+  async createStay(input) {
+    assertWritesAllowed();
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("stays")
+      .insert({
+        scenario_id: input.scenarioId,
+        location: input.location,
+        start_date: input.startDate,
+        nights: input.nights,
+        kind: input.kind,
+        budget_line_id: input.budgetLineId ?? null,
+        information_state: input.informationState,
+        source_id: input.sourceId ?? null,
+        notes: input.notes ?? null,
+      })
+      .select("*")
+      .single();
+    if (error) throw error;
+    return mapStayRow(data);
+  },
+
+  async updateStay(input) {
+    assertWritesAllowed();
+    const supabase = await createClient();
+    const { data, error } = await supabase.rpc("update_stay", {
+      p_id: input.id,
+      p_location: input.location,
+      p_start_date: input.startDate,
+      p_nights: input.nights,
+      p_kind: input.kind,
+      p_budget_line_id: input.budgetLineId ?? null,
+      p_information_state: input.informationState,
+      p_source_id: input.sourceId ?? null,
+      p_notes: input.notes ?? null,
+      p_reason: input.reason,
+    });
+    if (error) throw error;
+    return mapStayRow(data as Record<string, unknown>);
+  },
+
+  async deleteStay(input) {
+    assertWritesAllowed();
+    const supabase = await createClient();
+    const { error } = await supabase.rpc("delete_stay", {
+      p_id: input.id,
+      p_reason: input.reason,
+    });
+    if (error) throw error;
+  },
+
+  async createMovement(input) {
+    assertWritesAllowed();
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("movements")
+      .insert({
+        scenario_id: input.scenarioId,
+        sequence: input.sequence,
+        from_location: input.fromLocation,
+        to_location: input.toLocation,
+        depart_date: input.departDate,
+        depart_time: input.departTime ?? null,
+        arrive_date: input.arriveDate,
+        arrive_time: input.arriveTime ?? null,
+        mode: input.mode,
+        budget_line_id: input.budgetLineId ?? null,
+        booking_reference: input.bookingReference ?? null,
+        information_state: input.informationState,
+        source_id: input.sourceId ?? null,
+        notes: input.notes ?? null,
+      })
+      .select("*")
+      .single();
+    if (error) throw error;
+    return mapMovementRow(data);
+  },
+
+  async updateMovement(input) {
+    assertWritesAllowed();
+    const supabase = await createClient();
+    const { data, error } = await supabase.rpc("update_movement", {
+      p_id: input.id,
+      p_sequence: input.sequence,
+      p_from_location: input.fromLocation,
+      p_to_location: input.toLocation,
+      p_depart_date: input.departDate,
+      p_depart_time: input.departTime ?? null,
+      p_arrive_date: input.arriveDate,
+      p_arrive_time: input.arriveTime ?? null,
+      p_mode: input.mode,
+      p_budget_line_id: input.budgetLineId ?? null,
+      p_booking_reference: input.bookingReference ?? null,
+      p_information_state: input.informationState,
+      p_source_id: input.sourceId ?? null,
+      p_notes: input.notes ?? null,
+      p_reason: input.reason,
+    });
+    if (error) throw error;
+    return mapMovementRow(data as Record<string, unknown>);
+  },
+
+  async deleteMovement(input) {
+    assertWritesAllowed();
+    const supabase = await createClient();
+    const { error } = await supabase.rpc("delete_movement", {
+      p_id: input.id,
+      p_reason: input.reason,
+    });
+    if (error) throw error;
   },
 
   // Import proposals (20261021090000_import_proposals.sql). Saving a

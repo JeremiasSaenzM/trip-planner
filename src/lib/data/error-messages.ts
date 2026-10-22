@@ -31,6 +31,9 @@ const CHECK_CONSTRAINT_MESSAGES: Record<string, string> = {
   decisions_payment_risk_needs_rationale: "Say why you're accepting this risk.",
   decisions_accepted_currency_format: "Currency must be a 3-letter code (e.g. USD).",
   payments_risk_accepted_decision_id_unique: "That decision already covers a different payment.",
+  stays_nights_positive: "Nights must be more than zero.",
+  movements_arrive_after_depart: "Arrival can't be before departure.",
+  movements_sequence_unique: "There's already a movement at this position in the sequence -- use a different number, or edit that one instead.",
 };
 
 const CHECK_CONSTRAINT_PATTERN = /violates (?:check|unique) constraint "([^"]+)"/;
@@ -52,12 +55,23 @@ const AMOUNT_EXCEEDED_MESSAGE =
   "This payment's amount or currency is now higher than, or different from, what you accepted the risk for. " +
   "Use \"I accept this risk\" again to cover the new amount.";
 
-// delete_budget_line() raises this with a dynamic id interpolated in
-// (20261015110000_budget_lines_fx_rates_writes.sql), matched by its
-// stable suffix rather than the full text.
-const BUDGET_LINE_HAS_PAYMENTS_SUFFIX = "still has payments attached -- delete or reassign them first.";
-const BUDGET_LINE_HAS_PAYMENTS_MESSAGE =
-  "This budget line still has payments attached -- delete or reassign them first.";
+// delete_budget_line() raises these with a dynamic id interpolated in
+// (20261015110000_budget_lines_fx_rates_writes.sql, extended by
+// 20261023090000_stays_movements.sql), matched by their stable suffixes.
+const BUDGET_LINE_REFUSAL_MESSAGES: [suffix: string, message: string][] = [
+  [
+    "still has payments attached -- delete or reassign them first.",
+    "This budget line still has payments attached -- delete or reassign them first.",
+  ],
+  [
+    "still has stays attached -- delete or reassign them first.",
+    "This budget line still has stays attached -- delete or reassign them first.",
+  ],
+  [
+    "still has movements attached -- delete or reassign them first.",
+    "This budget line still has movements attached -- delete or reassign them first.",
+  ],
+];
 
 // delete_scenario()/update_scenario() raise these with a dynamic id
 // interpolated in (20261019090000_manage_competitions_scenarios.sql),
@@ -125,8 +139,8 @@ export function translatePostgresError(error: { message: string }): string {
   if (error.message.startsWith(REASON_REQUIRED_PREFIX)) {
     return REASON_REQUIRED_MESSAGE;
   }
-  if (error.message.endsWith(BUDGET_LINE_HAS_PAYMENTS_SUFFIX)) {
-    return BUDGET_LINE_HAS_PAYMENTS_MESSAGE;
+  for (const [suffix, message] of BUDGET_LINE_REFUSAL_MESSAGES) {
+    if (error.message.endsWith(suffix)) return message;
   }
   for (const [suffix, message] of SCENARIO_REFUSAL_MESSAGES) {
     if (error.message.endsWith(suffix)) return message;
