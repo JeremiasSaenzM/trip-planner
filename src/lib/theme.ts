@@ -31,6 +31,30 @@ export function applyTheme(theme: ThemePreference): void {
   document.documentElement.classList.toggle("dark", resolveIsDark(theme));
 }
 
+// The three useSyncExternalStore arguments ThemeToggle reads with. The
+// server (and the first client render, to match it and avoid a
+// hydration mismatch) sees null; only the second, post-mount render
+// sees the real stored value -- React's own sanctioned way to read a
+// browser-only store, instead of a useEffect + setState, which
+// eslint-plugin-react-hooks flags as a wasted extra render.
+export function getServerThemeSnapshot(): ThemePreference | null {
+  return null;
+}
+
+const listeners = new Set<() => void>();
+
+export function subscribeTheme(onStoreChange: () => void): () => void {
+  listeners.add(onStoreChange);
+  return () => listeners.delete(onStoreChange);
+}
+
+// The one place a theme choice is written: persists it, then tells
+// every subscribed component to re-read the store.
+export function setTheme(theme: ThemePreference): void {
+  storeTheme(theme);
+  for (const listener of listeners) listener();
+}
+
 // Inlined into <head> (src/app/layout.tsx) as a blocking <script>, so the
 // "dark" class lands on <html> before first paint -- a useEffect would
 // run after React hydrates, late enough to flash the wrong theme. A
