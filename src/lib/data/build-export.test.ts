@@ -19,6 +19,8 @@ describe("buildExportPayload", () => {
       openItems: fixtures.openItems,
       flightOptions: fixtures.flightOptions,
       flightSegments: fixtures.flightSegments,
+      stays: fixtures.stays,
+      movements: fixtures.movements,
       proposalBatches: fixtures.proposalBatches,
       proposalItems: fixtures.proposalItems,
       changeLog: fixtures.changeLog,
@@ -26,9 +28,9 @@ describe("buildExportPayload", () => {
 
     expect(result.exportedAt).toBe("2026-10-15T12:00:00.000Z");
     expect(result.schemaVersion).toBe(EXPORT_SCHEMA_VERSION);
-    // Pinned: the trip travel window (20261022090000) changed the
-    // exported shape, so this has to have moved past 4.
-    expect(EXPORT_SCHEMA_VERSION).toBe(5);
+    // Pinned: stays and movements (Phase 6.4) changed the exported
+    // shape, so this has to have moved past 5.
+    expect(EXPORT_SCHEMA_VERSION).toBe(6);
     expect(result.data.trips).toBe(fixtures.trips);
     expect(result.data.changeLog).toBe(fixtures.changeLog);
     expect(Object.keys(result.data)).toEqual([
@@ -44,6 +46,8 @@ describe("buildExportPayload", () => {
       "openItems",
       "flightOptions",
       "flightSegments",
+      "stays",
+      "movements",
       "proposalBatches",
       "proposalItems",
       "changeLog",
@@ -65,6 +69,8 @@ describe("buildExportPayload", () => {
       openItems: [],
       flightOptions: [],
       flightSegments: [],
+      stays: [],
+      movements: [],
       proposalBatches: [],
       proposalItems: [],
       changeLog: [],
@@ -90,6 +96,8 @@ describe("buildExportPayload", () => {
       openItems: [],
       flightOptions: [],
       flightSegments: [],
+      stays: [],
+      movements: [],
       proposalBatches: [],
       proposalItems: [],
       changeLog: [],

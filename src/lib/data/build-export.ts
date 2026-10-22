@@ -6,6 +6,7 @@ import type {
   FlightOption,
   FlightSegment,
   FxRate,
+  Movement,
   OpenItem,
   Payment,
   ProposalBatch,
@@ -13,6 +14,7 @@ import type {
   SavingsEntry,
   Scenario,
   Source,
+  Stay,
   Trip,
 } from "./types";
 
@@ -23,7 +25,8 @@ import type {
 //   3 -- a competition's city, country, dates and time zone can be null
 //   4 -- proposalBatches and proposalItems (imported research)
 //   5 -- trips gained a travel window (departureDate, returnDate, travelDatesState, travelDatesSourceId)
-export const EXPORT_SCHEMA_VERSION = 5;
+//   6 -- stays and movements (Phase 6.4)
+export const EXPORT_SCHEMA_VERSION = 6;
 
 export type ExportPayload = {
   exportedAt: string;
@@ -41,6 +44,8 @@ export type ExportPayload = {
     openItems: OpenItem[];
     flightOptions: FlightOption[];
     flightSegments: FlightSegment[];
+    stays: Stay[];
+    movements: Movement[];
     proposalBatches: ProposalBatch[];
     proposalItems: ProposalItem[];
     changeLog: ChangeLogEntry[];
