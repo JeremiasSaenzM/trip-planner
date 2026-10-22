@@ -1,8 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 
-import { applyTheme, readStoredTheme, storeTheme, type ThemePreference } from "@/lib/theme";
+import {
+  applyTheme,
+  getServerThemeSnapshot,
+  readStoredTheme,
+  setTheme,
+  subscribeTheme,
+  type ThemePreference,
+} from "@/lib/theme";
 
 const OPTIONS: { value: ThemePreference; label: string; icon: (props: { className?: string }) => React.ReactNode }[] = [
   { value: "light", label: "Light", icon: SunIcon },
@@ -10,20 +17,17 @@ const OPTIONS: { value: ThemePreference; label: string; icon: (props: { classNam
   { value: "system", label: "System", icon: MonitorIcon },
 ];
 
-// Reads localStorage only after mount, so the server-rendered markup (which
-// knows nothing about the stored preference) matches what React hydrates --
-// the placeholder below keeps the header from jumping once it does.
+// Reads the stored preference through useSyncExternalStore -- see
+// theme.ts's own comment on getServerThemeSnapshot for why -- so the
+// server-rendered markup (which knows nothing about it) matches what
+// React hydrates; the placeholder below keeps the header from jumping
+// once the real value arrives.
 export function ThemeToggle() {
-  const [theme, setThemeState] = useState<ThemePreference | null>(null);
-
-  useEffect(() => {
-    setThemeState(readStoredTheme());
-  }, []);
+  const theme = useSyncExternalStore(subscribeTheme, readStoredTheme, getServerThemeSnapshot);
 
   useEffect(() => {
     if (theme === null) return;
     applyTheme(theme);
-    storeTheme(theme);
 
     if (theme !== "system") return;
     const media = window.matchMedia("(prefers-color-scheme: dark)");
@@ -50,7 +54,7 @@ export function ThemeToggle() {
           aria-checked={theme === value}
           aria-label={label}
           title={label}
-          onClick={() => setThemeState(value)}
+          onClick={() => setTheme(value)}
           className={`rounded-md p-1.5 ${
             theme === value
               ? "bg-zinc-100 text-zinc-950 dark:bg-zinc-800 dark:text-zinc-50"
