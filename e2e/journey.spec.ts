@@ -66,6 +66,18 @@ function competitionCard(page: Page, name: string) {
   return scenariosSection(page, "Competitions").locator("div.rounded-xl").filter({ hasText: name });
 }
 
+// Scoped inside their own list's data-testid, not just by text: the
+// Itinerary card above them (checks, and the generated night-by-night
+// strip) names the same locations and movements, so a page-wide
+// div.rounded-xl text filter resolves to several ancestors at once.
+function stayRow(page: Page, location: string) {
+  return page.getByTestId("stays-list").locator("div.rounded-xl").filter({ hasText: location });
+}
+
+function movementRow(page: Page, label: string) {
+  return page.getByTestId("movements-list").locator("div.rounded-xl").filter({ hasText: label });
+}
+
 // /import/[batch] numbers each proposal "Item n" -- found by that exact
 // label, since an item's own text (a scenario's name, say) also shows up
 // in every later item that references it.
@@ -686,6 +698,52 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     );
   });
 
+  await test.step("add movements and a stay, see the night-count warning, then fix it", async () => {
+    await page.getByLabel("Order in the chain").fill("1");
+    await page.getByLabel("From").fill("Home");
+    await page.getByLabel("To").fill("Cardiff");
+    await page.getByLabel("Departs").fill("2027-07-03");
+    await page.getByLabel("Arrives").fill("2027-07-03");
+    await page.getByRole("button", { name: "Add movement" }).click();
+    await expect(movementRow(page, "Home → Cardiff")).toBeVisible();
+
+    await page.getByLabel("Order in the chain").fill("2");
+    await page.getByLabel("From").fill("Cardiff");
+    await page.getByLabel("To").fill("Home");
+    await page.getByLabel("Departs").fill("2027-07-14");
+    await page.getByLabel("Arrives").fill("2027-07-14");
+    await page.getByRole("button", { name: "Add movement" }).click();
+    await expect(movementRow(page, "Cardiff → Home")).toBeVisible();
+
+    // Generated from the movement chain, not typed in.
+    await expect(page.getByTestId("itinerary-strip")).toContainText("Home → Cardiff (Plane)");
+    await expect(page.getByTestId("itinerary-strip")).toContainText("Cardiff → Home (Plane)");
+
+    // Neither movement has a budget line yet -- check 5's own warning.
+    await expect(
+      page.getByText("2 movements with no budget line yet: Home → Cardiff, Cardiff → Home."),
+    ).toBeVisible();
+
+    // The trip's travel window is Jul 3 - Jul 14 (11 nights) -- a
+    // 10-night stay doesn't add up, the check this phase exists for.
+    await page.getByLabel("Location").fill("Cardiff");
+    await page.getByLabel("First night").fill("2027-07-03");
+    await page.getByLabel("Nights").fill("10");
+    await page.getByLabel("Kind").selectOption("festival");
+    await page.getByRole("button", { name: "Add stay" }).click();
+    await expect(
+      page.getByText("Stays total 10 nights, but the trip's travel window is 11 nights."),
+    ).toBeVisible();
+
+    const stay = stayRow(page, "Cardiff");
+    await stay.getByRole("button", { name: "Edit" }).click();
+    await stay.getByLabel("New nights").fill("11");
+    await stay.getByLabel("Reason for this change").fill("Counted wrong the first time");
+    await stay.getByRole("button", { name: "Save" }).click();
+
+    await expect(page.getByText(/Stays total \d+ nights, but the trip's travel window/)).not.toBeVisible();
+  });
+
   // The journey's only savings entry so far was recorded, edited, and
   // then deleted earlier (see "delete the entry with a reason") -- a
   // fresh one here is what the export step below actually checks for,
@@ -881,8 +939,17 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     const exported = JSON.parse(readFileSync(path!, "utf-8"));
 
     expect(typeof exported.exportedAt).toBe("string");
-    expect(exported.schemaVersion).toBe(5);
+    expect(exported.schemaVersion).toBe(6);
     expect(exported.data.trips[0]).toMatchObject({ departureDate: "2027-07-03", returnDate: "2027-07-14" });
+
+    const exportedStay = exported.data.stays.find((stay: { location: string }) => stay.location === "Cardiff");
+    expect(exportedStay).toMatchObject({ nights: 11, kind: "festival" });
+    expect(
+      exported.data.movements.some(
+        (movement: { fromLocation: string; toLocation: string }) =>
+          movement.fromLocation === "Home" && movement.toLocation === "Cardiff",
+      ),
+    ).toBe(true);
     const dateless = exported.data.competitions.find(
       (competition: { name: string }) => competition.name === "World Choir Games (host TBA)",
     );
