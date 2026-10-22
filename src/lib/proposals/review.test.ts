@@ -16,6 +16,8 @@ const rows: ReviewRows = {
   payments: fixtures.payments,
   fxRates: fixtures.fxRates,
   savingsEntries: fixtures.savingsEntries,
+  stays: fixtures.stays,
+  movements: fixtures.movements,
 };
 
 // The demo batch: 0 creates a source; 1 updates Round-trip flight's
@@ -55,6 +57,28 @@ describe("reviewBatch", () => {
       },
     ]);
     expect(review.sources).toEqual([{ kind: "item", position: 0, label: "Fictional fare tracker", status: "pending" }]);
+  });
+
+  it("labels an update_stay's target the same way the itinerary page does", () => {
+    const stay = fixtures.stays[0];
+    const updateStay: ProposalItem = {
+      id: "c0000000-0000-0000-0000-000000000001",
+      batchId: items[0].batchId,
+      position: 0,
+      ref: null,
+      op: "update_stay",
+      targetId: stay.id,
+      payload: { changes: { nights: { from: stay.nights, to: stay.nights + 1 } } },
+      dependsOn: [],
+      reason: "A reason",
+      status: "pending",
+      decisionReason: null,
+      decidedAt: null,
+      resultId: null,
+      createdAt: "2026-10-12T00:00:00Z",
+    };
+    const review = reviewBatch([updateStay], rows)[0];
+    expect(review.targetLabel).toBe(`${stay.location}, ${stay.startDate}`);
   });
 
   it("lists what depends on an item, so rejecting it can ask what to do with them", () => {

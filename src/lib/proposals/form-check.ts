@@ -4,18 +4,22 @@ import type {
   BudgetLine,
   Competition,
   FxRate,
+  Movement,
   Payment,
   ProposalOp,
   SavingsEntry,
   Scenario,
+  Stay,
 } from "@/lib/data/types";
 import { createBudgetLineInput, updateBudgetLineInput } from "@/lib/validation/budget-lines";
 import { createCompetitionInput, updateCompetitionInput } from "@/lib/validation/competitions";
 import { createFxRateInput, updateFxRateInput } from "@/lib/validation/fx-rates";
+import { createMovementInput, updateMovementInput } from "@/lib/validation/movements";
 import { createPaymentInput, updatePaymentDetailsInput } from "@/lib/validation/payments";
 import { updateSavingsEntryInput } from "@/lib/validation/savings-entries";
 import { createScenarioInput, updateScenarioInput } from "@/lib/validation/scenarios";
 import { createSourceInput } from "@/lib/validation/sources";
+import { createStayInput, updateStayInput } from "@/lib/validation/stays";
 
 import {
   isUpdateOp,
@@ -35,6 +39,8 @@ export type CurrentRows = {
   payments: Payment[];
   fxRates: FxRate[];
   savingsEntries: SavingsEntry[];
+  stays: Stay[];
+  movements: Movement[];
 };
 
 export type StoredPayload = { data: Record<string, unknown> } | { changes: Record<string, FieldChange> };
@@ -126,6 +132,41 @@ export function currentFields(op: UpdateOp, targetId: string, rows: CurrentRows)
     case "update_savings_entry": {
       const row = rows.savingsEntries.find((e) => e.id === targetId);
       return row ? { amount: row.amount, recordedOn: row.recordedOn, note: row.note } : null;
+    }
+    case "update_stay": {
+      const row = rows.stays.find((s) => s.id === targetId);
+      return row
+        ? {
+            location: row.location,
+            startDate: row.startDate,
+            nights: row.nights,
+            kind: row.kind,
+            budgetLine: row.budgetLineId,
+            informationState: row.informationState,
+            source: row.sourceId,
+            notes: row.notes,
+          }
+        : null;
+    }
+    case "update_movement": {
+      const row = rows.movements.find((m) => m.id === targetId);
+      return row
+        ? {
+            sequence: row.sequence,
+            fromLocation: row.fromLocation,
+            toLocation: row.toLocation,
+            departDate: row.departDate,
+            departTime: row.departTime,
+            arriveDate: row.arriveDate,
+            arriveTime: row.arriveTime,
+            mode: row.mode,
+            budgetLine: row.budgetLineId,
+            bookingReference: row.bookingReference,
+            informationState: row.informationState,
+            source: row.sourceId,
+            notes: row.notes,
+          }
+        : null;
     }
   }
 }
@@ -222,6 +263,28 @@ function checkCreate(
       const { source, ...rest } = data as CreateData<"create_fx_rate">;
       return result(createFxRateInput.safeParse({ ...rest, sourceId: ref(source) }));
     }
+    case "create_stay": {
+      const { scenario, budgetLine, source, ...rest } = data as CreateData<"create_stay">;
+      return result(
+        createStayInput.safeParse({
+          ...rest,
+          scenarioId: ref(scenario),
+          budgetLineId: ref(budgetLine),
+          sourceId: ref(source),
+        }),
+      );
+    }
+    case "create_movement": {
+      const { scenario, budgetLine, source, ...rest } = data as CreateData<"create_movement">;
+      return result(
+        createMovementInput.safeParse({
+          ...rest,
+          scenarioId: ref(scenario),
+          budgetLineId: ref(budgetLine),
+          sourceId: ref(source),
+        }),
+      );
+    }
   }
 }
 
@@ -303,6 +366,41 @@ function checkUpdate(op: UpdateOp, id: string, merged: Record<string, unknown>, 
           amount: merged.amount,
           recordedOn: merged.recordedOn,
           note: absent(merged.note),
+          reason,
+        }),
+      );
+    case "update_stay":
+      return result(
+        updateStayInput.safeParse({
+          id,
+          location: merged.location,
+          startDate: merged.startDate,
+          nights: merged.nights,
+          kind: merged.kind,
+          budgetLineId: absent(merged.budgetLine),
+          informationState: merged.informationState,
+          sourceId: absent(merged.source),
+          notes: absent(merged.notes),
+          reason,
+        }),
+      );
+    case "update_movement":
+      return result(
+        updateMovementInput.safeParse({
+          id,
+          sequence: merged.sequence,
+          fromLocation: merged.fromLocation,
+          toLocation: merged.toLocation,
+          departDate: merged.departDate,
+          departTime: absent(merged.departTime),
+          arriveDate: merged.arriveDate,
+          arriveTime: absent(merged.arriveTime),
+          mode: merged.mode,
+          budgetLineId: absent(merged.budgetLine),
+          bookingReference: absent(merged.bookingReference),
+          informationState: merged.informationState,
+          sourceId: absent(merged.source),
+          notes: absent(merged.notes),
           reason,
         }),
       );
