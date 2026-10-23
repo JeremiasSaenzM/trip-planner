@@ -6,7 +6,7 @@ import { getCurrentUser } from "@/lib/auth";
 import type { BudgetLine, Competition, Movement, Trip } from "@/lib/data/types";
 import type { InfoState } from "@/lib/domain/types";
 
-import type { ItineraryDay } from "@/lib/domain/build-itinerary-timeline";
+import { countDaysOnGround, type ItineraryDay } from "@/lib/domain/build-itinerary-timeline";
 
 import { CATEGORY_LABELS } from "../category-labels";
 import { CONFIDENCE_LABELS, CONFIDENCE_NOT_ASSESSED } from "../confidence-labels";
@@ -115,7 +115,7 @@ async function ScenarioOverview({ searchParams }: { searchParams: PageProps<"/sc
           <ItineraryChecks data={data} />
           <div className="mt-4">
             <CardLabel>Night by night</CardLabel>
-            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">{daysAwayText(data.itineraryTimeline)}</p>
+            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">{daysAwayText(data.movements)}</p>
             <ItineraryStrip days={data.itineraryTimeline} />
           </div>
         </Card>
@@ -356,15 +356,26 @@ function HostText({ competition }: { competition: Competition }) {
 // yet) is stated plainly rather than as a Caveat: there's nothing wrong
 // to flag, just nothing to compare against yet.
 function ItineraryChecks({ data }: { data: Extract<DashboardData, { status: "ready" }> }) {
-  const { stayNightsCheck, festivalStayCoverage, pathContinuityIssues, unaccountedNights, movementsMissingBudgetLine } =
-    data;
+  const {
+    stayNightsCheck,
+    festivalStayCoverage,
+    pathContinuityIssues,
+    unaccountedNights,
+    movementsMissingBudgetLine,
+    budgetLineMatchesStay,
+    budgetLineNightsAddUp,
+    budgetLineDaysAddUp,
+  } = data;
 
   const nothingToReport =
     stayNightsCheck.status !== "mismatch" &&
     festivalStayCoverage.status !== "gap" &&
     pathContinuityIssues.length === 0 &&
     unaccountedNights.length === 0 &&
-    movementsMissingBudgetLine.length === 0;
+    movementsMissingBudgetLine.length === 0 &&
+    budgetLineMatchesStay.length === 0 &&
+    budgetLineNightsAddUp.status !== "mismatch" &&
+    budgetLineDaysAddUp.status !== "mismatch";
 
   return (
     <div className="space-y-2">
@@ -413,9 +424,39 @@ function ItineraryChecks({ data }: { data: Extract<DashboardData, { status: "rea
           budget line yet: {movementsMissingBudgetLine.map((m) => `${m.fromLocation} → ${m.toLocation}`).join(", ")}.
         </Caveat>
       )}
-      {nothingToReport && stayNightsCheck.status !== "unknown" && festivalStayCoverage.status !== "unknown" && (
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">Every itinerary check passes.</p>
+      {budgetLineMatchesStay.length > 0 && (
+        <Caveat>
+          {budgetLineMatchesStay.length} budget line{budgetLineMatchesStay.length === 1 ? "" : "s"} priced by the
+          night don&apos;t match the stay they&apos;re linked to:{" "}
+          {budgetLineMatchesStay
+            .map((mismatch) => `"${mismatch.description}" (${mismatch.quantity}) vs. ${mismatch.stayNights} nights`)
+            .join(", ")}
+          .
+        </Caveat>
       )}
+      {budgetLineNightsAddUp.status === "unknown" && (
+        <Missing>Travel window not set -- can&apos;t check whether the night-priced budget lines add up.</Missing>
+      )}
+      {budgetLineNightsAddUp.status === "mismatch" && (
+        <Caveat>
+          Night-priced budget lines total {budgetLineNightsAddUp.linesNights} night
+          {budgetLineNightsAddUp.linesNights === 1 ? "" : "s"}, but there are {budgetLineNightsAddUp.bedsNights} night
+          {budgetLineNightsAddUp.bedsNights === 1 ? "" : "s"} in beds.
+        </Caveat>
+      )}
+      {budgetLineDaysAddUp.status === "mismatch" && (
+        <Caveat>
+          Food (category E) budget lines priced by the day total {budgetLineDaysAddUp.linesDays} day
+          {budgetLineDaysAddUp.linesDays === 1 ? "" : "s"}, but there are {budgetLineDaysAddUp.groundDays} day
+          {budgetLineDaysAddUp.groundDays === 1 ? "" : "s"} on the ground.
+        </Caveat>
+      )}
+      {nothingToReport &&
+        stayNightsCheck.status !== "unknown" &&
+        festivalStayCoverage.status !== "unknown" &&
+        budgetLineNightsAddUp.status !== "unknown" && (
+          <p className="text-sm text-zinc-600 dark:text-zinc-400">Every itinerary check passes.</p>
+        )}
     </div>
   );
 }
@@ -455,10 +496,12 @@ function ItineraryStrip({ days }: { days: ItineraryDay<Movement>[] }) {
 }
 
 // So the food budget line (category E) can be eyeballed against it --
-// deliberately counted here, not parsed out of a description (CLAUDE.md:
-// that stays prose).
-function daysAwayText(days: ItineraryDay<Movement>[]): string {
-  const daysAway = days.filter((day) => day.night.type !== "home").length;
+// deliberately counted here, not parsed out of a description (CLAUDE.md).
+// countDaysOnGround() is also what checkBudgetLineDaysAddUp compares
+// category E's day-quantity lines to, so this text and that check can
+// never disagree about what "days on the ground" means.
+function daysAwayText(movements: Movement[]): string {
+  const daysAway = countDaysOnGround(movements);
   return `${daysAway} day${daysAway === 1 ? "" : "s"} on the ground.`;
 }
 
