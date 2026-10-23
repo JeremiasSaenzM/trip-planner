@@ -7,7 +7,7 @@ import { translatePostgresError } from "@/lib/data/error-messages";
 import { createBudgetLineInput, deleteBudgetLineInput, updateBudgetLineInput } from "@/lib/validation/budget-lines";
 
 import { initialFormActionState, type FormActionState } from "./form-action-state";
-import { firstIssueMessage, optionalText } from "./server-action-helpers";
+import { firstIssueMessage, optionalNumber, optionalText } from "./server-action-helpers";
 import { resolveSourceId } from "./source-actions";
 
 // Server Actions behind /budget-lines' budget-line section (see
@@ -47,6 +47,8 @@ export async function createBudgetLine(_previous: FormActionState, formData: For
     sourceId,
     notes: optionalText(formData.get("notes")),
     confidence: optionalText(formData.get("confidence")),
+    quantity: optionalNumber(formData.get("quantity")),
+    quantityUnit: optionalText(formData.get("quantityUnit")),
   });
   if (!parsed.success) return { status: "error", message: firstIssueMessage(parsed.error) };
 
@@ -80,6 +82,8 @@ export async function updateBudgetLine(_previous: FormActionState, formData: For
     sourceId,
     notes: optionalText(formData.get("notes")),
     confidence: optionalText(formData.get("confidence")),
+    quantity: optionalNumber(formData.get("quantity")),
+    quantityUnit: optionalText(formData.get("quantityUnit")),
     reason: formData.get("reason"),
   });
   if (!parsed.success) return { status: "error", message: firstIssueMessage(parsed.error) };

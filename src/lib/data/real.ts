@@ -164,6 +164,8 @@ function mapBudgetLineRow(row: Record<string, unknown>): BudgetLine {
     sourceId: row.source_id as string | null,
     notes: row.notes as string | null,
     confidence: row.confidence as BudgetLine["confidence"],
+    quantity: row.quantity as number | null,
+    quantityUnit: row.quantity_unit as BudgetLine["quantityUnit"],
     autoCreated: row.auto_created as boolean,
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
@@ -772,6 +774,8 @@ export const realDataSource: DataSource = {
         source_id: input.sourceId ?? null,
         notes: input.notes ?? null,
         confidence: input.confidence ?? null,
+        quantity: input.quantity ?? null,
+        quantity_unit: input.quantityUnit ?? null,
       })
       .select("*")
       .single();
@@ -794,6 +798,8 @@ export const realDataSource: DataSource = {
       p_source_id: input.sourceId ?? null,
       p_notes: input.notes ?? null,
       p_confidence: input.confidence ?? null,
+      p_quantity: input.quantity ?? null,
+      p_quantity_unit: input.quantityUnit ?? null,
       p_reason: input.reason,
     });
     if (error) throw error;

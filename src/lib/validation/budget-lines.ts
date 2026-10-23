@@ -1,11 +1,12 @@
 import { z } from "zod";
 
-import type { BudgetCategory } from "@/lib/domain/types";
+import type { BudgetCategory, QuantityUnit } from "@/lib/domain/types";
 
 import {
   changeReason,
   checkAmountOrder,
   checkConfirmedNeedsSource,
+  checkQuantityPair,
   confidence,
   currencyCode,
   id,
@@ -15,6 +16,11 @@ import {
 export const budgetCategory = z.enum(["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"] satisfies [
   BudgetCategory,
   ...BudgetCategory[],
+]);
+
+export const quantityUnit = z.enum(["night", "day", "person", "item"] satisfies [
+  QuantityUnit,
+  ...QuantityUnit[],
 ]);
 
 const budgetLineFields = z.object({
@@ -29,6 +35,9 @@ const budgetLineFields = z.object({
   notes: z.string().trim().optional(),
   // Optional: absent means "not assessed" (null in budget_lines).
   confidence: confidence.optional(),
+  // Both optional: absent means a flat amount, not priced by a count.
+  quantity: z.number().optional(),
+  quantityUnit: quantityUnit.optional(),
 });
 
 function refineBudgetLine(value: z.infer<typeof budgetLineFields>, ctx: z.RefinementCtx) {
@@ -38,6 +47,7 @@ function refineBudgetLine(value: z.infer<typeof budgetLineFields>, ctx: z.Refine
     ["amountTarget"],
   );
   checkConfirmedNeedsSource(ctx, value.informationState, value.sourceId, ["sourceId"]);
+  checkQuantityPair(ctx, value.quantity, value.quantityUnit, ["quantityUnit"]);
 }
 
 // Mirrors budget_lines: budget_lines_amount_order and

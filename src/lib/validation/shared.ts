@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import type { Confidence, InfoState } from "@/lib/domain/types";
+import type { Confidence, InfoState, QuantityUnit } from "@/lib/domain/types";
 
 // Every foreign key in this app is a Postgres uuid column, but not every
 // id in it is a freshly-generated v4 uuid: supabase/seed.sql and
@@ -99,6 +99,35 @@ export function checkAmountOrder(
       code: "custom",
       path: targetPath,
       message: "Minimum, target and conservative must stay in that order (min ≤ target ≤ conservative).",
+    });
+  }
+}
+
+/**
+ * Mirrors budget_lines_quantity_pair (both null or both set) and
+ * budget_lines_quantity_positive. Attaches to quantityUnit -- whichever
+ * of the pair is missing, that's the field to go fill in or clear.
+ */
+export function checkQuantityPair(
+  ctx: z.RefinementCtx,
+  quantity: number | null | undefined,
+  quantityUnit: QuantityUnit | null | undefined,
+  unitPath: (string | number)[],
+) {
+  const hasQuantity = quantity !== null && quantity !== undefined;
+  const hasUnit = quantityUnit !== null && quantityUnit !== undefined;
+  if (hasQuantity !== hasUnit) {
+    ctx.addIssue({
+      code: "custom",
+      path: unitPath,
+      message: "A quantity needs a unit, and a unit needs a quantity -- set both, or neither.",
+    });
+  }
+  if (hasQuantity && quantity <= 0) {
+    ctx.addIssue({
+      code: "custom",
+      path: unitPath,
+      message: "Quantity must be greater than zero.",
     });
   }
 }
