@@ -571,6 +571,16 @@ export const realDataSource: DataSource = {
     if (error) throw error;
   },
 
+  async deleteScenarioCascade(input) {
+    assertWritesAllowed();
+    const supabase = await createClient();
+    const { error } = await supabase.rpc("delete_scenario_cascade", {
+      p_id: input.id,
+      p_reason: input.reason,
+    });
+    if (error) throw error;
+  },
+
   // A new entry has nothing prior to justify changing, so change_log's
   // trigger doesn't require a reason for it -- this stays a plain
   // insert, with currency hardcoded to "USD" (see savings-entries.ts's

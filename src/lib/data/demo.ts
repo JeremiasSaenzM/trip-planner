@@ -40,6 +40,7 @@ export const demoDataSource: DataSource = {
   createScenario: async () => writesDisabledInDemoMode(),
   updateScenario: async () => writesDisabledInDemoMode(),
   deleteScenario: async () => writesDisabledInDemoMode(),
+  deleteScenarioCascade: async () => writesDisabledInDemoMode(),
   recordSavingsEntry: async () => writesDisabledInDemoMode(),
   updateSavingsEntry: async () => writesDisabledInDemoMode(),
   deleteSavingsEntry: async () => writesDisabledInDemoMode(),
