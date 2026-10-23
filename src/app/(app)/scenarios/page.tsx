@@ -12,7 +12,7 @@ import { Card, EmptyState } from "../dashboard-ui";
 import { formatDate } from "../format";
 import { INFO_STATE_LABELS } from "../info-state-labels";
 import { sortScenarios } from "../scenario-order";
-import { CompetitionRowActions, ScenarioRowActions, TravelWindowActions } from "../scenarios-ui";
+import { CompetitionRowActions, ScenarioRowActions, TravelWindowActions, type ScenarioCascadeCounts } from "../scenarios-ui";
 
 export const metadata: Metadata = { title: "Scenarios" };
 
@@ -43,15 +43,18 @@ async function ScenariosScreen({ searchParams }: { searchParams: PageProps<"/sce
   await getCurrentUser();
   const { scenario: scenarioParam, basis: basisParam } = await searchParams;
 
-  const [trips, competitions, scenarios, sources, budgetLines, payments, flightOptions] = await Promise.all([
-    dataSource.getTrips(),
-    dataSource.getCompetitions(),
-    dataSource.getScenarios(),
-    dataSource.getSources(),
-    dataSource.getBudgetLines(),
-    dataSource.getPayments(),
-    dataSource.getFlightOptions(),
-  ]);
+  const [trips, competitions, scenarios, sources, budgetLines, payments, flightOptions, stays, movements] =
+    await Promise.all([
+      dataSource.getTrips(),
+      dataSource.getCompetitions(),
+      dataSource.getScenarios(),
+      dataSource.getSources(),
+      dataSource.getBudgetLines(),
+      dataSource.getPayments(),
+      dataSource.getFlightOptions(),
+      dataSource.getStays(),
+      dataSource.getMovements(),
+    ]);
 
   const trip = trips[0];
   if (!trip) return <EmptyState>No trip yet. Start one from Overview.</EmptyState>;
@@ -66,14 +69,41 @@ async function ScenariosScreen({ searchParams }: { searchParams: PageProps<"/sce
   const selected = tripScenarios.find((s) => s.id === scenarioParam) ?? tripScenarios[0];
   const basis = parseBasis(basisParam);
 
+  // What delete_scenario_cascade would actually destroy: its own budget
+  // lines, plus every payment that would go with them -- either because
+  // it's attached to one of those lines, or because it carries this
+  // scenario_id directly even though its own budget line is a shared
+  // one (a scenario-specific payment on a trip-wide line survives that
+  // line, but not the scenario it was scoped to).
+  function cascadeCounts(scenario: Scenario): ScenarioCascadeCounts {
+    const ownLineIds = new Set(
+      budgetLines.filter((line) => line.scenarioId === scenario.id).map((line) => line.id),
+    );
+    const ownPayments = payments.filter(
+      (payment) => payment.scenarioId === scenario.id || ownLineIds.has(payment.budgetLineId),
+    );
+    return {
+      budgetLines: ownLineIds.size,
+      payments: ownPayments.length,
+      stays: stays.filter((stay) => stay.scenarioId === scenario.id).length,
+      movements: movements.filter((movement) => movement.scenarioId === scenario.id).length,
+      flightOptions: flightOptions.filter((option) => option.scenarioId === scenario.id).length,
+    };
+  }
+
+  // What the plain delete_scenario guard would refuse over -- every
+  // type it now checks, so this stays accurate after its stays/
+  // movements fix (20261026090000).
   function references(scenario: Scenario): string[] {
-    const lines = budgetLines.filter((line) => line.scenarioId === scenario.id).length;
-    const ownPayments = payments.filter((payment) => payment.scenarioId === scenario.id).length;
-    const flights = flightOptions.filter((option) => option.scenarioId === scenario.id).length;
+    const counts = cascadeCounts(scenario);
     return [
-      lines > 0 ? `${lines} budget line${lines === 1 ? "" : "s"}` : null,
-      ownPayments > 0 ? `${ownPayments} payment${ownPayments === 1 ? "" : "s"}` : null,
-      flights > 0 ? `${flights} flight option${flights === 1 ? "" : "s"}` : null,
+      counts.budgetLines > 0 ? `${counts.budgetLines} budget line${counts.budgetLines === 1 ? "" : "s"}` : null,
+      counts.payments > 0 ? `${counts.payments} payment${counts.payments === 1 ? "" : "s"}` : null,
+      counts.flightOptions > 0
+        ? `${counts.flightOptions} flight option${counts.flightOptions === 1 ? "" : "s"}`
+        : null,
+      counts.stays > 0 ? `${counts.stays} stay${counts.stays === 1 ? "" : "s"}` : null,
+      counts.movements > 0 ? `${counts.movements} movement${counts.movements === 1 ? "" : "s"}` : null,
     ].filter((text): text is string => text !== null);
   }
 
@@ -125,7 +155,11 @@ async function ScenariosScreen({ searchParams }: { searchParams: PageProps<"/sce
                       </Link>
                     )}
                   </div>
-                  <ScenarioRowActions scenario={scenario} competitions={tripCompetitions} />
+                  <ScenarioRowActions
+                    scenario={scenario}
+                    competitions={tripCompetitions}
+                    cascadeCounts={cascadeCounts(scenario)}
+                  />
                 </Card>
               );
             })}

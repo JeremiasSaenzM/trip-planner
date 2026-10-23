@@ -401,6 +401,10 @@ export type CreateScenarioWrite = {
 // competitionId absent = unlink (a scenario with no competition yet).
 export type UpdateScenarioWrite = { id: string; name: string; competitionId?: string; reason: string };
 export type DeleteScenarioWrite = { id: string; reason: string };
+// Same shape as DeleteScenarioWrite -- delete_scenario_cascade takes
+// nothing extra, so this is just a type alias for the separate RPC
+// below rather than a duplicate of an identical input.
+export type DeleteScenarioCascadeWrite = DeleteScenarioWrite;
 
 export type RecordSavingsEntryWrite = { tripId: string; amount: number; recordedOn: string; note?: string };
 export type UpdateSavingsEntryWrite = { id: string; amount: number; recordedOn: string; note?: string; reason: string };
@@ -612,6 +616,7 @@ export type DataSource = {
   createScenario(input: CreateScenarioWrite): Promise<Scenario>;
   updateScenario(input: UpdateScenarioWrite): Promise<Scenario>;
   deleteScenario(input: DeleteScenarioWrite): Promise<void>;
+  deleteScenarioCascade(input: DeleteScenarioCascadeWrite): Promise<void>;
   recordSavingsEntry(input: RecordSavingsEntryWrite): Promise<SavingsEntry>;
   updateSavingsEntry(input: UpdateSavingsEntryWrite): Promise<SavingsEntry>;
   deleteSavingsEntry(input: DeleteSavingsEntryWrite): Promise<void>;

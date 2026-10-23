@@ -96,6 +96,29 @@ export async function deleteScenario(_previous: FormActionState, formData: FormD
   return initialFormActionState;
 }
 
+// Same input shape as deleteScenario -- a separate, more dangerous
+// action, not that one quietly growing teeth (delete_scenario_cascade,
+// 20261026090000).
+export async function deleteScenarioCascade(
+  _previous: FormActionState,
+  formData: FormData,
+): Promise<FormActionState> {
+  const parsed = deleteScenarioInput.safeParse({
+    id: formData.get("id"),
+    reason: formData.get("reason"),
+  });
+  if (!parsed.success) return { status: "error", message: firstIssueMessage(parsed.error) };
+
+  try {
+    await dataSource.deleteScenarioCascade(parsed.data);
+  } catch (error) {
+    return { status: "error", message: translatePostgresError(error as { message: string }) };
+  }
+
+  revalidateAll();
+  return initialFormActionState;
+}
+
 // The trip's travel window. Its departure date moves every savings
 // deadline (resolveDepartureDate()), so -- like the competition edits
 // above -- this revalidates everything.
