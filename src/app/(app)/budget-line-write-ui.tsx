@@ -3,15 +3,16 @@
 import { useActionState, useEffect, useId, useState } from "react";
 
 import type { BudgetLine, Source } from "@/lib/data/types";
-import type { Confidence, InfoState } from "@/lib/domain/types";
+import type { Confidence, InfoState, QuantityUnit } from "@/lib/domain/types";
 
 import { createBudgetLine, deleteBudgetLine, updateBudgetLine } from "./budget-line-actions";
 import { CATEGORY_LABELS, CATEGORY_ORDER } from "./category-labels";
-import { formatAmount, formatDate } from "./format";
+import { formatAmount, formatDate, formatUnitAmount } from "./format";
 import { buttonClass, FormError, inputClass, labelClass, secondaryButtonClass } from "./form-styles";
 import { initialFormActionState } from "./form-action-state";
 import { CONFIDENCE_DESCRIPTIONS, CONFIDENCE_NOT_ASSESSED, CONFIDENCE_ORDER, confidenceLabel } from "./confidence-labels";
 import { INFO_STATE_LABELS, INFO_STATE_ORDER } from "./info-state-labels";
+import { QUANTITY_UNIT_LABELS, QUANTITY_UNIT_ORDER } from "./quantity-unit-labels";
 import { SourcePicker } from "./source-picker";
 
 // Shared by the add and edit forms. "" submits as "not assessed"
@@ -27,6 +28,51 @@ function ConfidenceSelect({ id, defaultValue }: { id: string; defaultValue: Conf
         </option>
       ))}
     </select>
+  );
+}
+
+// Shared by the add and edit forms. Both fields are optional and go
+// together -- "" submits as undefined (optionalNumber/optionalText),
+// matching budget_lines_quantity_pair's both-null-or-both-set rule.
+function QuantityFields({
+  idPrefix,
+  defaultQuantity,
+  defaultUnit,
+}: {
+  idPrefix: string;
+  defaultQuantity: number | null;
+  defaultUnit: QuantityUnit | null;
+}) {
+  return (
+    <div className="grid grid-cols-2 gap-2.5">
+      <div className="space-y-1.5">
+        <label htmlFor={`${idPrefix}-quantity`} className={labelClass}>
+          Quantity (optional)
+        </label>
+        <input
+          id={`${idPrefix}-quantity`}
+          name="quantity"
+          type="number"
+          step="1"
+          min="0"
+          defaultValue={defaultQuantity ?? ""}
+          className={inputClass}
+        />
+      </div>
+      <div className="space-y-1.5">
+        <label htmlFor={`${idPrefix}-quantityUnit`} className={labelClass}>
+          Per
+        </label>
+        <select id={`${idPrefix}-quantityUnit`} name="quantityUnit" defaultValue={defaultUnit ?? ""} className={inputClass}>
+          <option value="">Flat amount</option>
+          {QUANTITY_UNIT_ORDER.map((value) => (
+            <option key={value} value={value}>
+              {QUANTITY_UNIT_LABELS[value]}
+            </option>
+          ))}
+        </select>
+      </div>
+    </div>
   );
 }
 
@@ -164,6 +210,8 @@ export function AddBudgetLineForm({
         <input id="line-currency" name="currency" required defaultValue="USD" placeholder="USD" className={inputClass} />
       </div>
 
+      <QuantityFields idPrefix="line" defaultQuantity={null} defaultUnit={null} />
+
       <div className="space-y-1.5">
         <label htmlFor="line-information-state" className={labelClass}>
           Information state
@@ -252,6 +300,12 @@ function BudgetLineRow({ line, sources }: { line: BudgetLine; sources: Source[] 
           <p className="text-xs text-zinc-500 dark:text-zinc-400">
             {formatAmount(line.amountMin, line.currency)}–{formatAmount(line.amountConservative, line.currency)}
           </p>
+          {line.quantity !== null && line.quantityUnit !== null && (
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              {formatUnitAmount(line.amountTarget, line.currency, line.quantity, QUANTITY_UNIT_LABELS[line.quantityUnit])}
+              {` × ${line.quantity}`}
+            </p>
+          )}
         </div>
       </div>
       <BudgetLineRowActions line={line} sources={sources} />
@@ -417,6 +471,8 @@ function EditBudgetLineForm({
         </label>
         <input id={`${formId}-currency`} name="currency" required defaultValue={line.currency} className={inputClass} />
       </div>
+
+      <QuantityFields idPrefix={formId} defaultQuantity={line.quantity} defaultUnit={line.quantityUnit} />
 
       <div className="space-y-1.5">
         <label htmlFor={`${formId}-informationState`} className={labelClass}>
