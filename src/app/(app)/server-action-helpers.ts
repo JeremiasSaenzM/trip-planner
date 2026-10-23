@@ -16,3 +16,11 @@ export function optionalText(value: FormDataEntryValue | null): string | undefin
   const text = String(value ?? "").trim();
   return text === "" ? undefined : text;
 }
+
+// Same reasoning as optionalText, for a field that must come out as a
+// number or not at all -- Number("") is 0, not undefined, which would
+// turn "I didn't set a quantity" into "quantity is zero".
+export function optionalNumber(value: FormDataEntryValue | null): number | undefined {
+  const text = optionalText(value);
+  return text === undefined ? undefined : Number(text);
+}

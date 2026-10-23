@@ -19,6 +19,8 @@ function line(id: string, overrides: Partial<BudgetLine>): BudgetLine {
     sourceId: null,
     notes: null,
     confidence: null,
+    quantity: null,
+    quantityUnit: null,
     autoCreated: false,
     createdAt: "2026-10-01T00:00:00Z",
     updatedAt: "2026-10-01T00:00:00Z",

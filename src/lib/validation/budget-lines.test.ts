@@ -66,6 +66,37 @@ describe("createBudgetLineInput", () => {
     });
     expect(confirmedLow.success).toBe(true);
   });
+
+  it("leaves quantity/quantityUnit unset (a flat amount) when both are omitted", () => {
+    const result = createBudgetLineInput.safeParse(VALID_CREATE);
+    expect(result.success && result.data.quantity).toBeUndefined();
+    expect(result.success && result.data.quantityUnit).toBeUndefined();
+  });
+
+  it("accepts a quantity with its unit", () => {
+    const result = createBudgetLineInput.safeParse({ ...VALID_CREATE, quantity: 8, quantityUnit: "night" });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects a quantity with no unit", () => {
+    expect(createBudgetLineInput.safeParse({ ...VALID_CREATE, quantity: 8 }).success).toBe(false);
+  });
+
+  it("rejects a unit with no quantity", () => {
+    expect(createBudgetLineInput.safeParse({ ...VALID_CREATE, quantityUnit: "night" }).success).toBe(false);
+  });
+
+  it("rejects a quantity of zero", () => {
+    expect(createBudgetLineInput.safeParse({ ...VALID_CREATE, quantity: 0, quantityUnit: "night" }).success).toBe(
+      false,
+    );
+  });
+
+  it("rejects a quantity unit outside night / day / person / item", () => {
+    expect(createBudgetLineInput.safeParse({ ...VALID_CREATE, quantity: 1, quantityUnit: "week" }).success).toBe(
+      false,
+    );
+  });
 });
 
 describe("updateBudgetLineInput", () => {
