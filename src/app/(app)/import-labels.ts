@@ -7,6 +7,7 @@ import { CONFIDENCE_LABELS, CONFIDENCE_NOT_ASSESSED } from "./confidence-labels"
 import { INFO_STATE_LABELS } from "./info-state-labels";
 import { MOVEMENT_MODE_LABELS, STAY_KIND_LABELS } from "./itinerary-labels";
 import { REFUNDABILITY_LABELS, TIMING_LABELS } from "./payment-labels";
+import { QUANTITY_UNIT_LABELS } from "./quantity-unit-labels";
 
 // Words for the /import review screen. Values are shown with the same
 // labels the rest of the app uses (categories, information states, ...),
@@ -61,6 +62,8 @@ const FIELD_LABELS: Record<string, string> = {
   informationState: "Information state",
   source: "Source",
   confidence: "Confidence",
+  quantity: "Quantity",
+  quantityUnit: "Per",
   budgetLine: "Budget line",
   totalAmount: "Total amount",
   refundability: "Refundability",
@@ -134,6 +137,8 @@ export function formatProposalValue(field: string, value: unknown): string {
       return STAY_KIND_LABELS[value as keyof typeof STAY_KIND_LABELS] ?? value;
     case "mode":
       return MOVEMENT_MODE_LABELS[value as keyof typeof MOVEMENT_MODE_LABELS] ?? value;
+    case "quantityUnit":
+      return QUANTITY_UNIT_LABELS[value as keyof typeof QUANTITY_UNIT_LABELS] ?? value;
     default:
       return value;
   }

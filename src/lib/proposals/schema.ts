@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import type { ProposalOp } from "@/lib/data/types";
-import { budgetCategory } from "@/lib/validation/budget-lines";
+import { budgetCategory, quantityUnit } from "@/lib/validation/budget-lines";
 import { rateKind } from "@/lib/validation/fx-rates";
 import { movementMode } from "@/lib/validation/movements";
 import { paymentTiming, refundability } from "@/lib/validation/payments";
@@ -158,6 +158,8 @@ export const CREATE_DATA = {
     source: reference.optional(),
     notes: freeText.optional(),
     confidence: confidence.optional(),
+    quantity: z.number().positive().optional(),
+    quantityUnit: quantityUnit.optional(),
   }),
   create_payment: z.strictObject({
     scenario: reference.optional(),
@@ -245,6 +247,8 @@ export const UPDATE_CHANGES = {
       source: referenceChange.optional(),
       notes: change(freeText.nullable()).optional(),
       confidence: change(confidence.nullable()).optional(),
+      quantity: change(z.number().positive().nullable()).optional(),
+      quantityUnit: change(quantityUnit.nullable()).optional(),
     })
     .refine(atLeastOneChange, "An update needs at least one change"),
   update_payment: z

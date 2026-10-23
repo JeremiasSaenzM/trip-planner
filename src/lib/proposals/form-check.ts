@@ -94,6 +94,8 @@ export function currentFields(op: UpdateOp, targetId: string, rows: CurrentRows)
             source: row.sourceId,
             notes: row.notes,
             confidence: row.confidence,
+            quantity: row.quantity,
+            quantityUnit: row.quantityUnit,
           }
         : null;
     }
@@ -324,6 +326,8 @@ function checkUpdate(op: UpdateOp, id: string, merged: Record<string, unknown>, 
           sourceId: absent(merged.source),
           notes: absent(merged.notes),
           confidence: absent(merged.confidence),
+          quantity: absent(merged.quantity),
+          quantityUnit: absent(merged.quantityUnit),
           reason,
         }),
       );
