@@ -58,7 +58,7 @@ select throws_like(
 select throws_like(
   $$ select update_budget_line(
        'f0000000-0000-0000-0000-000000000002', 'C', 'pgTAP confidence line', 100, 120, 150, 'EUR', 'estimate',
-       null, null, 'medium', ''
+       null, null, 'medium', null, null, ''
      ) $$,
   '%reason is required%',
   'changing confidence still needs a reason'
@@ -67,7 +67,7 @@ select throws_like(
 select lives_ok(
   $$ select update_budget_line(
        'f0000000-0000-0000-0000-000000000002', 'C', 'pgTAP confidence line', 100, 120, 150, 'EUR', 'estimate',
-       null, null, 'medium', 'pgTAP: several current observations'
+       null, null, 'medium', null, null, 'pgTAP: several current observations'
      ) $$,
   'update_budget_line sets confidence with a real reason'
 );
@@ -89,7 +89,7 @@ select results_eq(
 select lives_ok(
   $$ select update_budget_line(
        'f0000000-0000-0000-0000-000000000002', 'C', 'pgTAP confidence line', 100, 120, 150, 'EUR', 'estimate',
-       null, null, null, 'pgTAP: back to not assessed'
+       null, null, null, null, null, 'pgTAP: back to not assessed'
      ) $$,
   'update_budget_line can clear confidence back to not assessed'
 );
