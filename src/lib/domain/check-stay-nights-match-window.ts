@@ -1,10 +1,8 @@
-import { DateTime } from "luxon";
+import { countNightsInBeds, type TimelineMovement } from "./build-itinerary-timeline";
 
 export type CheckStayNightsMatchWindowInput = {
   stays: { nights: number }[];
-  /** YYYY-MM-DD, the trip's own departure and return dates -- never
-   * resolveDepartureDate()'s fallback to the competition's first day.
-   * See this function's own comment for why. */
+  movements: TimelineMovement[];
   tripDepartureDate: string | null;
   tripReturnDate: string | null;
 };
@@ -18,31 +16,22 @@ export type StayNightsCheckResult =
  * Catches a budget priced for a different trip length than what's
  * actually scheduled -- a 21-night budget priced against an 11-night
  * air fare, say. Sums every stay's own nights and compares the total
- * to the number of nights between the trip's departure and return
- * dates.
- *
- * Deliberately does not fall back to the competition's first/final day
- * the way resolveDepartureDate() does for the savings plan. That
- * fallback exists because the savings plan must always produce a
- * number, even from an unconfirmed guess -- a missing travel window
- * can't leave the required saving undefined. This is a consistency
- * check, under no such obligation: a warning derived from an invented
- * date would be a false warning, so it reports "unknown" instead of
- * guessing once the trip's own dates aren't both set.
+ * to countNightsInBeds() -- the trip's travel window, less any night
+ * a movement crosses overnight -- so this agrees with
+ * checkNightsAccountedFor about which nights actually need a bed.
  */
 export function checkStayNightsMatchWindow(input: CheckStayNightsMatchWindowInput): StayNightsCheckResult {
-  if (input.tripDepartureDate === null || input.tripReturnDate === null) {
-    return { status: "unknown" };
-  }
-
-  const departure = DateTime.fromISO(input.tripDepartureDate, { zone: "utc" });
-  const returnDate = DateTime.fromISO(input.tripReturnDate, { zone: "utc" });
-  const windowNights = returnDate.diff(departure, "days").days;
+  const beds = countNightsInBeds({
+    movements: input.movements,
+    tripDepartureDate: input.tripDepartureDate,
+    tripReturnDate: input.tripReturnDate,
+  });
+  if (beds.status === "unknown") return { status: "unknown" };
 
   const staysNights = input.stays.reduce((total, stay) => total + stay.nights, 0);
 
-  if (staysNights === windowNights) {
+  if (staysNights === beds.nights) {
     return { status: "ok" };
   }
-  return { status: "mismatch", staysNights, windowNights };
+  return { status: "mismatch", staysNights, windowNights: beds.nights };
 }
