@@ -27,6 +27,12 @@ import { buildObligations, type BuiltObligation, type MissingObligationRate } fr
 import { buildParallelSavingsPlan, type BuildParallelSavingsPlanResult } from "@/lib/domain/build-parallel-savings-plan";
 import { buildPhasedSavingsPlan, type BuildPhasedSavingsPlanResult } from "@/lib/domain/build-phased-savings-plan";
 import { calculateRequiredSavings, type CalculateRequiredSavingsResult } from "@/lib/domain/calculate-required-savings";
+import { checkBudgetLineDaysAddUp, type BudgetLineDaysCheckResult } from "@/lib/domain/check-budget-line-days-add-up";
+import { checkBudgetLineMatchesStay, type BudgetLineStayMismatch } from "@/lib/domain/check-budget-line-matches-stay";
+import {
+  checkBudgetLineNightsAddUp,
+  type BudgetLineNightsCheckResult,
+} from "@/lib/domain/check-budget-line-nights-add-up";
 import { checkFestivalStayCoverage, type FestivalStayCoverageResult } from "@/lib/domain/check-festival-stay-coverage";
 import { checkStayNightsMatchWindow, type StayNightsCheckResult } from "@/lib/domain/check-stay-nights-match-window";
 import { checkTravelWindow, type TravelWindowIssue } from "@/lib/domain/check-travel-window";
@@ -131,6 +137,13 @@ export type DashboardData =
       pathContinuityIssues: PathContinuityIssue[];
       unaccountedNights: UnaccountedNight[];
       movementsMissingBudgetLine: MovementMissingBudgetLine[];
+      /** Phase 6.4b's three quantity checks -- warnings too, same as
+       * the five above. All three, and stayNightsCheck, go through
+       * countNightsInBeds()/countDaysOnGround() rather than each
+       * counting nights or days its own way. */
+      budgetLineMatchesStay: BudgetLineStayMismatch[];
+      budgetLineNightsAddUp: BudgetLineNightsCheckResult;
+      budgetLineDaysAddUp: BudgetLineDaysCheckResult;
     };
 
 // The one place every dashboard page (Overview, Payments, Deadlines)
@@ -242,6 +255,14 @@ export async function loadDashboardData(params: {
   const pathContinuityIssues = checkPathContinuity(scenarioMovements);
   const unaccountedNights = checkNightsAccountedFor(scenarioMovements, scenarioStays);
   const movementsMissingBudgetLine = findMovementsMissingBudgetLine(scenarioMovements);
+  const budgetLineMatchesStay = checkBudgetLineMatchesStay(scenarioStays, scenarioBudgetLines);
+  const budgetLineNightsAddUp = checkBudgetLineNightsAddUp({
+    budgetLines: scenarioBudgetLines,
+    movements: scenarioMovements,
+    tripDepartureDate: trip.departureDate,
+    tripReturnDate: trip.returnDate,
+  });
+  const budgetLineDaysAddUp = checkBudgetLineDaysAddUp(scenarioBudgetLines, scenarioMovements);
 
   const tripOpenItems = openItems.filter((item) => item.tripId === trip.id);
   const tripSavingsEntries = savingsEntries.filter((entry) => entry.tripId === trip.id);
@@ -296,6 +317,9 @@ export async function loadDashboardData(params: {
       pathContinuityIssues,
       unaccountedNights,
       movementsMissingBudgetLine,
+      budgetLineMatchesStay,
+      budgetLineNightsAddUp,
+      budgetLineDaysAddUp,
     };
   }
 
@@ -369,5 +393,8 @@ export async function loadDashboardData(params: {
     pathContinuityIssues,
     unaccountedNights,
     movementsMissingBudgetLine,
+    budgetLineMatchesStay,
+    budgetLineNightsAddUp,
+    budgetLineDaysAddUp,
   };
 }
