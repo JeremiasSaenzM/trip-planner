@@ -5,7 +5,7 @@ import { useActionState, useEffect, useId, useState } from "react";
 import type { BudgetLine, Movement, Source, Stay } from "@/lib/data/types";
 import type { InfoState } from "@/lib/domain/types";
 
-import { formatAmount, formatDate } from "./format";
+import { formatAmount, formatDate, formatUnitAmount } from "./format";
 import { buttonClass, FormError, inputClass, labelClass, secondaryButtonClass } from "./form-styles";
 import { initialFormActionState } from "./form-action-state";
 import { INFO_STATE_LABELS, INFO_STATE_ORDER } from "./info-state-labels";
@@ -18,7 +18,20 @@ import {
   updateStay,
 } from "./itinerary-actions";
 import { MOVEMENT_MODE_LABELS, MOVEMENT_MODE_ORDER, STAY_KIND_LABELS, STAY_KIND_ORDER } from "./itinerary-labels";
+import { QUANTITY_UNIT_LABELS } from "./quantity-unit-labels";
 import { SourcePicker } from "./source-picker";
+
+// Shown next to a linked budget line's description wherever a stay or
+// movement row references one (StayRow, MovementRow below) -- the unit
+// amount, computed from amount / quantity, never stored.
+function budgetLineLabel(budgetLine: BudgetLine | null | undefined): string {
+  if (!budgetLine) return " · No budget line yet";
+  const unitAmount =
+    budgetLine.quantity !== null && budgetLine.quantityUnit !== null
+      ? ` (${formatUnitAmount(budgetLine.amountTarget, budgetLine.currency, budgetLine.quantity, QUANTITY_UNIT_LABELS[budgetLine.quantityUnit])})`
+      : "";
+  return ` · ${budgetLine.description}${unitAmount}`;
+}
 
 // Shared by every stay/movement form -- a budget line reference is
 // always optional here (findMovementsMissingBudgetLine's own soft
@@ -193,7 +206,7 @@ function StayRow({ stay, budgetLines, sources }: { stay: Stay; budgetLines: Budg
           <p className="text-xs text-zinc-500 dark:text-zinc-400">
             {formatDate(stay.startDate)}, {stay.nights} night{stay.nights === 1 ? "" : "s"} ·{" "}
             {INFO_STATE_LABELS[stay.informationState]}
-            {budgetLine ? ` · ${budgetLine.description}` : " · No budget line yet"}
+            {budgetLineLabel(budgetLine)}
           </p>
           <div className="mt-2 flex flex-wrap gap-3 text-sm">
             <button type="button" onClick={() => startMode("edit")} className="text-zinc-600 underline dark:text-zinc-400">
@@ -530,7 +543,7 @@ function MovementRow({
           <p className="text-xs text-zinc-500 dark:text-zinc-400">
             {formatDate(movement.departDate)} → {formatDate(movement.arriveDate)} ·{" "}
             {INFO_STATE_LABELS[movement.informationState]}
-            {budgetLine ? ` · ${budgetLine.description}` : " · No budget line yet"}
+            {budgetLineLabel(budgetLine)}
           </p>
           <div className="mt-2 flex flex-wrap gap-3 text-sm">
             <button type="button" onClick={() => startMode("edit")} className="text-zinc-600 underline dark:text-zinc-400">

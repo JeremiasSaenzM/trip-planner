@@ -20,6 +20,13 @@ export function formatAmountCompact(amount: number, currency: string): string {
   });
 }
 
+// Computed from amount / quantity, never stored (see 06.4b's migration
+// comment) -- so every caller showing a unit amount gets it the same
+// way, rather than each dividing the two fields itself.
+export function formatUnitAmount(amount: number, currency: string, quantity: number, unit: string): string {
+  return `${formatAmountCompact(amount / quantity, currency)}/${unit}`;
+}
+
 // YYYY-MM-DD values are calendar dates, not instants -- they must never
 // go through a time-zone conversion. Parsing as UTC and formatting as
 // the runtime's local zone (what the old Date-based version here did)
