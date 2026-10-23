@@ -29,6 +29,11 @@ export type FlightBaggage = "included" | "paid_addon" | "not_allowed" | "unknown
  * in src/lib/data/types.ts, which no domain function branches on). */
 export type StayKind = "festival" | "independent" | "transit";
 
+/** What a budget line's quantity counts, when it has one -- a rate
+ * times a count ("Paris nights (13)") rather than a flat amount. Null
+ * means flat; see budget_lines_quantity_pair (06.4b migration). */
+export type QuantityUnit = "night" | "day" | "person" | "item";
+
 export type ConstraintStatus = "pass" | "fail" | "unknown";
 
 export type HardConstraintResult = {
