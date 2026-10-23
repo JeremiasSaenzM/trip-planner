@@ -230,6 +230,7 @@ export async function loadDashboardData(params: {
   // plan is allowed to.
   const stayNightsCheck = checkStayNightsMatchWindow({
     stays: scenarioStays,
+    movements: scenarioMovements,
     tripDepartureDate: trip.departureDate,
     tripReturnDate: trip.returnDate,
   });

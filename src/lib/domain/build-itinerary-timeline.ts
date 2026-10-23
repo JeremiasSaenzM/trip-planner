@@ -55,6 +55,21 @@ function datesBetween(start: string, endExclusive: string): string[] {
   return dates;
 }
 
+// Every night some movement crosses overnight -- its own
+// [departDate, arriveDate) span, needing no bed. The one place that
+// decides this: buildItineraryTimeline's per-day walk and
+// countNightsInBeds's total both read from it, rather than each
+// walking the chain's spans again its own way.
+function transitNightDates(movements: TimelineMovement[]): Set<string> {
+  const dates = new Set<string>();
+  for (const movement of movements) {
+    for (const date of datesBetween(movement.departDate, movement.arriveDate)) {
+      dates.add(date);
+    }
+  }
+  return dates;
+}
+
 /**
  * Walks a scenario's movement chain once, in sequence order, to answer
  * "where does the traveller sleep each night". Every other export in
@@ -79,10 +94,8 @@ export function buildItineraryTimeline<M extends TimelineMovement>(movements: M[
 
   const nightByDate = new Map<string, ItineraryNight>();
 
-  for (const movement of sorted) {
-    for (const date of datesBetween(movement.departDate, movement.arriveDate)) {
-      nightByDate.set(date, { type: "in_transit" });
-    }
+  for (const date of transitNightDates(sorted)) {
+    nightByDate.set(date, { type: "in_transit" });
   }
   for (let i = 0; i < sorted.length - 1; i++) {
     const current = sorted[i];
@@ -114,6 +127,56 @@ export function buildItineraryTimeline<M extends TimelineMovement>(movements: M[
   }
 
   return days;
+}
+
+export type NightsInBedsInput = {
+  movements: TimelineMovement[];
+  /** YYYY-MM-DD, the trip's own departure and return dates -- never
+   * resolveDepartureDate()'s fallback to the competition's first day.
+   * A consistency check is under no obligation to always produce a
+   * number the way the savings plan is, so it reports "unknown"
+   * instead of guessing once these aren't both set. */
+  tripDepartureDate: string | null;
+  tripReturnDate: string | null;
+};
+
+export type NightsInBedsResult = { status: "unknown" } | { status: "ok"; nights: number };
+
+/**
+ * The one definition of "a night that needs a bed": every night of the
+ * trip's own travel window, less any night some movement crosses
+ * overnight. checkStayNightsMatchWindow, checkNightsAccountedFor (via
+ * buildItineraryTimeline above) and checkBudgetLineNightsAddUp all
+ * call this -- or share its transitNightDates() -- rather than each
+ * counting nights its own way. That's what let the two disagree in
+ * the first place: check 1 summed the window as a plain diff, while
+ * check 4's walk already subtracted transit nights.
+ */
+export function countNightsInBeds(input: NightsInBedsInput): NightsInBedsResult {
+  if (input.tripDepartureDate === null || input.tripReturnDate === null) {
+    return { status: "unknown" };
+  }
+
+  const departure = DateTime.fromISO(input.tripDepartureDate, { zone: "utc" });
+  const returnDate = DateTime.fromISO(input.tripReturnDate, { zone: "utc" });
+  const windowNights = returnDate.diff(departure, "days").days;
+
+  const transit = transitNightDates(input.movements);
+  const nightsInTransit = datesBetween(input.tripDepartureDate, input.tripReturnDate).filter((date) =>
+    transit.has(date),
+  ).length;
+
+  return { status: "ok", nights: windowNights - nightsInTransit };
+}
+
+/**
+ * Days on the ground, counted from the movement chain itself (never
+ * the travel window -- the chain's own first departure to final
+ * arrival is what "on the ground" means here, same as the night-by-
+ * night strip). Every day but the final arrival-home one.
+ */
+export function countDaysOnGround(movements: TimelineMovement[]): number {
+  return buildItineraryTimeline(movements).filter((day) => day.night.type !== "home").length;
 }
 
 /**
