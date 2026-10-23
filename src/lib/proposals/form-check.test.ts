@@ -96,6 +96,16 @@ describe("checkAgainstForm: creates go through the form's own schema", () => {
     expect(check("create_budget_line", { changes: {} })).toEqual({ ok: false, message: "This proposal's contents can't be read." });
   });
 
+  it("accepts a quantity with its unit, and refuses a quantity with no unit", () => {
+    expect(check("create_budget_line", { data: { ...validLine, quantity: 15, quantityUnit: "day" } })).toEqual({
+      ok: true,
+    });
+    expect(check("create_budget_line", { data: { ...validLine, quantity: 15 } })).toEqual({
+      ok: false,
+      message: "A quantity needs a unit, and a unit needs a quantity -- set both, or neither.",
+    });
+  });
+
   it("accepts a valid stay", () => {
     expect(
       check("create_stay", {
@@ -138,6 +148,26 @@ describe("checkAgainstForm: updates are checked as the row would end up", () => 
     expect(
       check("update_budget_line", { changes: { amountTarget: { from: 1, to: 2 } } }, "70000000-0000-0000-0000-0000000000ff"),
     ).toEqual({ ok: false, message: "The row this proposal updates no longer exists." });
+  });
+
+  it("refuses setting a quantity with no unit, same as create", () => {
+    // LINE_ID's quantity/quantityUnit both start null -- see fixtures.ts.
+    expect(
+      check("update_budget_line", { changes: { quantity: { from: null, to: 13 } } }, LINE_ID),
+    ).toEqual({
+      ok: false,
+      message: "A quantity needs a unit, and a unit needs a quantity -- set both, or neither.",
+    });
+  });
+
+  it("accepts setting a quantity and its unit together", () => {
+    expect(
+      check(
+        "update_budget_line",
+        { changes: { quantity: { from: null, to: 13 }, quantityUnit: { from: null, to: "night" } } },
+        LINE_ID,
+      ),
+    ).toEqual({ ok: true });
   });
 
   it("resolves a reference in 'to' before checking", () => {
