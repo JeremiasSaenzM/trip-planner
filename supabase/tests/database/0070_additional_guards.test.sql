@@ -11,8 +11,8 @@ select set_config('request.jwt.claim.sub', '10000000-0000-0000-0000-000000000001
 
 -- (1) baggage = 'paid_addon' with no bag_fee is rejected.
 select throws_like(
-  $$ insert into flight_options (owner_id, scenario_id, fare, bag_fee, mandatory_fees, currency, source_id, observed_on, baggage, arrival_at)
-     values ('10000000-0000-0000-0000-000000000001', '50000000-0000-0000-0000-000000000001', 300, 0, 20, 'EUR', '30000000-0000-0000-0000-000000000001', current_date, 'paid_addon', now()) $$,
+  $$ insert into flight_options (owner_id, scenario_id, label, fare, bag_fee, mandatory_fees, currency, source_id, observed_on, baggage)
+     values ('10000000-0000-0000-0000-000000000001', '50000000-0000-0000-0000-000000000001', 'pgTAP fixture option', 300, 0, 20, 'EUR', '30000000-0000-0000-0000-000000000001', current_date, 'paid_addon') $$,
   '%flight_options_paid_addon_needs_fee%',
   'a paid_addon fare with no bag_fee is rejected'
 );

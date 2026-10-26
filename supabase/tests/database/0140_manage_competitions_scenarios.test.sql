@@ -169,10 +169,10 @@ insert into payments (
 );
 
 insert into flight_options (
-  id, scenario_id, fare, currency, source_id, observed_on, arrival_at
+  id, scenario_id, label, fare, currency, source_id, observed_on
 ) values (
   'a1000000-0000-0000-0000-000000000041', 'a1000000-0000-0000-0000-000000000014',
-  900, 'USD', 'a1000000-0000-0000-0000-000000000002', '2026-10-01', '2027-07-04 10:00+00'
+  'pgTAP fixture option', 900, 'USD', 'a1000000-0000-0000-0000-000000000002', '2026-10-01'
 );
 
 -- update_scenario

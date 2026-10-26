@@ -64,7 +64,7 @@ insert into movements (id, owner_id, scenario_id, sequence, from_location, to_lo
 select throws_like(
   $$ select update_stay(
        '11000000-0000-0000-0000-000000000005', 'Testville', '2027-01-01', 5, 'independent',
-       '11000000-0000-0000-0000-000000000003', 'estimate', null, null, ''
+       '11000000-0000-0000-0000-000000000003', 'estimate', null, null, null, ''
      ) $$,
   '%reason is required%',
   'update_stay rejects a blank reason'
@@ -73,7 +73,7 @@ select throws_like(
 select throws_like(
   $$ select update_stay(
        '11000000-0000-0000-0000-000000000005', 'Testville', '2027-01-01', 0, 'independent',
-       '11000000-0000-0000-0000-000000000003', 'estimate', null, null, 'pgTAP: zero nights'
+       '11000000-0000-0000-0000-000000000003', 'estimate', null, null, null, 'pgTAP: zero nights'
      ) $$,
   '%stays_nights_positive%',
   'update_stay still enforces nights > 0'
@@ -82,7 +82,7 @@ select throws_like(
 select lives_ok(
   $$ select update_stay(
        '11000000-0000-0000-0000-000000000005', 'Testville Updated', '2027-01-01', 6, 'festival',
-       '11000000-0000-0000-0000-000000000003', 'estimate', null, null, 'pgTAP: updating it'
+       '11000000-0000-0000-0000-000000000003', 'estimate', null, null, null, 'pgTAP: updating it'
      ) $$,
   'update_stay succeeds with a real reason'
 );
@@ -102,7 +102,7 @@ select throws_like(
 select lives_ok(
   $$ select update_stay(
        '11000000-0000-0000-0000-000000000005', 'Testville Updated', '2027-01-01', 6, 'festival',
-       null, 'estimate', null, null, 'pgTAP: unlinking the budget line'
+       null, 'estimate', null, null, null, 'pgTAP: unlinking the budget line'
      ) $$,
   'update_stay can clear budget_line_id'
 );
@@ -134,7 +134,7 @@ select is(
 select throws_like(
   $$ select update_movement(
        '11000000-0000-0000-0000-000000000006', 1, 'Home', 'Testville', '2027-01-01', null, '2027-01-01', null,
-       'plane', '11000000-0000-0000-0000-000000000004', null, 'estimate', null, null, ''
+       'plane', '11000000-0000-0000-0000-000000000004', null, 'estimate', null, null, null, ''
      ) $$,
   '%reason is required%',
   'update_movement rejects a blank reason'
@@ -143,7 +143,7 @@ select throws_like(
 select throws_like(
   $$ select update_movement(
        '11000000-0000-0000-0000-000000000006', 1, 'Home', 'Testville', '2027-01-02', null, '2027-01-01', null,
-       'plane', '11000000-0000-0000-0000-000000000004', null, 'estimate', null, null, 'pgTAP: backwards'
+       'plane', '11000000-0000-0000-0000-000000000004', null, 'estimate', null, null, null, 'pgTAP: backwards'
      ) $$,
   '%movements_arrive_after_depart%',
   'update_movement still enforces arrive_date >= depart_date'
@@ -152,7 +152,7 @@ select throws_like(
 select throws_like(
   $$ select update_movement(
        '11000000-0000-0000-0000-000000000006', 2, 'Home', 'Testville', '2027-01-01', null, '2027-01-01', null,
-       'plane', '11000000-0000-0000-0000-000000000004', null, 'estimate', null, null, 'pgTAP: colliding on purpose'
+       'plane', '11000000-0000-0000-0000-000000000004', null, 'estimate', null, null, null, 'pgTAP: colliding on purpose'
      ) $$,
   '%movements_sequence_unique%',
   'update_movement still enforces one sequence position per scenario'
@@ -161,7 +161,7 @@ select throws_like(
 select lives_ok(
   $$ select update_movement(
        '11000000-0000-0000-0000-000000000006', 1, 'Home', 'Testville Updated', '2027-01-01', null, '2027-01-01', null,
-       'train', '11000000-0000-0000-0000-000000000004', 'PGT123', 'estimate', null, null, 'pgTAP: updating it'
+       'train', '11000000-0000-0000-0000-000000000004', 'PGT123', 'estimate', null, null, null, 'pgTAP: updating it'
      ) $$,
   'update_movement succeeds with a real reason'
 );
@@ -181,7 +181,7 @@ select throws_like(
 select lives_ok(
   $$ select update_movement(
        '11000000-0000-0000-0000-000000000006', 1, 'Home', 'Testville Updated', '2027-01-01', null, '2027-01-01', null,
-       'train', null, 'PGT123', 'estimate', null, null, 'pgTAP: unlinking the budget line'
+       'train', null, 'PGT123', 'estimate', null, null, null, 'pgTAP: unlinking the budget line'
      ) $$,
   'update_movement can clear budget_line_id'
 );
@@ -214,7 +214,7 @@ select set_config('request.jwt.claim.sub', '10000000-0000-0000-0000-000000000002
 select throws_like(
   $$ select update_stay(
        '11000000-0000-0000-0000-000000000008', 'x', '2027-02-01', 2, 'independent', null, 'estimate', null, null,
-       'not mine'
+       null, 'not mine'
      ) $$,
   '%not found%',
   'a second account updating my stay gets "not found"'
@@ -229,7 +229,7 @@ select throws_like(
 select throws_like(
   $$ select update_movement(
        '11000000-0000-0000-0000-000000000009', 3, 'Home', 'x', '2027-02-01', null, '2027-02-01', null,
-       'plane', null, null, 'estimate', null, null, 'not mine'
+       'plane', null, null, 'estimate', null, null, null, 'not mine'
      ) $$,
   '%not found%',
   'a second account updating my movement gets "not found"'
@@ -245,21 +245,21 @@ select set_config('request.jwt.claim.sub', '10000000-0000-0000-0000-000000000001
 
 -- Grants: authenticated can call every RPC here, anon can't.
 select ok(has_function_privilege('authenticated',
-  'update_stay(uuid, text, date, integer, stay_kind, uuid, info_state, uuid, text, text)', 'EXECUTE'),
+  'update_stay(uuid, text, date, integer, stay_kind, uuid, info_state, uuid, text, uuid, text)', 'EXECUTE'),
   'authenticated can execute update_stay');
 select ok(not has_function_privilege('anon',
-  'update_stay(uuid, text, date, integer, stay_kind, uuid, info_state, uuid, text, text)', 'EXECUTE'),
+  'update_stay(uuid, text, date, integer, stay_kind, uuid, info_state, uuid, text, uuid, text)', 'EXECUTE'),
   'anon cannot execute update_stay');
 select ok(has_function_privilege('authenticated', 'delete_stay(uuid, text)', 'EXECUTE'),
   'authenticated can execute delete_stay');
 select ok(not has_function_privilege('anon', 'delete_stay(uuid, text)', 'EXECUTE'),
   'anon cannot execute delete_stay');
 select ok(has_function_privilege('authenticated',
-  'update_movement(uuid, integer, text, text, date, time, date, time, movement_mode, uuid, text, info_state, uuid, text, text)',
+  'update_movement(uuid, integer, text, text, date, time, date, time, movement_mode, uuid, text, info_state, uuid, text, uuid, text)',
   'EXECUTE'),
   'authenticated can execute update_movement');
 select ok(not has_function_privilege('anon',
-  'update_movement(uuid, integer, text, text, date, time, date, time, movement_mode, uuid, text, info_state, uuid, text, text)',
+  'update_movement(uuid, integer, text, text, date, time, date, time, movement_mode, uuid, text, info_state, uuid, text, uuid, text)',
   'EXECUTE'),
   'anon cannot execute update_movement');
 select ok(has_function_privilege('authenticated', 'delete_movement(uuid, text)', 'EXECUTE'),

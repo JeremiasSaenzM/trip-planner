@@ -65,11 +65,11 @@ insert into sources (id, owner_id, provider, tier, observed_on) values (
 );
 
 insert into flight_options (
-  id, owner_id, scenario_id, fare, currency, source_id, observed_on, arrival_at
+  id, owner_id, scenario_id, label, fare, currency, source_id, observed_on
 ) values (
   'c2000000-0000-0000-0000-000000000013', '10000000-0000-0000-0000-000000000001',
-  'c2000000-0000-0000-0000-000000000002', 500, 'USD',
-  'c2000000-0000-0000-0000-000000000012', '2026-10-01', '2027-01-01T10:00:00Z'
+  'c2000000-0000-0000-0000-000000000002', 'pgTAP fixture option', 500, 'USD',
+  'c2000000-0000-0000-0000-000000000012', '2026-10-01'
 );
 
 insert into flight_segments (

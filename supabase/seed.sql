@@ -202,29 +202,29 @@ insert into open_items (
 -- an option landing during day 1 of the festival instead of before it,
 -- and a fare with no checked bag allowed at all.
 insert into flight_options (
-  id, owner_id, scenario_id, fare, bag_fee, mandatory_fees, currency,
-  information_state, source_id, observed_on, baggage, separate_tickets, arrival_at
+  id, owner_id, scenario_id, label, fare, bag_fee, mandatory_fees, currency,
+  information_state, source_id, observed_on, baggage, separate_tickets, refundability, competition_related
 ) values
   ('c0000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001',
-   '50000000-0000-0000-0000-000000000001', 480, 0, 35, 'EUR',
+   '50000000-0000-0000-0000-000000000001', 'Clean route via Doha', 480, 0, 35, 'EUR',
    'estimate', '30000000-0000-0000-0000-000000000003', '2026-10-05', 'included', false,
-   '2027-07-04 22:30:00+02'),
+   'non_refundable', true),
   ('c0000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000001',
-   '50000000-0000-0000-0000-000000000001', 420, 60, 40, 'EUR',
+   '50000000-0000-0000-0000-000000000001', 'Via JFK (fails check 1)', 420, 60, 40, 'EUR',
    'estimate', '30000000-0000-0000-0000-000000000003', '2026-10-05', 'paid_addon', false,
-   '2027-07-05 02:30:00+02'),
+   'unknown', true),
   ('c0000000-0000-0000-0000-000000000003', '10000000-0000-0000-0000-000000000001',
-   '50000000-0000-0000-0000-000000000001', 410, 0, 38, 'EUR',
+   '50000000-0000-0000-0000-000000000001', 'Via San Juan (fails check 1, US territory)', 410, 0, 38, 'EUR',
    'estimate', '30000000-0000-0000-0000-000000000003', '2026-10-06', 'included', false,
-   '2027-07-05 08:00:00+02'),
+   'unknown', true),
   ('c0000000-0000-0000-0000-000000000004', '10000000-0000-0000-0000-000000000001',
-   '50000000-0000-0000-0000-000000000001', 500, 0, 35, 'EUR',
+   '50000000-0000-0000-0000-000000000001', 'Direct, lands during day 1 of the festival', 500, 0, 35, 'EUR',
    'estimate', '30000000-0000-0000-0000-000000000002', '2026-10-07', 'included', false,
-   '2027-07-05 10:00:00+02'),
+   'refundable', true),
   ('c0000000-0000-0000-0000-000000000005', '10000000-0000-0000-0000-000000000001',
-   '50000000-0000-0000-0000-000000000001', 300, 0, 25, 'EUR',
+   '50000000-0000-0000-0000-000000000001', 'Direct, no checked bag allowed', 300, 0, 25, 'EUR',
    'estimate', '30000000-0000-0000-0000-000000000003', '2026-10-08', 'not_allowed', false,
-   '2027-07-04 20:00:00+02');
+   'non_refundable', true);
 
 -- fo1: clean route, no US stop
 insert into flight_segments (owner_id, flight_option_id, direction, segment_order, from_airport, to_airport, from_country, to_country, flight_number, depart_at, arrive_at, is_technical_stop) values
@@ -271,13 +271,13 @@ insert into stays (id, owner_id, scenario_id, location, start_date, nights, kind
 
 insert into movements (
   id, owner_id, scenario_id, sequence, from_location, to_location,
-  depart_date, depart_time, arrive_date, arrive_time, mode, budget_line_id, information_state, notes
+  depart_date, depart_time, arrive_date, arrive_time, mode, budget_line_id, information_state, notes, flight_option_id
 ) values
   ('f3000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001',
    '50000000-0000-0000-0000-000000000001', 1, 'Madrid', 'Fontvieux',
    '2027-07-04', '09:00:00', '2027-07-04', '22:30:00', 'plane',
-   '70000000-0000-0000-0000-000000000002', 'estimate', null),
+   '70000000-0000-0000-0000-000000000002', 'estimate', null, 'c0000000-0000-0000-0000-000000000001'),
   ('f3000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000001',
    '50000000-0000-0000-0000-000000000001', 2, 'Fontvieux', 'Madrid',
    '2027-07-12', '10:00:00', '2027-07-13', '03:30:00', 'plane',
-   null, 'estimate', 'Return leg not yet priced separately.');
+   null, 'estimate', 'Return leg not yet priced separately.', 'c0000000-0000-0000-0000-000000000001');
