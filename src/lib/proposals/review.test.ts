@@ -142,12 +142,48 @@ describe("reviewBatch", () => {
 
   it("leaves decided items as they are", () => {
     const decided: ProposalItem[] = [
-      { ...items[2], status: "approved", decidedAt: "2026-10-13T00:00:00Z", resultId: "70000000-0000-0000-0000-0000000000bb" },
+      { ...items[2], status: "approved", decidedAt: "2026-10-13T00:00:00Z", resultId: fixtures.budgetLines[0].id },
       { ...items[3], status: "rejected", decisionReason: "Stale", decidedAt: "2026-10-13T00:00:00Z" },
     ];
     const reviewed = reviewBatch(decided, rows);
     expect(reviewed.map((r) => r.state.kind)).toEqual(["approved", "rejected"]);
     expect(reviewed.every((r) => r.warning === null)).toBe(true);
+  });
+
+  it("says when an approved item's result has since been deleted (e.g. by delete_scenario_cascade)", () => {
+    const approved: ProposalItem = {
+      ...items[2],
+      status: "approved",
+      decidedAt: "2026-10-13T00:00:00Z",
+      resultId: "70000000-0000-0000-0000-0000000000bb",
+    };
+    expect(stateOf(reviewBatch([approved], rows), approved.position)).toEqual({ kind: "approved_deleted" });
+  });
+
+  it("still says 'approved' once the update it made is itself undone by a later, unrelated change", () => {
+    // update_stay's resultId is its targetId -- the row it changed, not
+    // a new row it created -- so the same currentFields lookup that
+    // finds "missing_target" for a pending item also answers this.
+    const stay = fixtures.stays[0];
+    const approvedUpdate: ProposalItem = {
+      id: "c0000000-0000-0000-0000-000000000002",
+      batchId: items[0].batchId,
+      position: 0,
+      ref: null,
+      op: "update_stay",
+      targetId: stay.id,
+      payload: { changes: { nights: { from: stay.nights, to: stay.nights + 1 } } },
+      dependsOn: [],
+      reason: "A reason",
+      status: "approved",
+      decisionReason: null,
+      decidedAt: "2026-10-13T00:00:00Z",
+      resultId: stay.id,
+      createdAt: "2026-10-12T00:00:00Z",
+    };
+    expect(stateOf(reviewBatch([approvedUpdate], rows), 0)).toEqual({ kind: "approved" });
+    const afterDelete = { ...rows, stays: rows.stays.filter((s) => s.id !== stay.id) };
+    expect(stateOf(reviewBatch([approvedUpdate], afterDelete), 0)).toEqual({ kind: "approved_deleted" });
   });
 });
 

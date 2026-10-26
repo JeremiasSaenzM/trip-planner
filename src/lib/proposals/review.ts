@@ -1,7 +1,7 @@
 import type { ProposalItem, Source } from "@/lib/data/types";
 
 import { currentFields, readPayload, staleFields, type CurrentRows, type ResolveReference } from "./form-check";
-import { isUpdateOp, REFERENCE_FIELDS, type FieldChange, type Reference, type ReferenceKind } from "./schema";
+import { isUpdateOp, REFERENCE_FIELDS, type CreateOp, type FieldChange, type Reference, type ReferenceKind } from "./schema";
 
 export type ReviewRows = CurrentRows & { sources: Source[] };
 
@@ -10,6 +10,7 @@ export type ReviewRows = CurrentRows & { sources: Source[] };
 // forward is a fresh proposal, never applying over the value that moved.
 export type ItemState =
   | { kind: "approved" }
+  | { kind: "approved_deleted" }
   | { kind: "rejected" }
   | { kind: "ready" }
   | { kind: "waiting"; on: number[] }
@@ -73,7 +74,7 @@ function reviewItem(item: ProposalItem, items: ProposalItem[], rows: ReviewRows)
   if (!payload) {
     return {
       item,
-      state: item.status === "pending" ? { kind: "unreadable" } : { kind: item.status },
+      state: item.status === "pending" ? { kind: "unreadable" } : decidedState(item, rows),
       fields: [],
       targetLabel: null,
       sources: [],
@@ -117,7 +118,7 @@ function reviewItem(item: ProposalItem, items: ProposalItem[], rows: ReviewRows)
 
   return {
     item,
-    state: itemState(item, items, current, stale),
+    state: item.status === "pending" ? itemState(item, items, current, stale) : decidedState(item, rows),
     fields,
     targetLabel,
     sources,
@@ -126,13 +127,46 @@ function reviewItem(item: ProposalItem, items: ProposalItem[], rows: ReviewRows)
   };
 }
 
+// An approved or rejected item never changes its own mind -- but
+// delete_scenario_cascade can remove the row an approved item wrote to
+// (proposal_items keeps no live link, on purpose: it's an audit record,
+// not a reference that has to resolve), so this is what tells a
+// since-deleted result apart from a live one instead of the review
+// screen showing, or silently failing to show, a dangling id.
+function decidedState(item: ProposalItem, rows: ReviewRows): ItemState {
+  if (item.status === "approved") return resultStillExists(item, rows) ? { kind: "approved" } : { kind: "approved_deleted" };
+  return { kind: "rejected" };
+}
+
+function resultStillExists(item: ProposalItem, rows: ReviewRows): boolean {
+  if (!item.resultId) return true;
+  if (isUpdateOp(item.op)) return currentFields(item.op, item.resultId, rows) !== null;
+  switch (item.op as CreateOp) {
+    case "create_source":
+      return rows.sources.some((s) => s.id === item.resultId);
+    case "create_competition":
+      return rows.competitions.some((c) => c.id === item.resultId);
+    case "create_scenario":
+      return rows.scenarios.some((s) => s.id === item.resultId);
+    case "create_budget_line":
+      return rows.budgetLines.some((l) => l.id === item.resultId);
+    case "create_payment":
+      return rows.payments.some((p) => p.id === item.resultId);
+    case "create_fx_rate":
+      return rows.fxRates.some((r) => r.id === item.resultId);
+    case "create_stay":
+      return rows.stays.some((s) => s.id === item.resultId);
+    case "create_movement":
+      return rows.movements.some((m) => m.id === item.resultId);
+  }
+}
+
 function itemState(
   item: ProposalItem,
   items: ProposalItem[],
   current: Record<string, unknown> | null,
   stale: { field: string; expected: unknown; now: unknown }[],
 ): ItemState {
-  if (item.status !== "pending") return { kind: item.status };
   if (isUpdateOp(item.op) && !current) return { kind: "missing_target" };
 
   const dependencies = items.filter((other) => item.dependsOn.includes(other.position));
