@@ -593,8 +593,11 @@ test("the full first-run journey, starting from a signed-out, empty account", as
 
     await expect(card.getByRole("alert")).toContainText("still has budget lines");
     await expect(scenarioCard(page, "Host TBA scenario")).toHaveCount(1);
-    // Its own locator, not a substring of "Delete" -- the two buttons
-    // sit side by side in the same card.
+
+    // Back to view mode, where "Delete" and "Delete everything in this
+    // scenario" sit side by side -- its own locator, not a substring of
+    // "Delete", proves the two don't collide.
+    await card.getByRole("button", { name: "Cancel", exact: true }).click();
     await expect(
       card.getByRole("button", { name: "Delete everything in this scenario", exact: true }),
     ).toBeVisible();
