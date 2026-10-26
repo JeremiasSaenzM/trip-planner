@@ -136,6 +136,7 @@ function mapDecisionRow(row: Record<string, unknown>): Decision {
     tripId: row.trip_id as string,
     competitionId: row.competition_id as string | null,
     paymentId: row.payment_id as string | null,
+    flightOptionId: row.flight_option_id as string | null,
     title: row.title as string,
     rationale: row.rationale as string | null,
     decidedOn: row.decided_on as string,
@@ -184,6 +185,7 @@ function mapStayRow(row: Record<string, unknown>): Stay {
     informationState: row.information_state as Stay["informationState"],
     sourceId: row.source_id as string | null,
     notes: row.notes as string | null,
+    flightOptionId: row.flight_option_id as string | null,
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
   };
@@ -206,8 +208,50 @@ function mapMovementRow(row: Record<string, unknown>): Movement {
     informationState: row.information_state as Movement["informationState"],
     sourceId: row.source_id as string | null,
     notes: row.notes as string | null,
+    flightOptionId: row.flight_option_id as string | null,
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
+  };
+}
+
+function mapFlightOptionRow(row: Record<string, unknown>): FlightOption {
+  return {
+    id: row.id as string,
+    scenarioId: row.scenario_id as string,
+    label: row.label as string,
+    status: row.status as FlightOption["status"],
+    fare: row.fare as number,
+    bagFee: row.bag_fee as number,
+    mandatoryFees: row.mandatory_fees as number,
+    currency: row.currency as string,
+    informationState: row.information_state as FlightOption["informationState"],
+    sourceId: row.source_id as string,
+    observedOn: row.observed_on as string,
+    baggage: row.baggage as FlightOption["baggage"],
+    separateTickets: row.separate_tickets as boolean,
+    refundability: row.refundability as FlightOption["refundability"],
+    competitionRelated: row.competition_related as boolean,
+    bookingReference: row.booking_reference as string | null,
+    notes: row.notes as string | null,
+    createdAt: row.created_at as string,
+    updatedAt: row.updated_at as string,
+  };
+}
+
+function mapFlightSegmentRow(row: Record<string, unknown>): FlightSegment {
+  return {
+    id: row.id as string,
+    flightOptionId: row.flight_option_id as string,
+    direction: row.direction as FlightSegment["direction"],
+    segmentOrder: row.segment_order as number,
+    fromAirport: row.from_airport as string,
+    toAirport: row.to_airport as string,
+    fromCountry: row.from_country as string,
+    toCountry: row.to_country as string,
+    flightNumber: row.flight_number as string | null,
+    departAt: row.depart_at as string,
+    arriveAt: row.arrive_at as string,
+    isTechnicalStop: row.is_technical_stop as boolean,
   };
 }
 
@@ -356,47 +400,14 @@ export const realDataSource: DataSource = {
     const supabase = await createClient();
     const { data, error } = await supabase.from("flight_options").select("*");
     if (error) throw error;
-    return (data ?? []).map(
-      (row): FlightOption => ({
-        id: row.id,
-        scenarioId: row.scenario_id,
-        fare: row.fare,
-        bagFee: row.bag_fee,
-        mandatoryFees: row.mandatory_fees,
-        currency: row.currency,
-        informationState: row.information_state,
-        sourceId: row.source_id,
-        observedOn: row.observed_on,
-        baggage: row.baggage,
-        separateTickets: row.separate_tickets,
-        arrivalAt: row.arrival_at,
-        notes: row.notes,
-        createdAt: row.created_at,
-        updatedAt: row.updated_at,
-      }),
-    );
+    return (data ?? []).map(mapFlightOptionRow);
   },
 
   async getFlightSegments() {
     const supabase = await createClient();
     const { data, error } = await supabase.from("flight_segments").select("*");
     if (error) throw error;
-    return (data ?? []).map(
-      (row): FlightSegment => ({
-        id: row.id,
-        flightOptionId: row.flight_option_id,
-        direction: row.direction,
-        segmentOrder: row.segment_order,
-        fromAirport: row.from_airport,
-        toAirport: row.to_airport,
-        fromCountry: row.from_country,
-        toCountry: row.to_country,
-        flightNumber: row.flight_number,
-        departAt: row.depart_at,
-        arriveAt: row.arrive_at,
-        isTechnicalStop: row.is_technical_stop,
-      }),
-    );
+    return (data ?? []).map(mapFlightSegmentRow);
   },
 
   async getStays() {
@@ -879,6 +890,7 @@ export const realDataSource: DataSource = {
         information_state: input.informationState,
         source_id: input.sourceId ?? null,
         notes: input.notes ?? null,
+        flight_option_id: input.flightOptionId ?? null,
       })
       .select("*")
       .single();
@@ -899,6 +911,7 @@ export const realDataSource: DataSource = {
       p_information_state: input.informationState,
       p_source_id: input.sourceId ?? null,
       p_notes: input.notes ?? null,
+      p_flight_option_id: input.flightOptionId ?? null,
       p_reason: input.reason,
     });
     if (error) throw error;
@@ -935,6 +948,7 @@ export const realDataSource: DataSource = {
         information_state: input.informationState,
         source_id: input.sourceId ?? null,
         notes: input.notes ?? null,
+        flight_option_id: input.flightOptionId ?? null,
       })
       .select("*")
       .single();
@@ -960,6 +974,7 @@ export const realDataSource: DataSource = {
       p_information_state: input.informationState,
       p_source_id: input.sourceId ?? null,
       p_notes: input.notes ?? null,
+      p_flight_option_id: input.flightOptionId ?? null,
       p_reason: input.reason,
     });
     if (error) throw error;
@@ -974,6 +989,130 @@ export const realDataSource: DataSource = {
       p_reason: input.reason,
     });
     if (error) throw error;
+  },
+
+  // Plain insert -- every option starts life as a candidate, same
+  // reasoning as createStay/createMovement (20261028090000).
+  async createFlightOption(input) {
+    assertWritesAllowed();
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("flight_options")
+      .insert({
+        scenario_id: input.scenarioId,
+        label: input.label,
+        fare: input.fare,
+        bag_fee: input.bagFee,
+        mandatory_fees: input.mandatoryFees,
+        currency: input.currency,
+        information_state: input.informationState,
+        source_id: input.sourceId,
+        observed_on: input.observedOn,
+        baggage: input.baggage,
+        separate_tickets: input.separateTickets,
+        refundability: input.refundability,
+        competition_related: input.competitionRelated,
+        notes: input.notes ?? null,
+      })
+      .select("*")
+      .single();
+    if (error) throw error;
+    return mapFlightOptionRow(data);
+  },
+
+  async updateFlightOption(input) {
+    assertWritesAllowed();
+    const supabase = await createClient();
+    const { data, error } = await supabase.rpc("update_flight_option", {
+      p_id: input.id,
+      p_label: input.label,
+      p_fare: input.fare,
+      p_bag_fee: input.bagFee,
+      p_mandatory_fees: input.mandatoryFees,
+      p_currency: input.currency,
+      p_information_state: input.informationState,
+      p_source_id: input.sourceId,
+      p_observed_on: input.observedOn,
+      p_baggage: input.baggage,
+      p_separate_tickets: input.separateTickets,
+      p_refundability: input.refundability,
+      p_competition_related: input.competitionRelated,
+      p_status: input.status,
+      p_booking_reference: input.bookingReference ?? null,
+      p_notes: input.notes ?? null,
+      p_reason: input.reason,
+    });
+    if (error) throw error;
+    return mapFlightOptionRow(data as Record<string, unknown>);
+  },
+
+  async deleteFlightOption(input) {
+    assertWritesAllowed();
+    const supabase = await createClient();
+    const { error } = await supabase.rpc("delete_flight_option", {
+      p_id: input.id,
+      p_reason: input.reason,
+    });
+    if (error) throw error;
+  },
+
+  // A segment is small enough to delete and re-add rather than edit --
+  // no updateFlightSegment, matching there being no update_flight_segment
+  // RPC (20261028090000).
+  async createFlightSegment(input) {
+    assertWritesAllowed();
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("flight_segments")
+      .insert({
+        flight_option_id: input.flightOptionId,
+        direction: input.direction,
+        segment_order: input.segmentOrder,
+        from_airport: input.fromAirport,
+        to_airport: input.toAirport,
+        from_country: input.fromCountry,
+        to_country: input.toCountry,
+        flight_number: input.flightNumber ?? null,
+        depart_at: input.departAt,
+        arrive_at: input.arriveAt,
+        is_technical_stop: input.isTechnicalStop,
+      })
+      .select("*")
+      .single();
+    if (error) throw error;
+    return mapFlightSegmentRow(data);
+  },
+
+  async deleteFlightSegment(input) {
+    assertWritesAllowed();
+    const supabase = await createClient();
+    const { error } = await supabase.rpc("delete_flight_segment", {
+      p_id: input.id,
+      p_reason: input.reason,
+    });
+    if (error) throw error;
+  },
+
+  // Mirrors createPaymentRiskDecision exactly -- see its own comment.
+  // optionLabel is read off the live option by the caller
+  // (flight-actions.ts), the same way paymentDescription is.
+  async createFlightRiskDecision(input) {
+    assertWritesAllowed();
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("decisions")
+      .insert({
+        trip_id: input.tripId,
+        competition_id: input.competitionId,
+        flight_option_id: input.flightOptionId,
+        title: `Accepted risk: ${input.optionLabel}`,
+        rationale: input.rationale,
+        decided_by: "traveler",
+      })
+      .select("*")
+      .single();
+    if (error) throw error;
+    return mapDecisionRow(data);
   },
 
   // Import proposals (20261021090000_import_proposals.sql). Saving a

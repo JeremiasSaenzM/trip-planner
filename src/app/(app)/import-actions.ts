@@ -37,19 +37,33 @@ function revalidateAll() {
 }
 
 async function loadRows(): Promise<ReviewRows & { tripId: string | null }> {
-  const [trips, sources, competitions, scenarios, budgetLines, payments, fxRates, savingsEntries, stays, movements] =
-    await Promise.all([
-      dataSource.getTrips(),
-      dataSource.getSources(),
-      dataSource.getCompetitions(),
-      dataSource.getScenarios(),
-      dataSource.getBudgetLines(),
-      dataSource.getPayments(),
-      dataSource.getFxRates(),
-      dataSource.getSavingsEntries(),
-      dataSource.getStays(),
-      dataSource.getMovements(),
-    ]);
+  const [
+    trips,
+    sources,
+    competitions,
+    scenarios,
+    budgetLines,
+    payments,
+    fxRates,
+    savingsEntries,
+    stays,
+    movements,
+    flightOptions,
+    flightSegments,
+  ] = await Promise.all([
+    dataSource.getTrips(),
+    dataSource.getSources(),
+    dataSource.getCompetitions(),
+    dataSource.getScenarios(),
+    dataSource.getBudgetLines(),
+    dataSource.getPayments(),
+    dataSource.getFxRates(),
+    dataSource.getSavingsEntries(),
+    dataSource.getStays(),
+    dataSource.getMovements(),
+    dataSource.getFlightOptions(),
+    dataSource.getFlightSegments(),
+  ]);
   return {
     tripId: trips[0]?.id ?? null,
     sources,
@@ -61,6 +75,8 @@ async function loadRows(): Promise<ReviewRows & { tripId: string | null }> {
     savingsEntries,
     stays,
     movements,
+    flightOptions,
+    flightSegments,
   };
 }
 

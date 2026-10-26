@@ -18,6 +18,8 @@ const rows: ReviewRows = {
   savingsEntries: fixtures.savingsEntries,
   stays: fixtures.stays,
   movements: fixtures.movements,
+  flightOptions: fixtures.flightOptions,
+  flightSegments: fixtures.flightSegments,
 };
 
 // The demo batch: 0 creates a source; 1 updates Round-trip flight's

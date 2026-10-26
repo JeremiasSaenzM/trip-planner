@@ -30,6 +30,7 @@ const movementFields = z.object({
   informationState: infoState,
   sourceId: id.optional(),
   notes: z.string().trim().optional(),
+  flightOptionId: id.optional(),
 });
 
 // Mirrors movements_arrive_after_depart.
