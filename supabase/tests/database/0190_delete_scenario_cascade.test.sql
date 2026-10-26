@@ -1,9 +1,10 @@
--- delete_scenario_cascade, and delete_scenario's extended guard
--- (20261026090000_delete_scenario_cascade.sql).
+-- delete_scenario_cascade, delete_scenario's extended guard
+-- (20261026090000_delete_scenario_cascade.sql), and the removal of the
+-- approved-proposal-item blocker (20261027090000).
 begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
-select plan(25);
+select plan(28);
 
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '10000000-0000-0000-0000-000000000001', true);
@@ -88,7 +89,9 @@ insert into decisions (id, owner_id, trip_id, title, rationale, payment_id) valu
   'pgTAP: accepting non-refundable deposit', 'c2000000-0000-0000-0000-000000000008'
 );
 
--- Scenario B: exists only to prove the approved-proposal-items guard.
+-- Scenario B: exists only to prove an approved proposal item survives
+-- the cascade -- payload, reason and status untouched, result_id left
+-- pointing at a row that's now gone.
 insert into scenarios (id, owner_id, trip_id, name) values (
   'c2000000-0000-0000-0000-000000000020', '10000000-0000-0000-0000-000000000001',
   'c2000000-0000-0000-0000-000000000001', 'pgTAP cascade scenario B'
@@ -136,18 +139,35 @@ select throws_like(
   'delete_scenario_cascade refuses a scenario that is not found (or not yours)'
 );
 
--- Approved proposal items block the whole scenario
+-- An approved proposal item referencing the scenario no longer blocks
+-- the delete -- it's an audit record, not a live reference, and it
+-- survives untouched (20261027090000).
 
-select throws_like(
-  $$ select delete_scenario_cascade('c2000000-0000-0000-0000-000000000020', 'pgTAP: trying anyway') $$,
-  '%item 1 (create_budget_line) in batch "pgTAP research batch"%',
-  'delete_scenario_cascade refuses while an approved proposal item references it, naming which one'
+select lives_ok(
+  $$ select delete_scenario_cascade('c2000000-0000-0000-0000-000000000020', 'pgTAP: cascade delete B') $$,
+  'delete_scenario_cascade deletes cleanly despite an approved proposal item referencing it'
 );
 
 select is(
   (select count(*) from scenarios where id = 'c2000000-0000-0000-0000-000000000020')::int,
-  1,
-  'scenario B is still there after the refused delete'
+  0,
+  'scenario B is gone'
+);
+
+select is(
+  (select status::text from proposal_items where id = 'c2000000-0000-0000-0000-000000000023'),
+  'approved',
+  'the approved proposal item keeps its status'
+);
+select is(
+  (select reason from proposal_items where id = 'c2000000-0000-0000-0000-000000000023'),
+  'pgTAP proposed it',
+  'the approved proposal item keeps its original reason'
+);
+select is(
+  (select result_id::text from proposal_items where id = 'c2000000-0000-0000-0000-000000000023'),
+  'c2000000-0000-0000-0000-000000000021',
+  'the approved proposal item keeps result_id pointing at the row that''s now gone'
 );
 
 -- The real cascade, on scenario A

@@ -104,6 +104,7 @@ const STATUS_BADGES: Record<ItemState["kind"], string> = {
   missing_target: "Target gone",
   unreadable: "Unreadable",
   approved: "Approved",
+  approved_deleted: "Approved (since deleted)",
   rejected: "Rejected",
 };
 
@@ -195,6 +196,13 @@ function StateNote({
       return <Caveat tone="danger">This proposal&apos;s contents can&apos;t be read. Reject it.</Caveat>;
     case "approved":
       return <p className={note}>Approved -- written to your plan.</p>;
+    case "approved_deleted":
+      return (
+        <p className={note}>
+          Approved -- written to your plan, but the row it changed has since been deleted. The approval itself
+          still stands.
+        </p>
+      );
     case "rejected":
       return <p className={note}>Rejected: {decisionReason}</p>;
     case "ready":

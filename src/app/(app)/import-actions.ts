@@ -107,6 +107,7 @@ function notReadyMessage(state: ItemState, position: (n: number) => string): str
     case "ready":
       return null;
     case "approved":
+    case "approved_deleted":
       return "This proposal was already approved.";
     case "rejected":
       return "This proposal was already rejected.";
