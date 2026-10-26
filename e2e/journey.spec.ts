@@ -31,7 +31,7 @@ const TEST_EMAIL = process.env.E2E_TEST_EMAIL ?? "e2e-test@example.com";
 // is scoped to one form or the other rather than relying on there being
 // only one match.
 function budgetLineAddForm(page: Page) {
-  return page.locator("form").filter({ has: page.getByRole("button", { name: "Add budget line" }) });
+  return page.locator("form").filter({ has: page.getByRole("button", { name: "Add budget line", exact: true }) });
 }
 
 function fxRateAddForm(page: Page) {
@@ -128,7 +128,7 @@ test("the full first-run journey, starting from a signed-out, empty account", as
   await test.step("create a trip from the empty state", async () => {
     await expect(page.getByText("Start your trip")).toBeVisible();
     await page.getByLabel("Trip name").fill("Llangollen 2027");
-    await page.getByRole("button", { name: "Create trip" }).click();
+    await page.getByRole("button", { name: "Create trip", exact: true }).click();
     await expect(page.getByText("Add a competition")).toBeVisible();
   });
 
@@ -139,13 +139,13 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await page.getByLabel("Official festival dates: first day").fill("2027-07-06");
     await page.getByLabel("Official festival dates: final day").fill("2027-07-11");
     await page.getByLabel("Time zone").fill("Europe/London");
-    await page.getByRole("button", { name: "Add competition" }).click();
+    await page.getByRole("button", { name: "Add competition", exact: true }).click();
     await expect(page.getByText("Create a scenario")).toBeVisible();
   });
 
   await test.step("create a scenario and reach the dashboard", async () => {
     await page.getByLabel("Name").fill("Llangollen 2027");
-    await page.getByRole("button", { name: "Create scenario" }).click();
+    await page.getByRole("button", { name: "Create scenario", exact: true }).click();
     await expect(page.getByText("Required monthly saving")).toBeVisible();
   });
 
@@ -162,7 +162,7 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await page.getByLabel("Refundability").selectOption("refundable");
     await page.getByLabel("Timing").selectOption("due_on_date");
     await page.getByLabel("Due date (optional)").fill("2027-02-01");
-    await page.getByRole("button", { name: "Add payment" }).click();
+    await page.getByRole("button", { name: "Add payment", exact: true }).click();
     // exact: true -- a substring match would also hit the budget-line
     // picker's new option for this same line ("Registration fee (A) —
     // $300.00"), now that it exists to be picked for a later payment.
@@ -184,7 +184,7 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     // case-insensitive substring match for plain "Date" otherwise.
     await page.getByLabel("Date", { exact: true }).fill("2026-01-01");
     await page.getByLabel("Note (optional)").fill("First savings");
-    await page.getByRole("button", { name: "Record" }).click();
+    await page.getByRole("button", { name: "Record", exact: true }).click();
     await expect(availableBalance).toHaveText("$100");
 
     const requiredAfter = parseUsd(await requiredMonthlySaving.innerText());
@@ -192,10 +192,10 @@ test("the full first-run journey, starting from a signed-out, empty account", as
   });
 
   await test.step("edit the entry with a reason", async () => {
-    await page.getByRole("button", { name: "Edit" }).click();
+    await page.getByRole("button", { name: "Edit", exact: true }).click();
     await page.getByLabel("New amount (USD)").fill("150");
     await page.getByLabel("Reason for this change").fill("Added more than I first recorded");
-    await page.getByRole("button", { name: "Save" }).click();
+    await page.getByRole("button", { name: "Save", exact: true }).click();
     await expect(availableBalance).toHaveText("$150");
   });
 
@@ -204,17 +204,17 @@ test("the full first-run journey, starting from a signed-out, empty account", as
   // it previously got stuck showing the edit form forever, since
   // nothing about the row's own props ever changed to signal success.
   await test.step("edit again with unchanged values and still returns to view mode", async () => {
-    await page.getByRole("button", { name: "Edit" }).click();
+    await page.getByRole("button", { name: "Edit", exact: true }).click();
     await page.getByLabel("Reason for this change").fill("No change, just confirming this still works");
-    await page.getByRole("button", { name: "Save" }).click();
-    await expect(page.getByRole("button", { name: "Delete" })).toBeVisible();
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Delete", exact: true })).toBeVisible();
     await expect(availableBalance).toHaveText("$150");
   });
 
   await test.step("delete the entry with a reason", async () => {
-    await page.getByRole("button", { name: "Delete" }).click();
+    await page.getByRole("button", { name: "Delete", exact: true }).click();
     await page.getByLabel("Reason for deleting this").fill("Testing deletion");
-    await page.getByRole("button", { name: "Delete" }).click();
+    await page.getByRole("button", { name: "Delete", exact: true }).click();
     await expect(page.getByText("No savings recorded yet.")).toBeVisible();
     await expect(availableBalance).toHaveText("$0");
   });
@@ -228,7 +228,7 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await page.getByLabel("Timing").selectOption("due_on_date");
     await page.getByLabel("Due date (optional)").fill("2027-03-01");
     await page.getByLabel(/tied to the competition itself/i).check();
-    await page.getByRole("button", { name: "Add payment" }).click();
+    await page.getByRole("button", { name: "Add payment", exact: true }).click();
     // exact: true -- same reason as "Registration fee" above: a
     // substring match would also hit this line's own new option in
     // the budget-line picker.
@@ -238,15 +238,15 @@ test("the full first-run journey, starting from a signed-out, empty account", as
   await test.step("hit the acceptance safeguard, then accept the risk", async () => {
     const row = paymentRow(page, "Accommodation deposit");
 
-    await row.getByRole("button", { name: "Change status" }).click();
+    await row.getByRole("button", { name: "Change status", exact: true }).click();
     await row.getByLabel("New status").selectOption("committed");
     await row.getByLabel("Reason for this change").fill("Trying to commit before acceptance");
-    await row.getByRole("button", { name: "Save" }).click();
+    await row.getByRole("button", { name: "Save", exact: true }).click();
 
-    await expect(row.getByRole("button", { name: "I accept this risk" })).toBeVisible();
+    await expect(row.getByRole("button", { name: "I accept this risk", exact: true })).toBeVisible();
 
     await row.getByLabel("Why you're accepting this risk").fill("Deposit is small enough to risk");
-    await row.getByRole("button", { name: "I accept this risk" }).click();
+    await row.getByRole("button", { name: "I accept this risk", exact: true }).click();
 
     await expect(row.getByText("Committed")).toBeVisible();
   });
@@ -254,15 +254,15 @@ test("the full first-run journey, starting from a signed-out, empty account", as
   await test.step("raise the committed payment's amount past what was accepted, then accept the new amount", async () => {
     const row = paymentRow(page, "Accommodation deposit");
 
-    await row.getByRole("button", { name: "Edit" }).click();
+    await row.getByRole("button", { name: "Edit", exact: true }).click();
     await row.getByLabel("New total amount").fill("500");
     await row.getByLabel("Reason for this change").fill("Deposit turned out to be higher");
-    await row.getByRole("button", { name: "Save" }).click();
+    await row.getByRole("button", { name: "Save", exact: true }).click();
 
-    await expect(row.getByRole("button", { name: "I accept this risk" })).toBeVisible();
+    await expect(row.getByRole("button", { name: "I accept this risk", exact: true })).toBeVisible();
 
     await row.getByLabel("Why you're accepting this risk").fill("Still worth it at the new amount");
-    await row.getByRole("button", { name: "I accept this risk" }).click();
+    await row.getByRole("button", { name: "I accept this risk", exact: true }).click();
 
     // exact: true -- a substring match would also hit the "$500.00 due
     // later" line (paidAmount is still 0, so dueLater equals the new total).
@@ -284,7 +284,7 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await addForm.getByLabel("Conservative").fill("120");
     await addForm.getByLabel("Currency").fill("EUR");
     await addForm.getByLabel("Confidence", { exact: true }).selectOption("low");
-    await addForm.getByRole("button", { name: "Add budget line" }).click();
+    await addForm.getByRole("button", { name: "Add budget line", exact: true }).click();
 
     await expect(budgetLineRow(page, "Flight deposit")).toBeVisible();
     await expect(budgetLineRow(page, "Flight deposit").getByText("Confidence: Low")).toBeVisible();
@@ -307,7 +307,7 @@ test("the full first-run journey, starting from a signed-out, empty account", as
 
     await page.goto("/budget-lines");
     for (const [index, kindLabel] of ["Planning (base)", "Planning (conservative)"].entries()) {
-      await missingRateRow(page, kindLabel).getByRole("button", { name: "Add this rate" }).click();
+      await missingRateRow(page, kindLabel).getByRole("button", { name: "Add this rate", exact: true }).click();
 
       const fxForm = fxRateAddForm(page);
       await fxForm.getByLabel("Rate to USD").fill("1.1");
@@ -352,7 +352,7 @@ test("the full first-run journey, starting from a signed-out, empty account", as
       await fxForm.getByLabel("Provider", { exact: true }).fill("Fictional FX source");
       await fxForm.getByLabel("Tier", { exact: true }).selectOption("6");
       await fxForm.getByLabel("Observation date", { exact: true }).fill("2024-01-01");
-      await fxForm.getByRole("button", { name: "Add rate" }).click();
+      await fxForm.getByRole("button", { name: "Add rate", exact: true }).click();
 
       await expect(missingRateRow(page, kindLabel)).toHaveCount(0);
     }
@@ -368,14 +368,14 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await page.goto("/budget-lines");
     const row = budgetLineRow(page, "Flight deposit");
 
-    await row.getByRole("button", { name: "Edit" }).click();
+    await row.getByRole("button", { name: "Edit", exact: true }).click();
     // Stays within min (90) <= target <= conservative (120) --
     // budget_lines_amount_order is enforced client-side too (see
     // amountsInOrder in budget-line-write-ui.tsx), so a save that broke
     // it would never even reach the server to prove anything.
     await row.getByLabel("New target").fill("110");
     await row.getByLabel("Reason for this change").fill("Flight price went up");
-    await row.getByRole("button", { name: "Save" }).click();
+    await row.getByRole("button", { name: "Save", exact: true }).click();
 
     await expect(row.getByText("€110.00")).toBeVisible();
   });
@@ -383,11 +383,11 @@ test("the full first-run journey, starting from a signed-out, empty account", as
   await test.step("change the budget line's confidence with a reason", async () => {
     const row = budgetLineRow(page, "Flight deposit");
 
-    await row.getByRole("button", { name: "Edit" }).click();
+    await row.getByRole("button", { name: "Edit", exact: true }).click();
     await expect(row.getByLabel("New confidence")).toHaveValue("low");
     await row.getByLabel("New confidence").selectOption("medium");
     await row.getByLabel("Reason for this change").fill("Several current fare observations now");
-    await row.getByRole("button", { name: "Save" }).click();
+    await row.getByRole("button", { name: "Save", exact: true }).click();
 
     await expect(row.getByText("Confidence: Medium")).toBeVisible();
     // Confidence is its own field -- changing it leaves the
@@ -440,15 +440,15 @@ test("the full first-run journey, starting from a signed-out, empty account", as
   await test.step("try \"confirmed\" with no source and see it refused", async () => {
     const row = budgetLineRow(page, "Flight deposit");
 
-    await row.getByRole("button", { name: "Edit" }).click();
+    await row.getByRole("button", { name: "Edit", exact: true }).click();
     await row.getByLabel("New information state").selectOption("confirmed");
     await row.getByLabel("Reason for this change").fill("Trying to confirm with no source");
-    await row.getByRole("button", { name: "Save" }).click();
+    await row.getByRole("button", { name: "Save", exact: true }).click();
 
     await expect(row.getByText("Confirmed needs a source")).toBeVisible();
     // Refused client-side -- the row is still showing the edit form,
     // never submitted, so the line itself is unchanged.
-    await expect(row.getByRole("button", { name: "Save" })).toBeVisible();
+    await expect(row.getByRole("button", { name: "Save", exact: true })).toBeVisible();
   });
 
   const FIRST_COMPETITION = "Llangollen International Musical Eisteddfod";
@@ -468,9 +468,9 @@ test("the full first-run journey, starting from a signed-out, empty account", as
   });
 
   await test.step("add a second competition with no city and no dates", async () => {
-    const form = page.locator("form").filter({ has: page.getByRole("button", { name: "Add competition" }) });
+    const form = page.locator("form").filter({ has: page.getByRole("button", { name: "Add competition", exact: true }) });
     await form.getByLabel("Name").fill(DATELESS_COMPETITION);
-    await form.getByRole("button", { name: "Add competition" }).click();
+    await form.getByRole("button", { name: "Add competition", exact: true }).click();
 
     const card = competitionCard(page, DATELESS_COMPETITION);
     await expect(card.getByText("Festival dates not announced yet")).toBeVisible();
@@ -479,10 +479,10 @@ test("the full first-run journey, starting from a signed-out, empty account", as
   });
 
   await test.step("create a scenario for it and switch to it", async () => {
-    const form = page.locator("form").filter({ has: page.getByRole("button", { name: "Create scenario" }) });
+    const form = page.locator("form").filter({ has: page.getByRole("button", { name: "Create scenario", exact: true }) });
     await form.getByLabel("Name").fill("Host TBA scenario");
     await form.getByLabel("Competition").selectOption({ label: DATELESS_COMPETITION });
-    await form.getByRole("button", { name: "Create scenario" }).click();
+    await form.getByRole("button", { name: "Create scenario", exact: true }).click();
 
     await expect(competitionCard(page, DATELESS_COMPETITION).getByText("Used by: Host TBA scenario")).toBeVisible();
 
@@ -515,7 +515,7 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await addForm.getByLabel("Minimum").fill("200");
     await addForm.getByLabel("Target").fill("250");
     await addForm.getByLabel("Conservative").fill("300");
-    await addForm.getByRole("button", { name: "Add budget line" }).click();
+    await addForm.getByRole("button", { name: "Add budget line", exact: true }).click();
     await expect(budgetLineRow(page, "Host TBA registration")).toBeVisible();
 
     await page.getByRole("link", { name: "Llangollen 2027", exact: true }).click();
@@ -530,7 +530,7 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await page.getByLabel("Budget category").selectOption("A");
     await page.getByLabel("Amount").fill("50");
     await page.getByLabel("Refundability").selectOption("refundable");
-    await page.getByRole("button", { name: "Add payment" }).click();
+    await page.getByRole("button", { name: "Add payment", exact: true }).click();
     await expect(page.getByText("Host TBA deposit", { exact: true })).toBeVisible();
 
     await expect(page.getByTestId("no-payment-split")).toContainText("No departure date or festival dates yet");
@@ -542,7 +542,7 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await page.goto(`/scenarios?scenario=${firstScenarioId}`);
     const card = competitionCard(page, FIRST_COMPETITION);
 
-    await card.getByRole("button", { name: "Edit" }).click();
+    await card.getByRole("button", { name: "Edit", exact: true }).click();
     await card.getByLabel("Information state (festival dates)").selectOption("confirmed");
     // A role lookup, not getByLabel: this picker is optional, so its
     // visible label reads "Source (festival dates) (optional)".
@@ -551,25 +551,25 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await card.getByLabel("Tier", { exact: true }).selectOption("1");
     await card.getByLabel("Observation date", { exact: true }).fill("2026-10-01");
     await card.getByLabel("Reason for this change").fill("Dates published on the official site");
-    await card.getByRole("button", { name: "Save" }).click();
+    await card.getByRole("button", { name: "Save", exact: true }).click();
 
     await expect(card.getByText(/\(Confirmed\)/)).toBeVisible();
     await expect(card.getByText("Acceptance pending")).toBeVisible();
   });
 
   await test.step("create an empty scenario, rename it and link it, then delete it with a reason", async () => {
-    const form = page.locator("form").filter({ has: page.getByRole("button", { name: "Create scenario" }) });
+    const form = page.locator("form").filter({ has: page.getByRole("button", { name: "Create scenario", exact: true }) });
     await form.getByLabel("Name").fill("Throwaway scenario");
     await form.getByLabel("Competition").selectOption({ label: "No competition yet" });
-    await form.getByRole("button", { name: "Create scenario" }).click();
+    await form.getByRole("button", { name: "Create scenario", exact: true }).click();
     await expect(scenarioCard(page, "Throwaway scenario").getByText("No competition yet")).toBeVisible();
 
     const card = scenarioCard(page, "Throwaway scenario");
-    await card.getByRole("button", { name: "Edit" }).click();
+    await card.getByRole("button", { name: "Edit", exact: true }).click();
     await card.getByLabel("New name").fill("Throwaway scenario (linked)");
     await card.getByLabel("Competition").selectOption({ label: DATELESS_COMPETITION });
     await card.getByLabel("Reason for this change").fill("Trying out a link");
-    await card.getByRole("button", { name: "Save" }).click();
+    await card.getByRole("button", { name: "Save", exact: true }).click();
 
     const renamed = scenarioCard(page, "Throwaway scenario (linked)");
     // The card's read-only competition caption is a <p> -- getByText alone
@@ -579,20 +579,25 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     // the server data refreshes), so this pins it to the caption only.
     await expect(renamed.locator("p").filter({ hasText: DATELESS_COMPETITION })).toBeVisible();
 
-    await renamed.getByRole("button", { name: "Delete" }).click();
+    await renamed.getByRole("button", { name: "Delete", exact: true }).click();
     await renamed.getByLabel("Reason for deleting this").fill("Only a test");
-    await renamed.getByRole("button", { name: "Delete" }).click();
+    await renamed.getByRole("button", { name: "Delete", exact: true }).click();
     await expect(scenarioCard(page, "Throwaway scenario")).toHaveCount(0);
   });
 
   await test.step("deleting a scenario that still has budget lines is refused", async () => {
     const card = scenarioCard(page, "Host TBA scenario");
-    await card.getByRole("button", { name: "Delete" }).click();
+    await card.getByRole("button", { name: "Delete", exact: true }).click();
     await card.getByLabel("Reason for deleting this").fill("Trying anyway");
-    await card.getByRole("button", { name: "Delete" }).click();
+    await card.getByRole("button", { name: "Delete", exact: true }).click();
 
     await expect(card.getByRole("alert")).toContainText("still has budget lines");
     await expect(scenarioCard(page, "Host TBA scenario")).toHaveCount(1);
+    // Its own locator, not a substring of "Delete" -- the two buttons
+    // sit side by side in the same card.
+    await expect(
+      card.getByRole("button", { name: "Delete everything in this scenario", exact: true }),
+    ).toBeVisible();
   });
 
   await test.step("payments due after the festival starts, or with no due date, are listed as moved to departure", async () => {
@@ -608,7 +613,7 @@ test("the full first-run journey, starting from a signed-out, empty account", as
       await page.getByLabel("Amount").fill(amount);
       await page.getByLabel("Refundability").selectOption("refundable");
       if (dueDate) await page.getByLabel("Due date (optional)").fill(dueDate);
-      await page.getByRole("button", { name: "Add payment" }).click();
+      await page.getByRole("button", { name: "Add payment", exact: true }).click();
       await expect(page.getByText(description, { exact: true })).toBeVisible();
     }
 
@@ -636,11 +641,11 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     const travelWindow = scenariosSection(page, "Travel window");
     await expect(page.getByTestId("travel-window")).toContainText("Leave: not set");
 
-    await travelWindow.getByRole("button", { name: "Set travel window" }).click();
+    await travelWindow.getByRole("button", { name: "Set travel window", exact: true }).click();
     await travelWindow.getByLabel("Departure date").fill("2027-07-03");
     await travelWindow.getByLabel("Return date").fill("2027-07-14");
     await travelWindow.getByLabel("Reason for this change").fill("Arriving a few days early");
-    await travelWindow.getByRole("button", { name: "Save" }).click();
+    await travelWindow.getByRole("button", { name: "Save", exact: true }).click();
     await expect(page.getByTestId("travel-window")).toContainText("Leave: Jul 3, 2027 · Return: Jul 14, 2027");
 
     await page.goto(`/?scenario=${firstScenarioId}`);
@@ -704,7 +709,7 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await page.getByLabel("To").fill("Cardiff");
     await page.getByLabel("Departs").fill("2027-07-03");
     await page.getByLabel("Arrives").fill("2027-07-03");
-    await page.getByRole("button", { name: "Add movement" }).click();
+    await page.getByRole("button", { name: "Add movement", exact: true }).click();
     await expect(movementRow(page, "Home → Cardiff")).toBeVisible();
 
     await page.getByLabel("Order in the chain").fill("2");
@@ -712,7 +717,7 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await page.getByLabel("To").fill("Home");
     await page.getByLabel("Departs").fill("2027-07-14");
     await page.getByLabel("Arrives").fill("2027-07-14");
-    await page.getByRole("button", { name: "Add movement" }).click();
+    await page.getByRole("button", { name: "Add movement", exact: true }).click();
     await expect(movementRow(page, "Cardiff → Home")).toBeVisible();
 
     // Generated from the movement chain, not typed in.
@@ -730,16 +735,16 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await page.getByLabel("First night").fill("2027-07-03");
     await page.getByLabel("Nights").fill("10");
     await page.getByLabel("Kind").selectOption("festival");
-    await page.getByRole("button", { name: "Add stay" }).click();
+    await page.getByRole("button", { name: "Add stay", exact: true }).click();
     await expect(
       page.getByText("Stays total 10 nights, but the trip's travel window is 11 nights."),
     ).toBeVisible();
 
     const stay = stayRow(page, "Cardiff");
-    await stay.getByRole("button", { name: "Edit" }).click();
+    await stay.getByRole("button", { name: "Edit", exact: true }).click();
     await stay.getByLabel("New nights").fill("11");
     await stay.getByLabel("Reason for this change").fill("Counted wrong the first time");
-    await stay.getByRole("button", { name: "Save" }).click();
+    await stay.getByRole("button", { name: "Save", exact: true }).click();
 
     await expect(page.getByText(/Stays total \d+ nights, but the trip's travel window/)).not.toBeVisible();
   });
@@ -753,7 +758,7 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await page.getByLabel("Amount (USD)").fill("75");
     await page.getByLabel("Date", { exact: true }).fill("2026-02-01");
     await page.getByLabel("Note (optional)").fill("For the export check");
-    await page.getByRole("button", { name: "Record" }).click();
+    await page.getByRole("button", { name: "Record", exact: true }).click();
     await expect(page.getByText("For the export check")).toBeVisible();
   });
 
@@ -855,7 +860,7 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await expect(page).toHaveURL("/import");
 
     await page.getByLabel("Proposals to review").fill(JSON.stringify(batch, null, 2));
-    await page.getByRole("button", { name: "Review proposals" }).click();
+    await page.getByRole("button", { name: "Review proposals", exact: true }).click();
     await expect(page).toHaveURL(/\/import\/[0-9a-f-]{36}$/);
     batchUrl = new URL(page.url()).pathname;
   });
@@ -886,24 +891,24 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await expect(stale.getByText("Out of date")).toBeVisible();
     await expect(stale.getByText(/Changed since this was written: Minimum is now 90, the proposal expected 50/)).toBeVisible();
     // Reject-only: a stale proposal is never applied over the value that moved.
-    await expect(stale.getByRole("button", { name: "Approve" })).toHaveCount(0);
+    await expect(stale.getByRole("button", { name: "Approve", exact: true })).toHaveCount(0);
   });
 
   await test.step("reject one budget line on its own, with a reason", async () => {
     const meals = proposalCard(page, 6);
-    await meals.getByRole("button", { name: "Reject" }).click();
+    await meals.getByRole("button", { name: "Reject", exact: true }).click();
     await meals.getByLabel("Reason for rejecting this").fill("Not budgeting meals yet");
-    await meals.getByRole("button", { name: "Reject" }).click();
+    await meals.getByRole("button", { name: "Reject", exact: true }).click();
     await expect(proposalCard(page, 6).getByText("Rejected: Not budgeting meals yet")).toBeVisible();
   });
 
   await test.step("reject a scenario together with the line that depends on it", async () => {
     const abandoned = proposalCard(page, 9);
-    await abandoned.getByRole("button", { name: "Reject" }).click();
+    await abandoned.getByRole("button", { name: "Reject", exact: true }).click();
     await expect(abandoned.getByText(/One item depends on this: item 10 \(new budget line\)/)).toBeVisible();
     await abandoned.getByLabel("Reason for rejecting this").fill("Dropping this idea");
     await abandoned.getByLabel("Reject them too, with this reason").check();
-    await abandoned.getByRole("button", { name: "Reject" }).click();
+    await abandoned.getByRole("button", { name: "Reject", exact: true }).click();
 
     await expect(proposalCard(page, 9).getByText("Rejected: Dropping this idea")).toBeVisible();
     await expect(proposalCard(page, 10).getByText("Rejected: Rejected with item 9, which it depends on: Dropping this idea")).toBeVisible();
@@ -921,9 +926,9 @@ test("the full first-run journey, starting from a signed-out, empty account", as
 
   await test.step("reject the stale update", async () => {
     const stale = proposalCard(page, 8);
-    await stale.getByRole("button", { name: "Reject" }).click();
+    await stale.getByRole("button", { name: "Reject", exact: true }).click();
     await stale.getByLabel("Reason for rejecting this").fill("Minimum moved; asking for a fresh proposal");
-    await stale.getByRole("button", { name: "Reject" }).click();
+    await stale.getByRole("button", { name: "Reject", exact: true }).click();
     await expect(proposalCard(page, 8).getByText("Rejected: Minimum moved; asking for a fresh proposal")).toBeVisible();
     // Nothing left pending: the batch-wide buttons go away.
     await expect(page.getByRole("button", { name: /Approve all ready/ })).toHaveCount(0);
