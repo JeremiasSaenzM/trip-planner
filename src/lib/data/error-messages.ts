@@ -29,6 +29,9 @@ const CHECK_CONSTRAINT_MESSAGES: Record<string, string> = {
   savings_entries_amount_positive: "The amount has to be more than zero.",
   savings_entries_recorded_on_not_future: "That date can't be in the future.",
   decisions_payment_risk_needs_rationale: "Say why you're accepting this risk.",
+  decisions_flight_risk_needs_rationale: "Say why you're accepting this risk.",
+  flight_options_one_selected_or_booked_per_scenario:
+    "This scenario already has a selected or booked flight option -- change that one first.",
   decisions_accepted_currency_format: "Currency must be a 3-letter code (e.g. USD).",
   payments_risk_accepted_decision_id_unique: "That decision already covers a different payment.",
   stays_nights_positive: "Nights must be more than zero.",

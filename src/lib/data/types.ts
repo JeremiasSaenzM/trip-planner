@@ -101,6 +101,10 @@ export type Decision = {
    * enforce_payment_acceptance_safeguard()'s d.payment_id = new.id
    * check. null for every decision that isn't a payment risk acceptance. */
   paymentId: string | null;
+  /** The one flight option this decision names, if any -- check 4's
+   * explicit risk acceptance (decisions_flight_risk_needs_rationale,
+   * 20261028090000). null for every decision that isn't one. */
+  flightOptionId: string | null;
   title: string;
   rationale: string | null;
   decidedOn: string;
@@ -207,9 +211,13 @@ export type OpenItem = {
   resolvedAt: string | null;
 };
 
+export type FlightOptionStatus = "candidate" | "selected" | "rejected" | "booked";
+
 export type FlightOption = {
   id: string;
   scenarioId: string;
+  label: string;
+  status: FlightOptionStatus;
   fare: number;
   bagFee: number;
   mandatoryFees: number;
@@ -219,7 +227,9 @@ export type FlightOption = {
   observedOn: string;
   baggage: FlightBaggage;
   separateTickets: boolean;
-  arrivalAt: string;
+  refundability: Refundability;
+  competitionRelated: boolean;
+  bookingReference: string | null;
   notes: string | null;
   createdAt: string;
   updatedAt: string;
@@ -256,6 +266,10 @@ export type Stay = {
   informationState: InfoState;
   sourceId: string | null;
   notes: string | null;
+  /** Set when this stay exists because of a specific flight option --
+   * the Paris-arrival-night case the Costs section describes. The link
+   * itself is the "route-caused" flag; there's no separate boolean. */
+  flightOptionId: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -281,6 +295,10 @@ export type Movement = {
   informationState: InfoState;
   sourceId: string | null;
   notes: string | null;
+  /** Set on the flight leg itself (itinerary entry and ticket
+   * restating each other) or on a movement that only exists because of
+   * that ticket -- same reading as Stay.flightOptionId. */
+  flightOptionId: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -321,7 +339,10 @@ export type ProposalOp =
   | "create_stay"
   | "create_movement"
   | "update_stay"
-  | "update_movement";
+  | "update_movement"
+  | "create_flight_option"
+  | "create_flight_segment"
+  | "update_flight_option";
 export type ProposalStatus = "pending" | "approved" | "rejected";
 
 export type ProposalBatch = {
@@ -510,6 +531,7 @@ type StayFieldsWrite = {
   informationState: InfoState;
   sourceId?: string;
   notes?: string;
+  flightOptionId?: string;
 };
 export type CreateStayWrite = StayFieldsWrite & { scenarioId: string };
 export type UpdateStayWrite = StayFieldsWrite & { id: string; reason: string };
@@ -529,10 +551,65 @@ type MovementFieldsWrite = {
   informationState: InfoState;
   sourceId?: string;
   notes?: string;
+  flightOptionId?: string;
 };
 export type CreateMovementWrite = MovementFieldsWrite & { scenarioId: string };
 export type UpdateMovementWrite = MovementFieldsWrite & { id: string; reason: string };
 export type DeleteMovementWrite = { id: string; reason: string };
+
+type FlightOptionFieldsWrite = {
+  label: string;
+  fare: number;
+  bagFee: number;
+  mandatoryFees: number;
+  currency: string;
+  informationState: InfoState;
+  sourceId: string;
+  observedOn: string;
+  baggage: FlightBaggage;
+  separateTickets: boolean;
+  refundability: Refundability;
+  competitionRelated: boolean;
+  notes?: string;
+};
+export type CreateFlightOptionWrite = FlightOptionFieldsWrite & { scenarioId: string };
+// status/bookingReference aren't part of creation -- every option
+// starts life as a candidate with no booking reference, same reasoning
+// as a payment starting "planned".
+export type UpdateFlightOptionWrite = FlightOptionFieldsWrite & {
+  id: string;
+  status: FlightOptionStatus;
+  bookingReference?: string;
+  reason: string;
+};
+export type DeleteFlightOptionWrite = { id: string; reason: string };
+
+export type CreateFlightSegmentWrite = {
+  flightOptionId: string;
+  direction: FlightDirection;
+  segmentOrder: number;
+  fromAirport: string;
+  toAirport: string;
+  fromCountry: string;
+  toCountry: string;
+  flightNumber?: string;
+  departAt: string;
+  arriveAt: string;
+  isTechnicalStop: boolean;
+};
+export type DeleteFlightSegmentWrite = { id: string; reason: string };
+
+// Mirrors CreatePaymentRiskDecisionWrite's own shape and reasoning:
+// assembled server-side (src/app/(app)/flight-actions.ts) from the
+// option being risk-accepted, never typed in by the person beyond the
+// rationale itself.
+export type CreateFlightRiskDecisionWrite = {
+  tripId: string;
+  competitionId: string;
+  flightOptionId: string;
+  optionLabel: string;
+  rationale: string;
+};
 
 export type CreateFxRateWrite = {
   currency: string;
@@ -638,6 +715,12 @@ export type DataSource = {
   createMovement(input: CreateMovementWrite): Promise<Movement>;
   updateMovement(input: UpdateMovementWrite): Promise<Movement>;
   deleteMovement(input: DeleteMovementWrite): Promise<void>;
+  createFlightOption(input: CreateFlightOptionWrite): Promise<FlightOption>;
+  updateFlightOption(input: UpdateFlightOptionWrite): Promise<FlightOption>;
+  deleteFlightOption(input: DeleteFlightOptionWrite): Promise<void>;
+  createFlightSegment(input: CreateFlightSegmentWrite): Promise<FlightSegment>;
+  deleteFlightSegment(input: DeleteFlightSegmentWrite): Promise<void>;
+  createFlightRiskDecision(input: CreateFlightRiskDecisionWrite): Promise<Decision>;
   /** Returns the new batch's id. */
   createProposalBatch(input: CreateProposalBatchWrite): Promise<string>;
   approveProposal(itemId: string): Promise<ProposalItem>;

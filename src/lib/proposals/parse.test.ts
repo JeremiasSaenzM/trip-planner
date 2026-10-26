@@ -174,7 +174,7 @@ describe("parseProposalPaste: malformed input", () => {
 
   it("refuses an operation outside the whitelist", () => {
     expect(problemsOf(paste([{ op: "delete_trip", reason: "x", data: {} }]))[0]).toMatch(
-      /^Item 1 \(delete_trip\): "op" must be one of create_source, .*update_movement\.$/,
+      /^Item 1 \(delete_trip\): "op" must be one of create_source, .*update_flight_option\.$/,
     );
   });
 

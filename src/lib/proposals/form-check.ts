@@ -3,6 +3,8 @@ import type { z } from "zod";
 import type {
   BudgetLine,
   Competition,
+  FlightOption,
+  FlightSegment,
   FxRate,
   Movement,
   Payment,
@@ -13,6 +15,8 @@ import type {
 } from "@/lib/data/types";
 import { createBudgetLineInput, updateBudgetLineInput } from "@/lib/validation/budget-lines";
 import { createCompetitionInput, updateCompetitionInput } from "@/lib/validation/competitions";
+import { createFlightOptionInput, updateFlightOptionInput } from "@/lib/validation/flight-options";
+import { createFlightSegmentInput } from "@/lib/validation/flight-segments";
 import { createFxRateInput, updateFxRateInput } from "@/lib/validation/fx-rates";
 import { createMovementInput, updateMovementInput } from "@/lib/validation/movements";
 import { createPaymentInput, updatePaymentDetailsInput } from "@/lib/validation/payments";
@@ -41,6 +45,8 @@ export type CurrentRows = {
   savingsEntries: SavingsEntry[];
   stays: Stay[];
   movements: Movement[];
+  flightOptions: FlightOption[];
+  flightSegments: FlightSegment[];
 };
 
 export type StoredPayload = { data: Record<string, unknown> } | { changes: Record<string, FieldChange> };
@@ -170,6 +176,28 @@ export function currentFields(op: UpdateOp, targetId: string, rows: CurrentRows)
           }
         : null;
     }
+    case "update_flight_option": {
+      const row = rows.flightOptions.find((o) => o.id === targetId);
+      return row
+        ? {
+            label: row.label,
+            fare: row.fare,
+            bagFee: row.bagFee,
+            mandatoryFees: row.mandatoryFees,
+            currency: row.currency,
+            informationState: row.informationState,
+            source: row.sourceId,
+            observedOn: row.observedOn,
+            baggage: row.baggage,
+            separateTickets: row.separateTickets,
+            refundability: row.refundability,
+            competitionRelated: row.competitionRelated,
+            status: row.status,
+            bookingReference: row.bookingReference,
+            notes: row.notes,
+          }
+        : null;
+    }
   }
 }
 
@@ -286,6 +314,14 @@ function checkCreate(
           sourceId: ref(source),
         }),
       );
+    }
+    case "create_flight_option": {
+      const { scenario, source, ...rest } = data as CreateData<"create_flight_option">;
+      return result(createFlightOptionInput.safeParse({ ...rest, scenarioId: ref(scenario), sourceId: ref(source) }));
+    }
+    case "create_flight_segment": {
+      const { flightOption, ...rest } = data as CreateData<"create_flight_segment">;
+      return result(createFlightSegmentInput.safeParse({ ...rest, flightOptionId: ref(flightOption) }));
     }
   }
 }
@@ -404,6 +440,28 @@ function checkUpdate(op: UpdateOp, id: string, merged: Record<string, unknown>, 
           bookingReference: absent(merged.bookingReference),
           informationState: merged.informationState,
           sourceId: absent(merged.source),
+          notes: absent(merged.notes),
+          reason,
+        }),
+      );
+    case "update_flight_option":
+      return result(
+        updateFlightOptionInput.safeParse({
+          id,
+          label: merged.label,
+          fare: merged.fare,
+          bagFee: merged.bagFee,
+          mandatoryFees: merged.mandatoryFees,
+          currency: merged.currency,
+          informationState: merged.informationState,
+          sourceId: merged.source,
+          observedOn: merged.observedOn,
+          baggage: merged.baggage,
+          separateTickets: merged.separateTickets,
+          refundability: merged.refundability,
+          competitionRelated: merged.competitionRelated,
+          status: merged.status,
+          bookingReference: absent(merged.bookingReference),
           notes: absent(merged.notes),
           reason,
         }),

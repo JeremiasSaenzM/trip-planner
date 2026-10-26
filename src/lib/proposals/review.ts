@@ -158,6 +158,10 @@ function resultStillExists(item: ProposalItem, rows: ReviewRows): boolean {
       return rows.stays.some((s) => s.id === item.resultId);
     case "create_movement":
       return rows.movements.some((m) => m.id === item.resultId);
+    case "create_flight_option":
+      return rows.flightOptions.some((o) => o.id === item.resultId);
+    case "create_flight_segment":
+      return rows.flightSegments.some((s) => s.id === item.resultId);
   }
 }
 
@@ -251,7 +255,11 @@ export function unknownReferences(
           ? rows.competitions.some((c) => c.id === value.id && c.tripId === tripId)
           : kind === "scenario"
             ? rows.scenarios.some((s) => s.id === value.id && s.tripId === tripId)
-            : rows.budgetLines.some((l) => l.id === value.id && l.tripId === tripId);
+            : kind === "flight_option"
+              ? rows.flightOptions.some(
+                  (o) => o.id === value.id && rows.scenarios.some((s) => s.id === o.scenarioId && s.tripId === tripId),
+                )
+              : rows.budgetLines.some((l) => l.id === value.id && l.tripId === tripId);
     return exists ? [] : [`${field}: no ${kind.replace("_", " ")} with id ${value.id} in this trip`];
   });
 }
@@ -268,6 +276,8 @@ function existingName(id: string, kind: ReferenceKind, rows: ReviewRows): string
       return rows.scenarios.find((s) => s.id === id)?.name ?? null;
     case "budget_line":
       return rows.budgetLines.find((l) => l.id === id)?.description ?? null;
+    case "flight_option":
+      return rows.flightOptions.find((o) => o.id === id)?.label ?? null;
   }
 }
 
@@ -296,6 +306,10 @@ function describeTarget(op: ProposalItem["op"], id: string, rows: ReviewRows): s
     case "update_movement": {
       const movement = rows.movements.find((m) => m.id === id);
       return movement ? `${movement.fromLocation} → ${movement.toLocation}, ${movement.departDate}` : null;
+    }
+    case "update_flight_option": {
+      const option = rows.flightOptions.find((o) => o.id === id);
+      return option ? option.label : null;
     }
     default:
       return null;

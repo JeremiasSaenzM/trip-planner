@@ -2,6 +2,8 @@ import { z } from "zod";
 
 import type { ProposalOp } from "@/lib/data/types";
 import { budgetCategory, quantityUnit } from "@/lib/validation/budget-lines";
+import { flightBaggage, flightOptionStatus } from "@/lib/validation/flight-options";
+import { airportCode, countryCode, flightDirection, isoInstant } from "@/lib/validation/flight-segments";
 import { rateKind } from "@/lib/validation/fx-rates";
 import { movementMode } from "@/lib/validation/movements";
 import { paymentTiming, refundability } from "@/lib/validation/payments";
@@ -38,6 +40,9 @@ export const PROPOSAL_OPS = [
   "create_movement",
   "update_stay",
   "update_movement",
+  "create_flight_option",
+  "create_flight_segment",
+  "update_flight_option",
 ] as const satisfies readonly ProposalOp[];
 
 export type CreateOp = Extract<ProposalOp, `create_${string}`>;
@@ -50,7 +55,7 @@ export function isUpdateOp(op: ProposalOp): op is UpdateOp {
 // What a reference field points at. An {"item": n} reference must point
 // at an approved create of exactly this kind (proposal_ref() checks
 // again at approval).
-export type ReferenceKind = "source" | "competition" | "scenario" | "budget_line";
+export type ReferenceKind = "source" | "competition" | "scenario" | "budget_line" | "flight_option";
 
 export const REFERENCE_FIELDS: Record<ProposalOp, Record<string, ReferenceKind>> = {
   create_source: {},
@@ -69,6 +74,9 @@ export const REFERENCE_FIELDS: Record<ProposalOp, Record<string, ReferenceKind>>
   create_movement: { scenario: "scenario", budgetLine: "budget_line", source: "source" },
   update_stay: { budgetLine: "budget_line", source: "source" },
   update_movement: { budgetLine: "budget_line", source: "source" },
+  create_flight_option: { scenario: "scenario", source: "source" },
+  create_flight_segment: { flightOption: "flight_option" },
+  update_flight_option: { source: "source" },
 };
 
 // Ids are compared as text against what Postgres returns (always lower
@@ -209,6 +217,35 @@ export const CREATE_DATA = {
     source: reference.optional(),
     notes: freeText.optional(),
   }),
+  create_flight_option: z.strictObject({
+    scenario: reference,
+    label: name,
+    fare: money,
+    bagFee: money,
+    mandatoryFees: money,
+    currency: currencyCode,
+    informationState: infoState,
+    source: reference,
+    observedOn: isoDate,
+    baggage: flightBaggage,
+    separateTickets: z.boolean(),
+    refundability,
+    competitionRelated: z.boolean(),
+    notes: freeText.optional(),
+  }),
+  create_flight_segment: z.strictObject({
+    flightOption: reference,
+    direction: flightDirection,
+    segmentOrder: z.number().int().positive(),
+    fromAirport: airportCode,
+    toAirport: airportCode,
+    fromCountry: countryCode,
+    toCountry: countryCode,
+    flightNumber: freeText.optional(),
+    departAt: isoInstant,
+    arriveAt: isoInstant,
+    isTechnicalStop: z.boolean(),
+  }),
 } satisfies Record<CreateOp, z.ZodType>;
 
 // What each update operation may change, field by field, as {"from":
@@ -313,6 +350,25 @@ export const UPDATE_CHANGES = {
       notes: change(freeText.nullable()).optional(),
     })
     .refine(atLeastOneChange, "An update needs at least one change"),
+  update_flight_option: z
+    .strictObject({
+      label: change(name).optional(),
+      fare: change(money).optional(),
+      bagFee: change(money).optional(),
+      mandatoryFees: change(money).optional(),
+      currency: change(currencyCode).optional(),
+      informationState: change(infoState).optional(),
+      source: requiredReferenceChange.optional(),
+      observedOn: change(isoDate).optional(),
+      baggage: change(flightBaggage).optional(),
+      separateTickets: change(z.boolean()).optional(),
+      refundability: change(refundability).optional(),
+      competitionRelated: change(z.boolean()).optional(),
+      status: change(flightOptionStatus).optional(),
+      bookingReference: change(freeText.nullable()).optional(),
+      notes: change(freeText.nullable()).optional(),
+    })
+    .refine(atLeastOneChange, "An update needs at least one change"),
 } satisfies Record<UpdateOp, z.ZodType>;
 
 export type CreateData<Op extends CreateOp> = z.infer<(typeof CREATE_DATA)[Op]>;
@@ -344,6 +400,9 @@ export const pastedItem = z.discriminatedUnion("op", [
   createItem("create_movement"),
   updateItem("update_stay"),
   updateItem("update_movement"),
+  createItem("create_flight_option"),
+  createItem("create_flight_segment"),
+  updateItem("update_flight_option"),
 ]);
 export type PastedItem = z.infer<typeof pastedItem>;
 

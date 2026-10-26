@@ -36,28 +36,52 @@ async function BatchScreen({ params }: { params: PageProps<"/import/[batch]">["p
   await getCurrentUser();
   const { batch: batchId } = await params;
 
-  const [batches, allItems, sources, competitions, scenarios, budgetLines, payments, fxRates, savingsEntries, stays, movements] =
-    await Promise.all([
-      dataSource.getProposalBatches(),
-      dataSource.getProposalItems(),
-      dataSource.getSources(),
-      dataSource.getCompetitions(),
-      dataSource.getScenarios(),
-      dataSource.getBudgetLines(),
-      dataSource.getPayments(),
-      dataSource.getFxRates(),
-      dataSource.getSavingsEntries(),
-      dataSource.getStays(),
-      dataSource.getMovements(),
-    ]);
+  const [
+    batches,
+    allItems,
+    sources,
+    competitions,
+    scenarios,
+    budgetLines,
+    payments,
+    fxRates,
+    savingsEntries,
+    stays,
+    movements,
+    flightOptions,
+    flightSegments,
+  ] = await Promise.all([
+    dataSource.getProposalBatches(),
+    dataSource.getProposalItems(),
+    dataSource.getSources(),
+    dataSource.getCompetitions(),
+    dataSource.getScenarios(),
+    dataSource.getBudgetLines(),
+    dataSource.getPayments(),
+    dataSource.getFxRates(),
+    dataSource.getSavingsEntries(),
+    dataSource.getStays(),
+    dataSource.getMovements(),
+    dataSource.getFlightOptions(),
+    dataSource.getFlightSegments(),
+  ]);
 
   const batch = batches.find((candidate) => candidate.id === batchId);
   if (!batch) notFound();
 
-  const reviews = reviewBatch(
-    allItems.filter((item) => item.batchId === batch.id),
-    { sources, competitions, scenarios, budgetLines, payments, fxRates, savingsEntries, stays, movements },
-  );
+  const reviews = reviewBatch(allItems.filter((item) => item.batchId === batch.id), {
+    sources,
+    competitions,
+    scenarios,
+    budgetLines,
+    payments,
+    fxRates,
+    savingsEntries,
+    stays,
+    movements,
+    flightOptions,
+    flightSegments,
+  });
   const pendingCount = reviews.filter((review) => review.item.status === "pending").length;
   const readyCount = reviews.filter((review) => review.state.kind === "ready").length;
   const describe = (position: number) => {

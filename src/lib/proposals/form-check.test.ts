@@ -20,6 +20,8 @@ const rows: CurrentRows = {
   savingsEntries: fixtures.savingsEntries,
   stays: fixtures.stays,
   movements: fixtures.movements,
+  flightOptions: fixtures.flightOptions,
+  flightSegments: fixtures.flightSegments,
 };
 
 const resolveIds: ResolveReference = (reference) => ("id" in reference ? reference.id : null);
@@ -209,6 +211,7 @@ describe("currentFields", () => {
     update_savings_entry: fixtures.savingsEntries[0].id,
     update_stay: fixtures.stays[0].id,
     update_movement: fixtures.movements[0].id,
+    update_flight_option: fixtures.flightOptions[0].id,
   };
 
   it.each(Object.keys(targets) as UpdateOp[])("covers exactly the fields %s can change", (op) => {

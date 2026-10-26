@@ -1,9 +1,10 @@
 import type { ProposalOp } from "@/lib/data/types";
-import type { BudgetCategory, Confidence, InfoState } from "@/lib/domain/types";
+import type { BudgetCategory, Confidence, FlightBaggage, InfoState } from "@/lib/domain/types";
 import type { ReferenceLabel } from "@/lib/proposals/review";
 
 import { CATEGORY_LABELS } from "./category-labels";
 import { CONFIDENCE_LABELS, CONFIDENCE_NOT_ASSESSED } from "./confidence-labels";
+import { FLIGHT_BAGGAGE_LABELS, FLIGHT_OPTION_STATUS_LABELS } from "./flight-labels";
 import { INFO_STATE_LABELS } from "./info-state-labels";
 import { MOVEMENT_MODE_LABELS, STAY_KIND_LABELS } from "./itinerary-labels";
 import { REFUNDABILITY_LABELS, TIMING_LABELS } from "./payment-labels";
@@ -30,6 +31,9 @@ export const OP_LABELS: Record<ProposalOp, string> = {
   create_movement: "New movement",
   update_stay: "Change stay",
   update_movement: "Change movement",
+  create_flight_option: "New flight option",
+  create_flight_segment: "New flight segment",
+  update_flight_option: "Change flight option",
 };
 
 const FIELD_LABELS: Record<string, string> = {
@@ -88,6 +92,24 @@ const FIELD_LABELS: Record<string, string> = {
   sequence: "Order in the chain",
   mode: "Mode",
   bookingReference: "Booking reference",
+  label: "Label",
+  fare: "Fare",
+  bagFee: "Checked bag fee",
+  mandatoryFees: "Mandatory fees",
+  baggage: "Baggage",
+  separateTickets: "Separate tickets",
+  status: "Status",
+  flightOption: "Flight option",
+  direction: "Direction",
+  segmentOrder: "Segment order",
+  fromAirport: "From airport",
+  toAirport: "To airport",
+  fromCountry: "From country",
+  toCountry: "To country",
+  flightNumber: "Flight number",
+  departAt: "Departs",
+  arriveAt: "Arrives",
+  isTechnicalStop: "Technical stop",
 };
 
 const RATE_KIND_LABELS: Record<string, string> = {
@@ -139,6 +161,10 @@ export function formatProposalValue(field: string, value: unknown): string {
       return MOVEMENT_MODE_LABELS[value as keyof typeof MOVEMENT_MODE_LABELS] ?? value;
     case "quantityUnit":
       return QUANTITY_UNIT_LABELS[value as keyof typeof QUANTITY_UNIT_LABELS] ?? value;
+    case "baggage":
+      return FLIGHT_BAGGAGE_LABELS[value as FlightBaggage] ?? value;
+    case "status":
+      return FLIGHT_OPTION_STATUS_LABELS[value as keyof typeof FLIGHT_OPTION_STATUS_LABELS] ?? value;
     default:
       return value;
   }
