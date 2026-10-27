@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useId, useState } from "react";
 
-import type { BudgetLine, Movement, Source, Stay } from "@/lib/data/types";
+import type { BudgetLine, FlightOption, Movement, Source, Stay } from "@/lib/data/types";
 import type { InfoState } from "@/lib/domain/types";
 
 import { formatAmount, formatDate, formatUnitAmount } from "./format";
@@ -17,6 +17,7 @@ import {
   updateMovement,
   updateStay,
 } from "./itinerary-actions";
+import { FLIGHT_OPTION_STATUS_LABELS } from "./flight-labels";
 import { MOVEMENT_MODE_LABELS, MOVEMENT_MODE_ORDER, STAY_KIND_LABELS, STAY_KIND_ORDER } from "./itinerary-labels";
 import { QUANTITY_UNIT_LABELS } from "./quantity-unit-labels";
 import { SourcePicker } from "./source-picker";
@@ -63,6 +64,38 @@ function BudgetLinePicker({
   );
 }
 
+// Mirrors BudgetLinePicker exactly: a flight option link is optional
+// (findMovementsMissingBudgetLine has no flight-option equivalent --
+// nothing flags an unlinked leg), and it's how a stay or movement
+// becomes the "festival-stay location" / "flight's own movement" the
+// Flight options section's checks walk the movement chain from (see
+// src/app/(app)/flight-evaluation.ts).
+function FlightOptionPicker({
+  id,
+  defaultValue,
+  flightOptions,
+}: {
+  id: string;
+  defaultValue: string;
+  flightOptions: FlightOption[];
+}) {
+  return (
+    <div className="space-y-1.5">
+      <label htmlFor={id} className={labelClass}>
+        Flight option (optional)
+      </label>
+      <select id={id} name="flightOptionId" defaultValue={defaultValue} className={inputClass}>
+        <option value="">Not linked to a flight option</option>
+        {flightOptions.map((option) => (
+          <option key={option.id} value={option.id}>
+            {option.label} ({FLIGHT_OPTION_STATUS_LABELS[option.status]})
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
 function InfoStateSelect({ id, defaultValue }: { id: string; defaultValue: InfoState }) {
   return (
     <select id={id} name="informationState" defaultValue={defaultValue} className={inputClass}>
@@ -80,10 +113,12 @@ function InfoStateSelect({ id, defaultValue }: { id: string; defaultValue: InfoS
 export function AddStayForm({
   scenarioId,
   budgetLines,
+  flightOptions,
   sources,
 }: {
   scenarioId: string;
   budgetLines: BudgetLine[];
+  flightOptions: FlightOption[];
   sources: Source[];
 }) {
   const [state, formAction, pending] = useActionState(createStay, initialFormActionState);
@@ -129,6 +164,7 @@ export function AddStayForm({
       </div>
 
       <BudgetLinePicker id="stay-budget-line" defaultValue="" budgetLines={budgetLines} />
+      <FlightOptionPicker id="stay-flight-option" defaultValue="" flightOptions={flightOptions} />
 
       <div className="space-y-1.5">
         <label htmlFor="stay-information-state" className={labelClass}>
@@ -157,10 +193,12 @@ export function AddStayForm({
 export function StayList({
   stays,
   budgetLines,
+  flightOptions,
   sources,
 }: {
   stays: Stay[];
   budgetLines: BudgetLine[];
+  flightOptions: FlightOption[];
   sources: Source[];
 }) {
   if (stays.length === 0) {
@@ -172,13 +210,23 @@ export function StayList({
   return (
     <div className="space-y-2" data-testid="stays-list">
       {sorted.map((stay) => (
-        <StayRow key={stay.id} stay={stay} budgetLines={budgetLines} sources={sources} />
+        <StayRow key={stay.id} stay={stay} budgetLines={budgetLines} flightOptions={flightOptions} sources={sources} />
       ))}
     </div>
   );
 }
 
-function StayRow({ stay, budgetLines, sources }: { stay: Stay; budgetLines: BudgetLine[]; sources: Source[] }) {
+function StayRow({
+  stay,
+  budgetLines,
+  flightOptions,
+  sources,
+}: {
+  stay: Stay;
+  budgetLines: BudgetLine[];
+  flightOptions: FlightOption[];
+  sources: Source[];
+}) {
   const [mode, setMode] = useState<"view" | "edit" | "delete">("view");
   const [attempt, setAttempt] = useState(0);
 
@@ -198,7 +246,14 @@ function StayRow({ stay, budgetLines, sources }: { stay: Stay; budgetLines: Budg
         {stay.location} — {STAY_KIND_LABELS[stay.kind]}
       </p>
       {mode === "edit" ? (
-        <EditStayForm key={attempt} stay={stay} budgetLines={budgetLines} sources={sources} onDone={() => setMode("view")} />
+        <EditStayForm
+          key={attempt}
+          stay={stay}
+          budgetLines={budgetLines}
+          flightOptions={flightOptions}
+          sources={sources}
+          onDone={() => setMode("view")}
+        />
       ) : mode === "delete" ? (
         <DeleteStayForm key={attempt} stay={stay} onDone={() => setMode("view")} />
       ) : (
@@ -225,11 +280,13 @@ function StayRow({ stay, budgetLines, sources }: { stay: Stay; budgetLines: Budg
 function EditStayForm({
   stay,
   budgetLines,
+  flightOptions,
   sources,
   onDone,
 }: {
   stay: Stay;
   budgetLines: BudgetLine[];
+  flightOptions: FlightOption[];
   sources: Source[];
   onDone: () => void;
 }) {
@@ -297,6 +354,7 @@ function EditStayForm({
       </div>
 
       <BudgetLinePicker id={`${formId}-budgetLine`} defaultValue={stay.budgetLineId ?? ""} budgetLines={budgetLines} />
+      <FlightOptionPicker id={`${formId}-flightOption`} defaultValue={stay.flightOptionId ?? ""} flightOptions={flightOptions} />
 
       <div className="space-y-1.5">
         <label htmlFor={`${formId}-informationState`} className={labelClass}>
@@ -366,10 +424,12 @@ function DeleteStayForm({ stay, onDone }: { stay: Stay; onDone: () => void }) {
 export function AddMovementForm({
   scenarioId,
   budgetLines,
+  flightOptions,
   sources,
 }: {
   scenarioId: string;
   budgetLines: BudgetLine[];
+  flightOptions: FlightOption[];
   sources: Source[];
 }) {
   const [state, formAction, pending] = useActionState(createMovement, initialFormActionState);
@@ -445,6 +505,7 @@ export function AddMovementForm({
       </div>
 
       <BudgetLinePicker id="movement-budget-line" defaultValue="" budgetLines={budgetLines} />
+      <FlightOptionPicker id="movement-flight-option" defaultValue="" flightOptions={flightOptions} />
 
       <div className="space-y-1.5">
         <label htmlFor="movement-booking-reference" className={labelClass}>
@@ -480,10 +541,12 @@ export function AddMovementForm({
 export function MovementList({
   movements,
   budgetLines,
+  flightOptions,
   sources,
 }: {
   movements: Movement[];
   budgetLines: BudgetLine[];
+  flightOptions: FlightOption[];
   sources: Source[];
 }) {
   if (movements.length === 0) {
@@ -495,7 +558,13 @@ export function MovementList({
   return (
     <div className="space-y-2" data-testid="movements-list">
       {sorted.map((movement) => (
-        <MovementRow key={movement.id} movement={movement} budgetLines={budgetLines} sources={sources} />
+        <MovementRow
+          key={movement.id}
+          movement={movement}
+          budgetLines={budgetLines}
+          flightOptions={flightOptions}
+          sources={sources}
+        />
       ))}
     </div>
   );
@@ -504,10 +573,12 @@ export function MovementList({
 function MovementRow({
   movement,
   budgetLines,
+  flightOptions,
   sources,
 }: {
   movement: Movement;
   budgetLines: BudgetLine[];
+  flightOptions: FlightOption[];
   sources: Source[];
 }) {
   const [mode, setMode] = useState<"view" | "edit" | "delete">("view");
@@ -533,6 +604,7 @@ function MovementRow({
           key={attempt}
           movement={movement}
           budgetLines={budgetLines}
+          flightOptions={flightOptions}
           sources={sources}
           onDone={() => setMode("view")}
         />
@@ -562,11 +634,13 @@ function MovementRow({
 function EditMovementForm({
   movement,
   budgetLines,
+  flightOptions,
   sources,
   onDone,
 }: {
   movement: Movement;
   budgetLines: BudgetLine[];
+  flightOptions: FlightOption[];
   sources: Source[];
   onDone: () => void;
 }) {
@@ -691,6 +765,11 @@ function EditMovementForm({
         id={`${formId}-budgetLine`}
         defaultValue={movement.budgetLineId ?? ""}
         budgetLines={budgetLines}
+      />
+      <FlightOptionPicker
+        id={`${formId}-flightOption`}
+        defaultValue={movement.flightOptionId ?? ""}
+        flightOptions={flightOptions}
       />
 
       <div className="space-y-1.5">

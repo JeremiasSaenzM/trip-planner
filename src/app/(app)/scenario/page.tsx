@@ -14,6 +14,7 @@ import { BASIS_LABELS, DashboardControls } from "../dashboard-controls";
 import { loadDashboardData, type DashboardData } from "../dashboard-data";
 import { Card, CardLabel, Caveat, EmptyState, noDepartureReason, RangeFigure } from "../dashboard-ui";
 import { DeadlinePotList } from "../deadline-pots-ui";
+import { AddFlightOptionForm, FlightOptionComparisonTable, FlightOptionList } from "../flight-write-ui";
 import { formatDate, formatUsd } from "../format";
 import { INFO_STATE_LABELS } from "../info-state-labels";
 import { AddMovementForm, AddStayForm, MovementList, StayList } from "../itinerary-write-ui";
@@ -123,22 +124,68 @@ async function ScenarioOverview({ searchParams }: { searchParams: PageProps<"/sc
         <Card>
           <CardLabel>Stays</CardLabel>
           <div className="mt-2">
-            <StayList stays={data.stays} budgetLines={data.budgetLines} sources={data.sources} />
+            <StayList
+              stays={data.stays}
+              budgetLines={data.budgetLines}
+              flightOptions={data.flightOptions}
+              sources={data.sources}
+            />
           </div>
           <div className="mt-4 border-t border-zinc-200 pt-4 dark:border-zinc-800">
-            <AddStayForm scenarioId={scenario.id} budgetLines={data.budgetLines} sources={data.sources} />
+            <AddStayForm
+              scenarioId={scenario.id}
+              budgetLines={data.budgetLines}
+              flightOptions={data.flightOptions}
+              sources={data.sources}
+            />
           </div>
         </Card>
 
         <Card>
           <CardLabel>Movements</CardLabel>
           <div className="mt-2">
-            <MovementList movements={data.movements} budgetLines={data.budgetLines} sources={data.sources} />
+            <MovementList
+              movements={data.movements}
+              budgetLines={data.budgetLines}
+              flightOptions={data.flightOptions}
+              sources={data.sources}
+            />
           </div>
           <div className="mt-4 border-t border-zinc-200 pt-4 dark:border-zinc-800">
-            <AddMovementForm scenarioId={scenario.id} budgetLines={data.budgetLines} sources={data.sources} />
+            <AddMovementForm
+              scenarioId={scenario.id}
+              budgetLines={data.budgetLines}
+              flightOptions={data.flightOptions}
+              sources={data.sources}
+            />
           </div>
         </Card>
+      </section>
+
+      <section aria-labelledby="flight-options" className="space-y-2">
+        <h2 id="flight-options" className="text-lg font-semibold">
+          Flight options
+        </h2>
+        <Card>
+          <FlightOptionList
+            evaluations={data.flightOptionEvaluations}
+            sources={data.sources}
+            tripId={trip.id}
+            competitionId={competition?.id ?? null}
+          />
+          <div className="mt-4 border-t border-zinc-200 pt-4 dark:border-zinc-800">
+            <AddFlightOptionForm scenarioId={scenario.id} sources={data.sources} />
+          </div>
+        </Card>
+
+        {data.flightOptionEvaluations.length >= 2 && (
+          <Card>
+            <CardLabel>Compare options</CardLabel>
+            <div className="mt-2">
+              <FlightOptionComparisonTable evaluations={data.flightOptionEvaluations} />
+            </div>
+          </Card>
+        )}
       </section>
 
       <section aria-labelledby="the-money" className="space-y-2">
