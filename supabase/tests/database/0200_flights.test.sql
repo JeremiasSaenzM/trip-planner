@@ -6,7 +6,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
-select plan(38);
+select plan(45);
 
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '10000000-0000-0000-0000-000000000001', true);
@@ -317,6 +317,76 @@ select is(
    limit 1)::text,
   'claude',
   'the created option is attributed to claude in the audit log'
+);
+
+-- update_stay / update_movement: linking to a flight option through a
+-- proposal (20261028090200_proposal_ops_flight_option_links.sql) --
+-- the same field the Scenario page's own "Flight option" picker sets,
+-- now reachable through /import too. Options ...0007/...0008 are gone
+-- by this point in the file (deleted above to exercise
+-- delete_flight_option), so this links to the option the earlier
+-- "pgTAP flight batch" proposal created instead, which outlives them.
+select lives_ok(
+  $$ select create_proposal_batch(
+       '12000000-0000-0000-0000-000000000001', 'pgTAP flight option links', '{"raw": "as pasted"}',
+       format(
+         '[{"position": 0, "ref": "link-stay", "op": "update_stay", "reason": "pgTAP: linking the booked option",
+            "targetId": "12000000-0000-0000-0000-000000000005",
+            "payload": {"changes": {"flightOption": {"from": null, "to": {"id": "%1$s"}}}}},
+           {"position": 1, "ref": "link-move", "op": "update_movement", "reason": "pgTAP: linking the booked option",
+            "targetId": "12000000-0000-0000-0000-000000000006",
+            "payload": {"changes": {"flightOption": {"from": null, "to": {"id": "%1$s"}}}}}
+         ]',
+         (select result_id from proposal_items
+          where batch_id = (select id from proposal_batches where note = 'pgTAP flight batch') and position = 0)
+       )::jsonb
+     ) $$,
+  'a batch linking a stay and a movement to an existing flight option is saved'
+);
+
+select lives_ok(
+  $$ select approve_proposal((select id from proposal_items where ref = 'link-stay')) $$,
+  'approving the stay''s flightOption link succeeds'
+);
+select lives_ok(
+  $$ select approve_proposal((select id from proposal_items where ref = 'link-move')) $$,
+  'approving the movement''s flightOption link succeeds'
+);
+
+select results_eq(
+  $$ select flight_option_id from stays where id = '12000000-0000-0000-0000-000000000005' $$,
+  $$ select result_id from proposal_items
+     where batch_id = (select id from proposal_batches where note = 'pgTAP flight batch') and position = 0 $$,
+  'the stay is now linked to the flight option'
+);
+select results_eq(
+  $$ select flight_option_id from movements where id = '12000000-0000-0000-0000-000000000006' $$,
+  $$ select result_id from proposal_items
+     where batch_id = (select id from proposal_batches where note = 'pgTAP flight batch') and position = 0 $$,
+  'the movement is now linked to the flight option'
+);
+
+-- The stay is already linked (to the same option) at this point, so a
+-- proposal still claiming "from": null is stale regardless of what
+-- "to" resolves to -- proposal_merge_changes catches this before it
+-- ever calls proposal_ref.
+select lives_ok(
+  $$ select create_proposal_batch(
+       '12000000-0000-0000-0000-000000000001', 'pgTAP flight option link stale', '{}',
+       format(
+         '[{"position": 0, "ref": "link-stay-stale", "op": "update_stay", "reason": "pgTAP: written against old data",
+            "targetId": "12000000-0000-0000-0000-000000000005",
+            "payload": {"changes": {"flightOption": {"from": null, "to": {"id": "%1$s"}}}}}]',
+         (select result_id from proposal_items
+          where batch_id = (select id from proposal_batches where note = 'pgTAP flight batch') and position = 0)
+       )::jsonb
+     ) $$,
+  'a batch proposing a stale flightOption change is saved'
+);
+select throws_like(
+  $$ select approve_proposal((select id from proposal_items where ref = 'link-stay-stale')) $$,
+  '%Proposal is out of date: flightOption is now%',
+  'a flightOption change against a stale "from" is refused, same as budgetLine/source'
 );
 
 select * from finish();
