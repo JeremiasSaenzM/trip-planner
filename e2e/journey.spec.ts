@@ -809,6 +809,8 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await expect(optionA.getByTestId("constraint-badge").filter({ hasText: "Pass" })).toHaveCount(2);
     await expect(optionA.getByTestId("constraint-badge").filter({ hasText: "Unknown" })).toHaveCount(1);
     await expect(optionA.getByTestId("acceptance-safeguard-badge")).toContainText("Safe to buy");
+    // Nothing resolved this check yet, so there's no basis to caveat.
+    await expect(optionA.getByTestId("festival-check-caveat")).toHaveCount(0);
 
     // Linking the existing Home -> Cardiff / Cardiff -> Home movements
     // to this option gives the festival check a chain to walk -- both
@@ -829,6 +831,13 @@ test("the full first-run journey, starting from a signed-out, empty account", as
 
     await expect(optionA.getByTestId("constraint-badge").filter({ hasText: "Pass" })).toHaveCount(3);
     await expect(optionA.getByTestId("constraint-badge").filter({ hasText: "Unknown" })).toHaveCount(0);
+
+    // Movement times are naive local with no time zone of their own --
+    // a real limitation on what "At the festival on time" can promise,
+    // visible on the card now that the check resolves, not just
+    // computed and left unseen.
+    await expect(optionA.getByTestId("festival-check-caveat")).toBeVisible();
+    await expect(optionA.getByTestId("festival-check-caveat")).toContainText("no time zone");
 
     // F-e2e-B: no segments, baggage and refundability unrecorded,
     // competition-related and not yet accepted -- unknown must not
