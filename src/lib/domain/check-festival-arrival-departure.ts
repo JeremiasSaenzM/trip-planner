@@ -20,7 +20,15 @@ export type FestivalArrivalDepartureInput = {
   datesInformationState: InfoState;
 };
 
-export type FestivalArrivalDepartureResult = HardConstraintResult & { provisional: boolean };
+// Movement times being naive local with no time zone of their own is a
+// real limitation on what this check can promise -- the condition on
+// which that simplification was accepted was that the limitation stay
+// stated, not merely computed. onwardTravel/travelToAirport already
+// carry it (NAIVE_LOCAL_TIME_CAVEAT); checkFestivalArrivalDeparture only
+// has to forward it, deduplicated, whenever either leg actually used a
+// movement-based figure to decide this (known or bounded, never when
+// a leg is unknown and so never used one at all).
+export type FestivalArrivalDepartureResult = HardConstraintResult & { provisional: boolean; caveats: string[] };
 
 // A zero-width bound (min === max) means both endpoints that actually
 // determine the total were recorded times, not substituted day-limits
@@ -162,9 +170,12 @@ export function checkFestivalArrivalDeparture(
   const arrival = arrivalLeg(input);
   const departure = departureLeg(input);
 
+  const caveats = [...new Set([input.onwardTravel, input.travelToAirport].filter((leg) => leg.status !== "unknown").map((leg) => leg.caveat))];
+
   return {
     status: worstStatus([arrival.status, departure.status]),
     reasons: [arrival.reason, departure.reason],
     provisional: input.datesInformationState !== "confirmed",
+    caveats,
   };
 }

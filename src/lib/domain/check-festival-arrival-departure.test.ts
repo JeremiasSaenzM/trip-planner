@@ -183,4 +183,31 @@ describe("checkFestivalArrivalDeparture", () => {
     expect(result.status).toBe("unknown");
     expect(result.reasons[1]).toMatch(/straddl/i);
   });
+
+  // The naive-local-time simplification was accepted on condition that
+  // its limitation stay stated, not merely computed -- so this check's
+  // own output has to carry it forward, not just the movement-level
+  // results that happen to compute it.
+
+  it("carries the naive-local-time caveat through to its own output, deduplicated, when both legs used it", () => {
+    const result = checkFestivalArrivalDeparture(base);
+    expect(result.caveats).toEqual([NAIVE_LOCAL_TIME_CAVEAT]);
+  });
+
+  it("still carries the caveat through when one leg used it and the other is unknown", () => {
+    const result = checkFestivalArrivalDeparture({
+      ...base,
+      travelToAirport: unknown("no movement in this scenario is linked to this flight option"),
+    });
+    expect(result.caveats).toEqual([NAIVE_LOCAL_TIME_CAVEAT]);
+  });
+
+  it("carries no caveat when neither leg ever used a movement-based figure", () => {
+    const result = checkFestivalArrivalDeparture({
+      ...base,
+      onwardTravel: unknown("no festival-kind stay recorded to travel onward to"),
+      travelToAirport: unknown("no festival-kind stay recorded to travel from"),
+    });
+    expect(result.caveats).toEqual([]);
+  });
 });
