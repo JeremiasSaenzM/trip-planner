@@ -100,7 +100,7 @@ describe("calculateTravelToAirportMinutes", () => {
     expect(result.status).toBe("unknown");
   });
 
-  it("reports unknown when a leg before the return flight has no recorded time of day", () => {
+  it("bounds the total by the day's limits, rather than giving up, when the origin leg has no time of day recorded", () => {
     const result = calculateTravelToAirportMinutes({
       flightOptionId: FLIGHT_OPTION_ID,
       festivalStayLocation: "Llangollen",
@@ -127,7 +127,60 @@ describe("calculateTravelToAirportMinutes", () => {
         },
       ],
     });
-    expect(result).toEqual({ status: "unknown", reason: "movement #1 has no recorded time of day" });
+    // Return flight departs exactly at 14:00. The origin leg's own
+    // departure, with no time recorded, is bounded between 00:00 and
+    // 23:59 that same day -- so the total is bounded between
+    // (14:00-23:59) = -599 and (14:00-00:00) = 840 minutes, without
+    // assuming a journey time.
+    expect(result).toEqual({ status: "bounded", minMinutes: -599, maxMinutes: 840, caveat: NAIVE_LOCAL_TIME_CAVEAT });
+  });
+
+  it("bounds the total using only the return flight's own departure and the origin leg's own departure, ignoring an untimed leg in between", () => {
+    // Llangollen (known) -> London (untimed) -> Paris (return flight
+    // departs, known) -- the London leg's own times telescope out of
+    // the total algebraically, so a missing time there still leaves an
+    // exact bound, not a wide one.
+    const result = calculateTravelToAirportMinutes({
+      flightOptionId: FLIGHT_OPTION_ID,
+      festivalStayLocation: "Llangollen",
+      movements: [
+        {
+          sequence: 1,
+          fromLocation: "Llangollen",
+          toLocation: "London",
+          departDate: "2027-07-10",
+          departTime: "08:00:00",
+          arriveDate: "2027-07-10",
+          arriveTime: "09:00:00",
+          flightOptionId: null,
+        },
+        {
+          sequence: 2,
+          fromLocation: "London",
+          toLocation: "Paris",
+          departDate: "2027-07-10",
+          departTime: null,
+          arriveDate: "2027-07-10",
+          arriveTime: null,
+          flightOptionId: null,
+        },
+        {
+          sequence: 3,
+          fromLocation: "Paris",
+          toLocation: "Home",
+          departDate: "2027-07-10",
+          departTime: "14:00:00",
+          arriveDate: "2027-07-10",
+          arriveTime: "20:00:00",
+          flightOptionId: FLIGHT_OPTION_ID,
+        },
+      ],
+    });
+    // Still bounded, not known: a "known" figure requires every leg's
+    // own times recorded, even where they'd cancel out numerically. But
+    // the bound itself is exact here since both endpoints (08:00 and
+    // 14:00) are known: 360-360.
+    expect(result).toEqual({ status: "bounded", minMinutes: 360, maxMinutes: 360, caveat: NAIVE_LOCAL_TIME_CAVEAT });
   });
 
   it("reports unknown when the chain before the flight never starts from the festival stay", () => {

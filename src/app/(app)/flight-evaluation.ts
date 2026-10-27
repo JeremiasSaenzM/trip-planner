@@ -86,9 +86,9 @@ export function evaluateFlightOption(input: {
 
   const festivalArrivalDeparture = checkFestivalArrivalDeparture({
     outboundArrivalAt: timing.outboundArrivalAt,
-    onwardTravelMinutes: onwardTravel.status === "known" ? onwardTravel.minutes : null,
+    onwardTravel,
     returnDepartureAt: timing.returnDepartureAt,
-    travelToAirportMinutes: travelToAirport.status === "known" ? travelToAirport.minutes : null,
+    travelToAirport,
     festivalStartDate: competition?.startDate ?? null,
     festivalEndDate: competition?.endDate ?? null,
     timezone: competition?.timezone ?? null,

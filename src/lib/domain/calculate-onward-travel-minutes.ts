@@ -23,7 +23,8 @@ export type CalculateOnwardTravelMinutesInput = {
 
 export type OnwardTravelResult =
   | { status: "unknown"; reason: string }
-  | { status: "known"; minutes: number; caveat: string };
+  | { status: "known"; minutes: number; caveat: string }
+  | { status: "bounded"; minMinutes: number; maxMinutes: number; caveat: string };
 
 // Movements carry naive local clock times with no time zone of their
 // own (20261023090000_stays_movements.sql) -- unlike flight_segments,
@@ -47,13 +48,51 @@ function toLocalInstant(date: string, time: string): DateTime {
   return DateTime.fromISO(`${date}T${time}`, { zone: "utc" });
 }
 
+// An untimed leg's own instant could be anywhere within its recorded
+// date -- bounding it this way is interval arithmetic on dates actually
+// recorded, not a guess at a journey time. Used in pairs (one call for
+// the earliest end of an interval, one for the latest) so a caller can
+// test whether the pessimistic combination still settles a question,
+// or the optimistic one already settles it the other way.
+export function earliestPossibleInstant(date: string, time: string | null): DateTime {
+  return time !== null ? toLocalInstant(date, time) : DateTime.fromISO(`${date}T00:00:00`, { zone: "utc" });
+}
+
+// 23:59, not the exclusive start of the next day -- 59 seconds short of
+// the true end of day. Where this instant feeds a maxMinutes directly
+// (the destination leg's own arrival here; the flight's own departure
+// in the travel-to-airport mirror), the shortfall nudges the pessimistic
+// bound very slightly early, leaning toward pass. Where it's instead the
+// endpoint being SUBTRACTED to form minMinutes (the flight's own arrival
+// here; the origin leg's own departure there), the same shortfall nudges
+// minMinutes very slightly late, leaning toward fail -- the safer
+// direction, per NAIVE_LOCAL_TIME_CAVEAT's own reasoning, but still
+// worth naming rather than claiming one uniform lean. Either way it's
+// under a minute against day-granularity data, immaterial here. If
+// anything ever hinges on that margin, the honest pessimistic bound is
+// the next day's start, exclusive, not 23:59.
+export function latestPossibleInstant(date: string, time: string | null): DateTime {
+  return time !== null ? toLocalInstant(date, time) : DateTime.fromISO(`${date}T23:59:00`, { zone: "utc" });
+}
+
 /**
  * "Minutes from landing to actually being at the destination"
- * (checkFestivalArrivalDeparture's onwardTravelMinutes) -- walked from
+ * (checkFestivalArrivalDeparture's onwardTravel) -- walked from
  * the movement linked to this flight option forward along the chain,
  * by sequence, until a leg arrives at the festival-kind stay's
  * location. Includes any waiting time between legs, not just time
  * actually travelling.
+ *
+ * Every leg's own depart/arrive instant telescopes out of this sum
+ * algebraically -- (departs - anchor) + (arrives - departs) reduces to
+ * (arrives - anchor) -- so only the flight's own arrival and the final
+ * leg's own arrival ever determine the total; what an intermediate leg's
+ * time actually is, known or not, cancels regardless of its value. A
+ * "known" result still requires every leg's times recorded (half-timed
+ * data is a smell even where it's numerically moot), but when that's not
+ * so, the same two endpoints -- bounded by the day they're recorded on
+ * where a time is missing -- still bound the total, which is often
+ * enough to settle hard constraint 2 without the missing time of day.
  */
 export function calculateOnwardTravelMinutes(input: CalculateOnwardTravelMinutesInput): OnwardTravelResult {
   if (input.festivalStayLocation === null) {
@@ -70,28 +109,42 @@ export function calculateOnwardTravelMinutes(input: CalculateOnwardTravelMinutes
   if (flightMovement.toLocation === input.festivalStayLocation) {
     return { status: "known", minutes: 0, caveat: NAIVE_LOCAL_TIME_CAVEAT };
   }
-  if (flightMovement.arriveTime === null) {
-    return { status: "unknown", reason: "the flight's own movement has no recorded arrival time of day" };
-  }
 
-  let totalMinutes = 0;
-  let anchor = toLocalInstant(flightMovement.arriveDate, flightMovement.arriveTime);
-
+  let destinationIndex = -1;
   for (let i = flightIndex + 1; i < sorted.length; i++) {
-    const leg = sorted[i];
-    if (leg.departTime === null || leg.arriveTime === null) {
-      return { status: "unknown", reason: `movement #${leg.sequence} has no recorded time of day` };
-    }
-
-    const departs = toLocalInstant(leg.departDate, leg.departTime);
-    const arrives = toLocalInstant(leg.arriveDate, leg.arriveTime);
-    totalMinutes += departs.diff(anchor, "minutes").minutes + arrives.diff(departs, "minutes").minutes;
-    anchor = arrives;
-
-    if (leg.toLocation === input.festivalStayLocation) {
-      return { status: "known", minutes: totalMinutes, caveat: NAIVE_LOCAL_TIME_CAVEAT };
+    if (sorted[i].toLocation === input.festivalStayLocation) {
+      destinationIndex = i;
+      break;
     }
   }
+  if (destinationIndex === -1) {
+    return { status: "unknown", reason: "the movement chain after this flight never reaches the festival stay's location" };
+  }
 
-  return { status: "unknown", reason: "the movement chain after this flight never reaches the festival stay's location" };
+  const onwardLegs = sorted.slice(flightIndex + 1, destinationIndex + 1);
+  const destination = sorted[destinationIndex];
+  const allTimesKnown =
+    flightMovement.arriveTime !== null && onwardLegs.every((leg) => leg.departTime !== null && leg.arriveTime !== null);
+
+  if (allTimesKnown) {
+    let totalMinutes = 0;
+    let anchor = toLocalInstant(flightMovement.arriveDate, flightMovement.arriveTime as string);
+    for (const leg of onwardLegs) {
+      const departs = toLocalInstant(leg.departDate, leg.departTime as string);
+      const arrives = toLocalInstant(leg.arriveDate, leg.arriveTime as string);
+      totalMinutes += departs.diff(anchor, "minutes").minutes + arrives.diff(departs, "minutes").minutes;
+      anchor = arrives;
+    }
+    return { status: "known", minutes: totalMinutes, caveat: NAIVE_LOCAL_TIME_CAVEAT };
+  }
+
+  const minMinutes = earliestPossibleInstant(destination.arriveDate, destination.arriveTime).diff(
+    latestPossibleInstant(flightMovement.arriveDate, flightMovement.arriveTime),
+    "minutes",
+  ).minutes;
+  const maxMinutes = latestPossibleInstant(destination.arriveDate, destination.arriveTime).diff(
+    earliestPossibleInstant(flightMovement.arriveDate, flightMovement.arriveTime),
+    "minutes",
+  ).minutes;
+  return { status: "bounded", minMinutes, maxMinutes, caveat: NAIVE_LOCAL_TIME_CAVEAT };
 }
