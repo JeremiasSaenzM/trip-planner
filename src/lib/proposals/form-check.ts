@@ -153,6 +153,7 @@ export function currentFields(op: UpdateOp, targetId: string, rows: CurrentRows)
             informationState: row.informationState,
             source: row.sourceId,
             notes: row.notes,
+            flightOption: row.flightOptionId,
           }
         : null;
     }
@@ -173,6 +174,7 @@ export function currentFields(op: UpdateOp, targetId: string, rows: CurrentRows)
             informationState: row.informationState,
             source: row.sourceId,
             notes: row.notes,
+            flightOption: row.flightOptionId,
           }
         : null;
     }
@@ -421,6 +423,7 @@ function checkUpdate(op: UpdateOp, id: string, merged: Record<string, unknown>, 
           informationState: merged.informationState,
           sourceId: absent(merged.source),
           notes: absent(merged.notes),
+          flightOptionId: absent(merged.flightOption),
           reason,
         }),
       );
@@ -441,6 +444,7 @@ function checkUpdate(op: UpdateOp, id: string, merged: Record<string, unknown>, 
           informationState: merged.informationState,
           sourceId: absent(merged.source),
           notes: absent(merged.notes),
+          flightOptionId: absent(merged.flightOption),
           reason,
         }),
       );

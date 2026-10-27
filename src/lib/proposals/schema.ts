@@ -72,8 +72,8 @@ export const REFERENCE_FIELDS: Record<ProposalOp, Record<string, ReferenceKind>>
   update_savings_entry: {},
   create_stay: { scenario: "scenario", budgetLine: "budget_line", source: "source" },
   create_movement: { scenario: "scenario", budgetLine: "budget_line", source: "source" },
-  update_stay: { budgetLine: "budget_line", source: "source" },
-  update_movement: { budgetLine: "budget_line", source: "source" },
+  update_stay: { budgetLine: "budget_line", source: "source", flightOption: "flight_option" },
+  update_movement: { budgetLine: "budget_line", source: "source", flightOption: "flight_option" },
   create_flight_option: { scenario: "scenario", source: "source" },
   create_flight_segment: { flightOption: "flight_option" },
   update_flight_option: { source: "source" },
@@ -331,6 +331,7 @@ export const UPDATE_CHANGES = {
       informationState: change(infoState).optional(),
       source: referenceChange.optional(),
       notes: change(freeText.nullable()).optional(),
+      flightOption: referenceChange.optional(),
     })
     .refine(atLeastOneChange, "An update needs at least one change"),
   update_movement: z
@@ -348,6 +349,7 @@ export const UPDATE_CHANGES = {
       informationState: change(infoState).optional(),
       source: referenceChange.optional(),
       notes: change(freeText.nullable()).optional(),
+      flightOption: referenceChange.optional(),
     })
     .refine(atLeastOneChange, "An update needs at least one change"),
   update_flight_option: z

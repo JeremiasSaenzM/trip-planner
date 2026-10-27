@@ -187,6 +187,17 @@ describe("checkAgainstForm: updates are checked as the row would end up", () => 
     expect(check("update_stay", { changes: { nights: { from: stay.nights, to: 9 } } }, stay.id)).toEqual({ ok: true });
   });
 
+  it("resolves and applies a flightOption link on a stay, the field the Scenario page's own picker sets", () => {
+    const stay = fixtures.stays[0];
+    const flightOptionId = fixtures.flightOptions[0].id;
+    const result = check(
+      "update_stay",
+      { changes: { flightOption: { from: stay.flightOptionId, to: { id: flightOptionId } } } },
+      stay.id,
+    );
+    expect(result).toEqual({ ok: true });
+  });
+
   it("refuses a movement update that would break the form's arrive-after-depart rule", () => {
     const movement = fixtures.movements[0];
     const result = check(
