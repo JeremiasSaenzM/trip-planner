@@ -4,6 +4,9 @@ import { dataSource } from "@/lib/data";
 import type {
   BudgetLine,
   Competition,
+  Decision,
+  FlightOption,
+  FlightSegment,
   FxRate,
   Movement,
   OpenItem,
@@ -47,6 +50,7 @@ import { rollUpBudgetByScenario, type RollUpBudgetByScenarioResult } from "@/lib
 import type { Basis } from "@/lib/domain/types";
 
 import { parseBasis } from "./dashboard-query";
+import { evaluateFlightOption, type FlightOptionEvaluation } from "./flight-evaluation";
 import { sortScenarios } from "./scenario-order";
 
 export type { Basis };
@@ -144,6 +148,18 @@ export type DashboardData =
       budgetLineMatchesStay: BudgetLineStayMismatch[];
       budgetLineNightsAddUp: BudgetLineNightsCheckResult;
       budgetLineDaysAddUp: BudgetLineDaysCheckResult;
+      /** Scenario-scoped, same rule as stays/movements. */
+      flightOptions: FlightOption[];
+      /** Every segment belonging to one of flightOptions above. */
+      flightSegments: FlightSegment[];
+      /** Trip-scoped -- a flight-risk decision names a competition, not
+       * a scenario (CreateFlightRiskDecisionWrite), same as every other
+       * decision. */
+      decisions: Decision[];
+      /** Phase 6.5: the four checks and two costs for every flight
+       * option in this scenario, run once here so the Flight options
+       * section and its comparison table read off the same results. */
+      flightOptionEvaluations: FlightOptionEvaluation[];
     };
 
 // The one place every dashboard page (Overview, Payments, Deadlines)
@@ -155,20 +171,37 @@ export async function loadDashboardData(params: {
   scenarioId?: string;
   basis?: string;
 }): Promise<DashboardData> {
-  const [trips, scenarios, competitions, budgetLines, payments, savingsEntries, rates, openItems, sources, stays, movements] =
-    await Promise.all([
-      dataSource.getTrips(),
-      dataSource.getScenarios(),
-      dataSource.getCompetitions(),
-      dataSource.getBudgetLines(),
-      dataSource.getPayments(),
-      dataSource.getSavingsEntries(),
-      dataSource.getFxRates(),
-      dataSource.getOpenItems(),
-      dataSource.getSources(),
-      dataSource.getStays(),
-      dataSource.getMovements(),
-    ]);
+  const [
+    trips,
+    scenarios,
+    competitions,
+    budgetLines,
+    payments,
+    savingsEntries,
+    rates,
+    openItems,
+    sources,
+    stays,
+    movements,
+    flightOptions,
+    flightSegments,
+    decisions,
+  ] = await Promise.all([
+    dataSource.getTrips(),
+    dataSource.getScenarios(),
+    dataSource.getCompetitions(),
+    dataSource.getBudgetLines(),
+    dataSource.getPayments(),
+    dataSource.getSavingsEntries(),
+    dataSource.getFxRates(),
+    dataSource.getOpenItems(),
+    dataSource.getSources(),
+    dataSource.getStays(),
+    dataSource.getMovements(),
+    dataSource.getFlightOptions(),
+    dataSource.getFlightSegments(),
+    dataSource.getDecisions(),
+  ]);
 
   const trip = trips[0];
   if (!trip) return { status: "no_trip" };
@@ -264,6 +297,26 @@ export async function loadDashboardData(params: {
   });
   const budgetLineDaysAddUp = checkBudgetLineDaysAddUp(scenarioBudgetLines, scenarioMovements);
 
+  const scenarioFlightOptions = flightOptions.filter((option) => option.scenarioId === scenario.id);
+  const scenarioFlightSegments = flightSegments.filter((segment) =>
+    scenarioFlightOptions.some((option) => option.id === segment.flightOptionId),
+  );
+  const tripDecisions = decisions.filter((decision) => decision.tripId === trip.id);
+  const flightOptionEvaluations = scenarioFlightOptions.map((option) =>
+    evaluateFlightOption({
+      option,
+      segments: scenarioFlightSegments.filter((segment) => segment.flightOptionId === option.id),
+      competition,
+      decisions: tripDecisions,
+      movements: scenarioMovements,
+      stays: scenarioStays,
+      budgetLines: scenarioBudgetLines,
+      rates,
+      basis,
+      asOfDate,
+    }),
+  );
+
   const tripOpenItems = openItems.filter((item) => item.tripId === trip.id);
   const tripSavingsEntries = savingsEntries.filter((entry) => entry.tripId === trip.id);
 
@@ -320,6 +373,10 @@ export async function loadDashboardData(params: {
       budgetLineMatchesStay,
       budgetLineNightsAddUp,
       budgetLineDaysAddUp,
+      flightOptions: scenarioFlightOptions,
+      flightSegments: scenarioFlightSegments,
+      decisions: tripDecisions,
+      flightOptionEvaluations,
     };
   }
 
@@ -396,5 +453,9 @@ export async function loadDashboardData(params: {
     budgetLineMatchesStay,
     budgetLineNightsAddUp,
     budgetLineDaysAddUp,
+    flightOptions: scenarioFlightOptions,
+    flightSegments: scenarioFlightSegments,
+    decisions: tripDecisions,
+    flightOptionEvaluations,
   };
 }
