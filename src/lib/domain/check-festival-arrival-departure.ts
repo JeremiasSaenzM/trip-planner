@@ -1,15 +1,16 @@
 import { DateTime } from "luxon";
+import type { OnwardTravelResult } from "./calculate-onward-travel-minutes";
 import { worstStatus, type ConstraintStatus, type HardConstraintResult, type InfoState } from "./types";
 
 export type FestivalArrivalDepartureInput = {
   /** ISO-8601 instant the inbound flight lands. */
   outboundArrivalAt: string | null;
   /** Minutes from landing to actually being at the destination. */
-  onwardTravelMinutes: number | null;
+  onwardTravel: OnwardTravelResult;
   /** ISO-8601 instant the outbound flight home departs. */
   returnDepartureAt: string | null;
   /** Minutes from the destination to the departure airport. */
-  travelToAirportMinutes: number | null;
+  travelToAirport: OnwardTravelResult;
   /** YYYY-MM-DD, the first official festival day. */
   festivalStartDate: string | null;
   /** YYYY-MM-DD, the final official festival day. */
@@ -21,23 +22,66 @@ export type FestivalArrivalDepartureInput = {
 
 export type FestivalArrivalDepartureResult = HardConstraintResult & { provisional: boolean };
 
+// A zero-width bound (min === max) means both endpoints that actually
+// determine the total were recorded times, not substituted day-limits
+// -- any untimed leg in between was one whose own time telescopes out
+// of the sum regardless of its value, per calculateOnwardTravelMinutes'
+// own reasoning. Saying that rests "on the recorded dates alone" would
+// understate its basis; it rests on the recorded times, exactly. A real
+// (non-zero) interval is the only case that actually leans on dates
+// without a time of day.
+function boundBasisPhrase(minMinutes: number, maxMinutes: number): string {
+  return minMinutes === maxMinutes
+    ? "on the recorded times, exactly -- an untimed leg in between the two that matter doesn't affect this"
+    : "on the recorded dates alone";
+}
+
 function arrivalLeg(input: FestivalArrivalDepartureInput): { status: ConstraintStatus; reason: string } {
-  if (
-    !input.outboundArrivalAt ||
-    input.onwardTravelMinutes == null ||
-    !input.festivalStartDate ||
-    !input.timezone
-  ) {
+  if (!input.outboundArrivalAt || !input.festivalStartDate || !input.timezone) {
+    return { status: "unknown", reason: "missing arrival time, festival start date, or time zone" };
+  }
+
+  const arrivalInstant = DateTime.fromISO(input.outboundArrivalAt);
+  const festivalStarts = DateTime.fromISO(input.festivalStartDate, { zone: input.timezone }).startOf("day");
+
+  if (input.onwardTravel.status === "unknown") {
+    return { status: "unknown", reason: `onward travel time unknown: ${input.onwardTravel.reason}` };
+  }
+
+  if (input.onwardTravel.status === "bounded") {
+    const { minMinutes, maxMinutes } = input.onwardTravel;
+    const exact = minMinutes === maxMinutes;
+    const basis = boundBasisPhrase(minMinutes, maxMinutes);
+    const latestPossibleArrival = arrivalInstant.plus({ minutes: maxMinutes });
+    const earliestPossibleArrival = arrivalInstant.plus({ minutes: minMinutes });
+
+    if (latestPossibleArrival < festivalStarts) {
+      return {
+        status: "pass",
+        reason: exact
+          ? `at the destination at ${latestPossibleArrival.toISO()}, ${basis} -- before the first festival day begins (${festivalStarts.toISO()})`
+          : `at the destination by ${latestPossibleArrival.toISO()} at the latest, ${basis} -- ` +
+            `before the first festival day begins (${festivalStarts.toISO()}) even in the worst case, so the missing time of day isn't needed`,
+      };
+    }
+    if (earliestPossibleArrival >= festivalStarts) {
+      return {
+        status: "fail",
+        reason: exact
+          ? `at the destination at ${earliestPossibleArrival.toISO()}, ${basis} -- already at or after the first festival day begins (${festivalStarts.toISO()})`
+          : `at the destination no earlier than ${earliestPossibleArrival.toISO()}, ${basis} -- ` +
+            `already at or after the first festival day begins (${festivalStarts.toISO()}) even in the best case, so the missing time of day isn't needed`,
+      };
+    }
     return {
       status: "unknown",
-      reason: "missing arrival time, onward travel time, festival start date, or time zone",
+      reason:
+        `arrives at the destination sometime between ${earliestPossibleArrival.toISO()} and ${latestPossibleArrival.toISO()} ` +
+        `${basis}, straddling the first festival day (${festivalStarts.toISO()}) -- the missing time of day would decide this`,
     };
   }
 
-  const arrivesAtDestination = DateTime.fromISO(input.outboundArrivalAt).plus({
-    minutes: input.onwardTravelMinutes,
-  });
-  const festivalStarts = DateTime.fromISO(input.festivalStartDate, { zone: input.timezone }).startOf("day");
+  const arrivesAtDestination = arrivalInstant.plus({ minutes: input.onwardTravel.minutes });
 
   if (arrivesAtDestination < festivalStarts) {
     return { status: "pass", reason: "at the destination before the first festival day begins" };
@@ -49,23 +93,53 @@ function arrivalLeg(input: FestivalArrivalDepartureInput): { status: ConstraintS
 }
 
 function departureLeg(input: FestivalArrivalDepartureInput): { status: ConstraintStatus; reason: string } {
-  if (
-    !input.returnDepartureAt ||
-    input.travelToAirportMinutes == null ||
-    !input.festivalEndDate ||
-    !input.timezone
-  ) {
-    return {
-      status: "unknown",
-      reason: "missing return departure time, travel-to-airport time, festival end date, or time zone",
-    };
+  if (!input.returnDepartureAt || !input.festivalEndDate || !input.timezone) {
+    return { status: "unknown", reason: "missing return departure time, festival end date, or time zone" };
   }
 
   const festivalEnds = DateTime.fromISO(input.festivalEndDate, { zone: input.timezone })
     .startOf("day")
     .plus({ days: 1 });
-  const earliestDeparture = festivalEnds.plus({ minutes: input.travelToAirportMinutes });
   const departs = DateTime.fromISO(input.returnDepartureAt);
+
+  if (input.travelToAirport.status === "unknown") {
+    return { status: "unknown", reason: `travel-to-airport time unknown: ${input.travelToAirport.reason}` };
+  }
+
+  if (input.travelToAirport.status === "bounded") {
+    const { minMinutes, maxMinutes } = input.travelToAirport;
+    const exact = minMinutes === maxMinutes;
+    const basis = boundBasisPhrase(minMinutes, maxMinutes);
+    const earliestDepartureIfSlowest = festivalEnds.plus({ minutes: maxMinutes });
+    const earliestDepartureIfQuickest = festivalEnds.plus({ minutes: minMinutes });
+
+    if (departs >= earliestDepartureIfSlowest) {
+      return {
+        status: "pass",
+        reason: exact
+          ? `departs at ${departs.toISO()}, ${basis} -- after the final festival day plus the required travel to the airport (${earliestDepartureIfSlowest.toISO()})`
+          : `departs at ${departs.toISO()}, ${basis} -- after the final festival day plus even the slowest ` +
+            `possible travel to the airport (${earliestDepartureIfSlowest.toISO()}), so the missing time of day isn't needed`,
+      };
+    }
+    if (departs < earliestDepartureIfQuickest) {
+      return {
+        status: "fail",
+        reason: exact
+          ? `departs at ${departs.toISO()}, ${basis} -- before the final festival day plus the required travel to the airport (${earliestDepartureIfQuickest.toISO()})`
+          : `departs at ${departs.toISO()}, ${basis} -- before the final festival day plus even the quickest ` +
+            `possible travel to the airport (${earliestDepartureIfQuickest.toISO()}), so the missing time of day isn't needed`,
+      };
+    }
+    return {
+      status: "unknown",
+      reason:
+        `departs at ${departs.toISO()}, straddling -- ${basis} -- the required departure window between ` +
+        `the quickest and slowest possible travel to the airport (${earliestDepartureIfQuickest.toISO()} to ${earliestDepartureIfSlowest.toISO()}), so the missing time of day would decide this`,
+    };
+  }
+
+  const earliestDeparture = festivalEnds.plus({ minutes: input.travelToAirport.minutes });
 
   if (departs >= earliestDeparture) {
     return { status: "pass", reason: "departs after the final festival day has ended, allowing travel to the airport" };
