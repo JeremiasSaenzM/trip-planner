@@ -78,6 +78,10 @@ function movementRow(page: Page, label: string) {
   return page.getByTestId("movements-list").locator("div.rounded-xl").filter({ hasText: label });
 }
 
+function flightOptionCard(page: Page, label: string) {
+  return page.getByTestId("flight-option-card").filter({ has: page.getByText(label, { exact: true }) });
+}
+
 // /import/[batch] numbers each proposal "Item n" -- found by that exact
 // label, since an item's own text (a scenario's name, say) also shows up
 // in every later item that references it.
@@ -709,7 +713,9 @@ test("the full first-run journey, starting from a signed-out, empty account", as
   await test.step("add movements and a stay, see the night-count warning, then fix it", async () => {
     await page.getByLabel("Order in the chain").fill("1");
     await page.getByLabel("From").fill("Home");
-    await page.getByLabel("To").fill("Cardiff");
+    // exact: true -- the Flight options section's "Mandatory fees"
+    // field (always rendered on this same page) contains "to" too.
+    await page.getByLabel("To", { exact: true }).fill("Cardiff");
     await page.getByLabel("Departs").fill("2027-07-03");
     await page.getByLabel("Arrives").fill("2027-07-03");
     await page.getByRole("button", { name: "Add movement", exact: true }).click();
@@ -717,7 +723,7 @@ test("the full first-run journey, starting from a signed-out, empty account", as
 
     await page.getByLabel("Order in the chain").fill("2");
     await page.getByLabel("From").fill("Cardiff");
-    await page.getByLabel("To").fill("Home");
+    await page.getByLabel("To", { exact: true }).fill("Home");
     await page.getByLabel("Departs").fill("2027-07-14");
     await page.getByLabel("Arrives").fill("2027-07-14");
     await page.getByRole("button", { name: "Add movement", exact: true }).click();
@@ -750,6 +756,123 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await stay.getByRole("button", { name: "Save", exact: true }).click();
 
     await expect(page.getByText(/Stays total \d+ nights, but the trip's travel window/)).not.toBeVisible();
+  });
+
+  await test.step("add flight options, watch the checks run, accept a risk, and compare -- never a sort control", async () => {
+    // F-e2e-A: a round trip linked to the existing movements, with
+    // segments that land well before the festival and leave well
+    // after it, refundable and with baggage included -- every check
+    // should read "Pass", check 4 included (never "Fail": it's a
+    // statement about what buying it would mean).
+    await page.getByLabel("Label", { exact: true }).fill("F-e2e-A");
+    await page.getByLabel("Fare", { exact: true }).fill("650");
+    await page.getByLabel("Currency", { exact: true }).fill("USD");
+    await page.getByLabel("Baggage allowance", { exact: true }).selectOption("included");
+    await page.getByLabel("Refundability", { exact: true }).selectOption("refundable");
+    await page.getByLabel("Source", { exact: true }).selectOption("__new__");
+    await page.getByLabel("Provider", { exact: true }).fill("Fictional airline fare page");
+    await page.getByLabel("Tier", { exact: true }).selectOption("2");
+    await page.getByLabel("Observation date", { exact: true }).fill("2026-10-20");
+    await page.getByLabel("Fare observed on", { exact: true }).fill("2026-10-20");
+    await page.getByRole("button", { name: "Add flight option", exact: true }).click();
+
+    const optionA = flightOptionCard(page, "F-e2e-A");
+    await expect(optionA).toBeVisible();
+
+    await optionA.getByRole("button", { name: "Add a segment", exact: true }).click();
+    await optionA.getByLabel("Direction", { exact: true }).selectOption("outbound");
+    await optionA.getByLabel("Order within this direction", { exact: true }).fill("1");
+    await optionA.getByLabel("From airport", { exact: true }).fill("JFK");
+    await optionA.getByLabel("To airport", { exact: true }).fill("LHR");
+    await optionA.getByLabel("From country", { exact: true }).fill("US");
+    await optionA.getByLabel("To country", { exact: true }).fill("GB");
+    await optionA.getByLabel(/^Departs at/).fill("2027-07-03T20:00:00-04:00");
+    await optionA.getByLabel(/^Arrives at/).fill("2027-07-04T08:00:00+01:00");
+    await optionA.getByRole("button", { name: "Add segment", exact: true }).click();
+    await expect(optionA.getByTestId("flight-segments-list").getByText("JFK → LHR")).toBeVisible();
+
+    await optionA.getByRole("button", { name: "Add a segment", exact: true }).click();
+    await optionA.getByLabel("Direction", { exact: true }).selectOption("return");
+    await optionA.getByLabel("Order within this direction", { exact: true }).fill("1");
+    await optionA.getByLabel("From airport", { exact: true }).fill("LHR");
+    await optionA.getByLabel("To airport", { exact: true }).fill("JFK");
+    await optionA.getByLabel("From country", { exact: true }).fill("GB");
+    await optionA.getByLabel("To country", { exact: true }).fill("US");
+    await optionA.getByLabel(/^Departs at/).fill("2027-07-14T11:00:00+01:00");
+    await optionA.getByLabel(/^Arrives at/).fill("2027-07-14T14:00:00-04:00");
+    await optionA.getByRole("button", { name: "Add segment", exact: true }).click();
+    await expect(optionA.getByTestId("flight-segments-list").getByText("LHR → JFK")).toBeVisible();
+
+    // Neither movement is linked to this option yet, so the festival
+    // check can't resolve its onward/return travel time -- "Unknown",
+    // not a guessed "Pass".
+    await expect(optionA.getByTestId("constraint-badge").filter({ hasText: "Pass" })).toHaveCount(2);
+    await expect(optionA.getByTestId("constraint-badge").filter({ hasText: "Unknown" })).toHaveCount(1);
+    await expect(optionA.getByTestId("acceptance-safeguard-badge")).toContainText("Safe to buy");
+
+    // Linking the existing Home -> Cardiff / Cardiff -> Home movements
+    // to this option gives the festival check a chain to walk -- both
+    // ends land exactly at the festival-kind stay's own location, so
+    // onward/return travel time is known (0 minutes) and the check
+    // resolves instead of staying "Unknown".
+    const outboundMovement = movementRow(page, "Home → Cardiff");
+    await outboundMovement.getByRole("button", { name: "Edit", exact: true }).click();
+    await outboundMovement.getByLabel("Flight option (optional)").selectOption({ label: "F-e2e-A (Candidate)" });
+    await outboundMovement.getByLabel("Reason for this change").fill("Linking the outbound flight");
+    await outboundMovement.getByRole("button", { name: "Save", exact: true }).click();
+
+    const returnMovement = movementRow(page, "Cardiff → Home");
+    await returnMovement.getByRole("button", { name: "Edit", exact: true }).click();
+    await returnMovement.getByLabel("Flight option (optional)").selectOption({ label: "F-e2e-A (Candidate)" });
+    await returnMovement.getByLabel("Reason for this change").fill("Linking the return flight");
+    await returnMovement.getByRole("button", { name: "Save", exact: true }).click();
+
+    await expect(optionA.getByTestId("constraint-badge").filter({ hasText: "Pass" })).toHaveCount(3);
+    await expect(optionA.getByTestId("constraint-badge").filter({ hasText: "Unknown" })).toHaveCount(0);
+
+    // F-e2e-B: no segments, baggage and refundability unrecorded,
+    // competition-related and not yet accepted -- unknown must not
+    // look like pass anywhere, and check 4 reads as "needs a decision",
+    // never "Fail".
+    await page.getByLabel("Label", { exact: true }).fill("F-e2e-B");
+    await page.getByLabel("Fare", { exact: true }).fill("480");
+    await page.getByLabel("Currency", { exact: true }).fill("USD");
+    await page.getByLabel("Source", { exact: true }).selectOption("__new__");
+    await page.getByLabel("Provider", { exact: true }).fill("Another fictional fare page");
+    await page.getByLabel("Tier", { exact: true }).selectOption("3");
+    await page.getByLabel("Observation date", { exact: true }).fill("2026-10-20");
+    await page.getByLabel("Fare observed on", { exact: true }).fill("2026-10-20");
+    await page.getByRole("button", { name: "Add flight option", exact: true }).click();
+
+    const optionB = flightOptionCard(page, "F-e2e-B");
+    await expect(optionB).toBeVisible();
+    // No segments at all means no intermediate stop to flag -- the
+    // US/Canada check reads that as "Pass", not a guess either way.
+    // The festival-arrival and baggage checks have nothing to go on,
+    // so those stay "Unknown" rather than looking like a pass.
+    await expect(optionB.getByTestId("constraint-badge").filter({ hasText: "Pass" })).toHaveCount(1);
+    await expect(optionB.getByTestId("constraint-badge").filter({ hasText: "Unknown" })).toHaveCount(2);
+    await expect(optionB.getByTestId("constraint-badge").filter({ hasText: "Fail" })).toHaveCount(0);
+    await expect(optionB.getByTestId("acceptance-safeguard-badge")).toContainText("Needs a decision first");
+
+    await optionB.getByRole("button", { name: "Accept this risk", exact: true }).click();
+    await optionB.getByLabel("Why you're accepting this risk").fill("Booking before acceptance to hold the fare");
+    await optionB.getByRole("button", { name: "Accept the risk", exact: true }).click();
+    await expect(optionB.getByTestId("acceptance-safeguard-badge")).toContainText("Safe to buy");
+
+    // Both options at once, same level of detail.
+    const comparison = page.getByTestId("flight-comparison-table");
+    await expect(comparison).toContainText("F-e2e-A");
+    await expect(comparison).toContainText("F-e2e-B");
+
+    // The spec's own guard: journey time, connection count, and which
+    // airports a route passes through are descriptive only, never a
+    // sort/rank key -- asserted structurally so one can't be added back
+    // absent-mindedly later.
+    const sortish = /sort|rank|order by|shortest|fastest|fewest connections/i;
+    await expect(page.getByRole("button", { name: sortish })).toHaveCount(0);
+    await expect(page.getByRole("combobox", { name: sortish })).toHaveCount(0);
+    await expect(page.getByRole("columnheader", { name: sortish })).toHaveCount(0);
   });
 
   // The journey's only savings entry so far was recorded, edited, and
