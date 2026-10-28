@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { NAIVE_LOCAL_TIME_CAVEAT, type OnwardTravelResult } from "./calculate-onward-travel-minutes";
 import { checkFestivalArrivalDeparture, type FestivalArrivalDepartureInput } from "./check-festival-arrival-departure";
+import type { FestivalDepartureResult } from "./find-festival-departure";
 
 function known(minutes: number): OnwardTravelResult {
   return { status: "known", minutes, caveat: NAIVE_LOCAL_TIME_CAVEAT };
@@ -14,11 +15,25 @@ function unknown(reason: string): OnwardTravelResult {
   return { status: "unknown", reason };
 }
 
+function departs(departsAt: string): FestivalDepartureResult {
+  return { status: "known", departsAt };
+}
+
+function departsBounded(earliestDepartsAt: string, latestDepartsAt: string): FestivalDepartureResult {
+  return { status: "bounded", earliestDepartsAt, latestDepartsAt };
+}
+
+function departureUnknown(reason: string): FestivalDepartureResult {
+  return { status: "unknown", reason };
+}
+
 const base: FestivalArrivalDepartureInput = {
   outboundArrivalAt: "2027-07-04T20:00:00+02:00",
   onwardTravel: known(60),
-  returnDepartureAt: "2027-07-12T10:00:00+02:00",
-  travelToAirport: known(60),
+  // Festival ends midnight July 12 (Europe/Paris) -- this is well clear
+  // of it, with free time in between, same shape as the real bug: this
+  // check only cares that it's after, not how long after.
+  festivalDeparture: departs("2027-07-25T10:00:00+02:00"),
   festivalStartDate: "2027-07-05",
   festivalEndDate: "2027-07-11",
   timezone: "Europe/Paris",
@@ -44,8 +59,7 @@ describe("checkFestivalArrivalDeparture", () => {
   it("passes when departure is exactly at the earliest allowed instant (boundary is inclusive)", () => {
     const result = checkFestivalArrivalDeparture({
       ...base,
-      travelToAirport: known(120),
-      returnDepartureAt: "2027-07-12T02:00:00+02:00", // festival ends midnight July 12 + 120min
+      festivalDeparture: departs("2027-07-12T00:00:00+02:00"), // the instant the festival ends
     });
     expect(result.status).toBe("pass");
   });
@@ -53,8 +67,7 @@ describe("checkFestivalArrivalDeparture", () => {
   it("fails when departure is one minute before the earliest allowed instant", () => {
     const result = checkFestivalArrivalDeparture({
       ...base,
-      travelToAirport: known(120),
-      returnDepartureAt: "2027-07-12T01:59:00+02:00",
+      festivalDeparture: departs("2027-07-11T23:59:00+02:00"),
     });
     expect(result.status).toBe("fail");
   });
@@ -67,10 +80,10 @@ describe("checkFestivalArrivalDeparture", () => {
     expect(result.status).toBe("unknown");
   });
 
-  it("returns unknown when travel-to-airport time is genuinely unresolvable, not merely untimed", () => {
+  it("returns unknown when festival departure is genuinely unresolvable, not merely untimed", () => {
     const result = checkFestivalArrivalDeparture({
       ...base,
-      travelToAirport: unknown("no festival-kind stay recorded to travel from"),
+      festivalDeparture: departureUnknown("the movement chain never leaves the festival stay's location"),
     });
     expect(result.status).toBe("unknown");
   });
@@ -86,7 +99,7 @@ describe("checkFestivalArrivalDeparture", () => {
       ...base,
       outboundArrivalAt: "2027-07-04T23:00:00+02:00",
       onwardTravel: known(90), // arrival fails
-      travelToAirport: unknown("no movement in this scenario is linked to this flight option"), // departure unknown
+      festivalDeparture: departureUnknown("the movement chain never leaves the festival stay's location"),
     });
     expect(result.status).toBe("fail");
   });
@@ -94,11 +107,11 @@ describe("checkFestivalArrivalDeparture", () => {
   // Untimed movements still carry a date, which bounds the instant they
   // happened at even without a time of day: an untimed arrival is no
   // later than 23:59 that day, no earlier than 00:00; an untimed
-  // departure the same. Three shapes of that bound, mirrored across both
-  // legs: the pessimistic bound still settling it, the optimistic bound
-  // already settling it the other way, and a bound wide enough to
-  // straddle the threshold, where the missing time of day would actually
-  // matter and unknown is the right answer.
+  // departure the same. Three shapes of that bound: the pessimistic
+  // bound still settling it, the optimistic bound already settling it
+  // the other way, and a bound wide enough to straddle the threshold,
+  // where the missing time of day would actually matter and unknown is
+  // the right answer.
 
   it("passes on the pessimistic bound alone when onward travel is untimed but the worst case is still comfortably early", () => {
     // Arrives 20:00 July 4; even the slowest recorded onward travel
@@ -145,68 +158,58 @@ describe("checkFestivalArrivalDeparture", () => {
     expect(result.reasons[0]).toMatch(/recorded times/i);
   });
 
-  it("passes on the pessimistic bound alone when travel-to-airport is untimed but even the slowest case leaves the departure comfortably clear", () => {
-    // Festival ends midnight July 12; even the slowest recorded
-    // travel-to-airport (3h) only requires departing by 03:00 July 12,
-    // and the flight departs 25 July.
+  // findFestivalDeparture only ever bounds a single untimed movement's
+  // own calendar date (00:00 to 23:59), and festivalEnds is always a
+  // midnight -- so in practice that bound never straddles a midnight
+  // (it either starts exactly at or after it, or ends entirely before
+  // it). The two decisive shapes are tested against that real bound;
+  // the straddling branch is tested directly against a synthetic one,
+  // to prove checkFestivalArrivalDeparture's own logic is still correct
+  // if that ever stops being true (e.g. a future bound that isn't a
+  // whole calendar day).
+
+  it("passes on the pessimistic bound alone when the festival departure is untimed but unambiguously after the final day", () => {
     const result = checkFestivalArrivalDeparture({
       ...base,
-      returnDepartureAt: "2027-07-25T10:00:00+02:00",
-      travelToAirport: bounded(30, 180),
+      festivalDeparture: departsBounded("2027-07-13T00:00:00+02:00", "2027-07-13T23:59:00+02:00"),
     });
     expect(result.status).toBe("pass");
     expect(result.reasons[1]).toMatch(/date.*alone/i);
   });
 
-  it("fails on the optimistic bound alone when travel-to-airport is untimed but even the quickest case already requires a later departure", () => {
-    // Festival ends midnight July 12; even the quickest recorded
-    // travel-to-airport (90min) requires departing by 01:30 July 12, and
-    // the flight departs 01:00.
+  it("fails on the optimistic bound alone when the festival departure is untimed but unambiguously before the final day ends", () => {
     const result = checkFestivalArrivalDeparture({
       ...base,
-      returnDepartureAt: "2027-07-12T01:00:00+02:00",
-      travelToAirport: bounded(90, 300),
+      festivalDeparture: departsBounded("2027-07-10T00:00:00+02:00", "2027-07-10T23:59:00+02:00"),
     });
     expect(result.status).toBe("fail");
     expect(result.reasons[1]).toMatch(/date.*alone/i);
   });
 
-  it("is genuinely unknown when the untimed travel-to-airport bound straddles the required departure", () => {
-    // Festival ends midnight July 12; a 60-180min bound requires
-    // departing somewhere between 01:00 and 03:00 July 12, and the
-    // flight departs 02:00 -- squarely inside that range.
+  it("is genuinely unknown when a (synthetic) festival-departure bound straddles the end of the final festival day", () => {
     const result = checkFestivalArrivalDeparture({
       ...base,
-      returnDepartureAt: "2027-07-12T02:00:00+02:00",
-      travelToAirport: bounded(60, 180),
+      festivalDeparture: departsBounded("2027-07-11T20:00:00+02:00", "2027-07-12T04:00:00+02:00"),
     });
     expect(result.status).toBe("unknown");
     expect(result.reasons[1]).toMatch(/straddl/i);
   });
 
   // The naive-local-time simplification was accepted on condition that
-  // its limitation stay stated, not merely computed -- so this check's
-  // own output has to carry it forward, not just the movement-level
-  // results that happen to compute it.
+  // its limitation stay stated, not merely computed. onwardTravel is
+  // the only remaining source of it: festivalDeparture reads a single
+  // movement's own local clock as the festival's own zone, which is
+  // what it actually means, not an approximation.
 
-  it("carries the naive-local-time caveat through to its own output, deduplicated, when both legs used it", () => {
+  it("carries the naive-local-time caveat through from onward travel when it resolved", () => {
     const result = checkFestivalArrivalDeparture(base);
     expect(result.caveats).toEqual([NAIVE_LOCAL_TIME_CAVEAT]);
   });
 
-  it("still carries the caveat through when one leg used it and the other is unknown", () => {
-    const result = checkFestivalArrivalDeparture({
-      ...base,
-      travelToAirport: unknown("no movement in this scenario is linked to this flight option"),
-    });
-    expect(result.caveats).toEqual([NAIVE_LOCAL_TIME_CAVEAT]);
-  });
-
-  it("carries no caveat when neither leg ever used a movement-based figure", () => {
+  it("carries no caveat when onward travel is unknown, regardless of the festival departure", () => {
     const result = checkFestivalArrivalDeparture({
       ...base,
       onwardTravel: unknown("no festival-kind stay recorded to travel onward to"),
-      travelToAirport: unknown("no festival-kind stay recorded to travel from"),
     });
     expect(result.caveats).toEqual([]);
   });

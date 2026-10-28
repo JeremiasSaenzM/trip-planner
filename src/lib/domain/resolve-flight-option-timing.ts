@@ -11,7 +11,12 @@ export type FlightOptionTiming = {
    * are no outbound segments recorded yet. */
   outboundArrivalAt: string | null;
   /** ISO-8601 instant the first return segment departs -- null for a
-   * one-way option, or a round trip whose return leg isn't entered yet. */
+   * one-way option, or a round trip whose return leg isn't entered yet.
+   * Not consumed by any check yet -- kept for the "catches the flight"
+   * check (does the traveller reach the departure airport in time for
+   * this option), deliberately deferred as its own, non-hard-constraint
+   * question. See the comment below this type for why it isn't just
+   * dropped and re-derived later. */
   returnDepartureAt: string | null;
 };
 
@@ -22,7 +27,16 @@ export type FlightOptionTiming = {
  * only source of truth for a stop: the last outbound segment's landing
  * is the option's own arrival, the first return segment's departure is
  * when it leaves again. Feeds checkFestivalArrivalDeparture's
- * outboundArrivalAt/returnDepartureAt directly.
+ * outboundArrivalAt directly. returnDepartureAt isn't currently used
+ * there -- the festival-departure half of that check reads when the
+ * traveller leaves the festival location, not this flight's own
+ * departure (see findFestivalDeparture). It's kept, not dropped,
+ * because this is exactly the shape that lost the naive-local-time
+ * caveat for two PRs: a value derived, attached to a type, and never
+ * wired anywhere, so nothing noticed it needed the caveat until it
+ * was actually read. Named here so it doesn't go quiet the same way:
+ * returnDepartureAt is for the future "catches the flight" check
+ * (Build plan, Phase 6.5) and nothing else.
  */
 export function resolveFlightOptionTiming(segments: FlightSegmentTimingInput[]): FlightOptionTiming {
   const outbound = segments
