@@ -6,6 +6,7 @@ import type {
   FlightOption,
   FlightSegment,
   FxRate,
+  Location,
   Movement,
   OpenItem,
   Payment,
@@ -26,7 +27,9 @@ import type {
 //   4 -- proposalBatches and proposalItems (imported research)
 //   5 -- trips gained a travel window (departureDate, returnDate, travelDatesState, travelDatesSourceId)
 //   6 -- stays and movements (Phase 6.4)
-export const EXPORT_SCHEMA_VERSION = 6;
+//   7 -- locations: stays/movements now point at locationId/fromLocationId/
+//        toLocationId instead of free text, so locations ships alongside them
+export const EXPORT_SCHEMA_VERSION = 7;
 
 export type ExportPayload = {
   exportedAt: string;
@@ -46,6 +49,7 @@ export type ExportPayload = {
     flightSegments: FlightSegment[];
     stays: Stay[];
     movements: Movement[];
+    locations: Location[];
     proposalBatches: ProposalBatch[];
     proposalItems: ProposalItem[];
     changeLog: ChangeLogEntry[];
