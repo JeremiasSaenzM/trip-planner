@@ -54,7 +54,7 @@ describe("checkBudgetLineNightsAddUp", () => {
     const result = checkBudgetLineNightsAddUp({
       budgetLines: [{ quantity: 11, quantityUnit: "night" }],
       movements: [
-        { sequence: 1, fromLocation: "Home", toLocation: "Away", departDate: "2027-07-02", arriveDate: "2027-07-03" },
+        { sequence: 1, fromLocationId: "Home", toLocationId: "Away", departDate: "2027-07-02", arriveDate: "2027-07-03" },
       ],
       tripDepartureDate: "2027-07-02",
       tripReturnDate: "2027-07-14",

@@ -48,16 +48,20 @@ insert into payments (id, owner_id, budget_line_id, scenario_id, description, to
   ('c2000000-0000-0000-0000-000000000009', '10000000-0000-0000-0000-000000000001',
    'c2000000-0000-0000-0000-000000000006', null, 'pgTAP untouched shared-line payment', 30, 'USD');
 
-insert into stays (id, owner_id, scenario_id, location, start_date, nights, budget_line_id) values (
+insert into locations (id, owner_id, name) values
+  ('c2000000-0000-0000-0000-00000000001a', '10000000-0000-0000-0000-000000000001', 'Testville'),
+  ('c2000000-0000-0000-0000-00000000001b', '10000000-0000-0000-0000-000000000001', 'Home');
+
+insert into stays (id, owner_id, scenario_id, location_id, start_date, nights, budget_line_id) values (
   'c2000000-0000-0000-0000-000000000010', '10000000-0000-0000-0000-000000000001',
-  'c2000000-0000-0000-0000-000000000002', 'Testville', '2027-01-01', 5,
+  'c2000000-0000-0000-0000-000000000002', 'c2000000-0000-0000-0000-00000000001a', '2027-01-01', 5,
   'c2000000-0000-0000-0000-000000000004'
 );
 
-insert into movements (id, owner_id, scenario_id, sequence, from_location, to_location, depart_date, arrive_date, budget_line_id) values (
+insert into movements (id, owner_id, scenario_id, sequence, from_location_id, to_location_id, depart_date, arrive_date, budget_line_id) values (
   'c2000000-0000-0000-0000-000000000011', '10000000-0000-0000-0000-000000000001',
-  'c2000000-0000-0000-0000-000000000002', 1, 'Home', 'Testville', '2027-01-01', '2027-01-01',
-  'c2000000-0000-0000-0000-000000000005'
+  'c2000000-0000-0000-0000-000000000002', 1, 'c2000000-0000-0000-0000-00000000001b', 'c2000000-0000-0000-0000-00000000001a',
+  '2027-01-01', '2027-01-01', 'c2000000-0000-0000-0000-000000000005'
 );
 
 insert into sources (id, owner_id, provider, tier, observed_on) values (
@@ -226,9 +230,9 @@ insert into scenarios (id, owner_id, trip_id, name) values (
   'c2000000-0000-0000-0000-000000000030', '10000000-0000-0000-0000-000000000001',
   'c2000000-0000-0000-0000-000000000001', 'pgTAP stay-only scenario'
 );
-insert into stays (id, owner_id, scenario_id, location, start_date, nights) values (
+insert into stays (id, owner_id, scenario_id, location_id, start_date, nights) values (
   'c2000000-0000-0000-0000-000000000031', '10000000-0000-0000-0000-000000000001',
-  'c2000000-0000-0000-0000-000000000030', 'Testville', '2027-01-01', 2
+  'c2000000-0000-0000-0000-000000000030', 'c2000000-0000-0000-0000-00000000001a', '2027-01-01', 2
 );
 select throws_like(
   $$ select delete_scenario('c2000000-0000-0000-0000-000000000030', 'pgTAP: trying anyway') $$,
@@ -240,9 +244,10 @@ insert into scenarios (id, owner_id, trip_id, name) values (
   'c2000000-0000-0000-0000-000000000032', '10000000-0000-0000-0000-000000000001',
   'c2000000-0000-0000-0000-000000000001', 'pgTAP movement-only scenario'
 );
-insert into movements (id, owner_id, scenario_id, sequence, from_location, to_location, depart_date, arrive_date) values (
+insert into movements (id, owner_id, scenario_id, sequence, from_location_id, to_location_id, depart_date, arrive_date) values (
   'c2000000-0000-0000-0000-000000000033', '10000000-0000-0000-0000-000000000001',
-  'c2000000-0000-0000-0000-000000000032', 1, 'Home', 'Testville', '2027-01-01', '2027-01-01'
+  'c2000000-0000-0000-0000-000000000032', 1, 'c2000000-0000-0000-0000-00000000001b', 'c2000000-0000-0000-0000-00000000001a',
+  '2027-01-01', '2027-01-01'
 );
 select throws_like(
   $$ select delete_scenario('c2000000-0000-0000-0000-000000000032', 'pgTAP: trying anyway') $$,

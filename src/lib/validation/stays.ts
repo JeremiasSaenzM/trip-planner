@@ -12,7 +12,7 @@ export const stayKind = z.enum(["festival", "independent", "transit"] satisfies 
 // own comment explains why: the column exists so a later booking
 // confirmation has somewhere to go, but nothing enforces it yet.
 const stayFields = z.object({
-  location: z.string().trim().min(1, "Say where you're staying"),
+  locationId: id,
   startDate: isoDate,
   nights: z.number().int().positive("Nights must be more than zero"),
   kind: stayKind,

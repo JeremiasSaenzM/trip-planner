@@ -15,8 +15,9 @@ select enum_has_labels('proposal_op', array[
   'create_source', 'create_competition', 'create_scenario', 'create_budget_line', 'create_payment', 'create_fx_rate',
   'update_competition', 'update_scenario', 'update_budget_line', 'update_payment', 'update_fx_rate', 'update_savings_entry',
   'create_stay', 'create_movement', 'update_stay', 'update_movement',
-  'create_flight_option', 'create_flight_segment', 'update_flight_option'
-], 'proposal_op is exactly the nineteen operations (v1 plus stays/movements plus flights)');
+  'create_flight_option', 'create_flight_segment', 'update_flight_option',
+  'create_location', 'update_location'
+], 'proposal_op is exactly the twenty-one operations (v1 plus stays/movements plus flights plus locations)');
 select enum_has_labels('proposal_status', array['pending', 'approved', 'rejected'], 'proposal_status is pending / approved / rejected');
 select ok((select relrowsecurity from pg_class where oid = 'proposal_batches'::regclass), 'RLS is on for proposal_batches');
 select ok((select relrowsecurity from pg_class where oid = 'proposal_items'::regclass), 'RLS is on for proposal_items');
@@ -58,13 +59,17 @@ insert into payments (
   'b2000000-0000-0000-0000-000000000006', 'b2000000-0000-0000-0000-000000000005',
   'b2000000-0000-0000-0000-000000000004', 'pgTAP deposit', 200, 'EUR', 'committed', 'refundable', true
 );
-insert into stays (id, scenario_id, location, start_date, nights, kind, information_state) values (
+insert into locations (id, owner_id, name) values
+  ('b2000000-0000-0000-0000-00000000000a', '10000000-0000-0000-0000-000000000001', 'Home'),
+  ('b2000000-0000-0000-0000-00000000000b', '10000000-0000-0000-0000-000000000001', 'pgTAP existing stay'),
+  ('b2000000-0000-0000-0000-00000000000c', '10000000-0000-0000-0000-000000000001', 'pgTAP stay');
+insert into stays (id, scenario_id, location_id, start_date, nights, kind, information_state) values (
   'b2000000-0000-0000-0000-000000000010', 'b2000000-0000-0000-0000-000000000004',
-  'pgTAP existing stay', '2027-07-01', 5, 'independent', 'estimate'
+  'b2000000-0000-0000-0000-00000000000b', '2027-07-01', 5, 'independent', 'estimate'
 );
-insert into movements (id, scenario_id, sequence, from_location, to_location, depart_date, arrive_date, mode, information_state) values (
+insert into movements (id, scenario_id, sequence, from_location_id, to_location_id, depart_date, arrive_date, mode, information_state) values (
   'b2000000-0000-0000-0000-000000000011', 'b2000000-0000-0000-0000-000000000004',
-  1, 'Home', 'pgTAP existing stay', '2027-07-01', '2027-07-01', 'plane', 'estimate'
+  1, 'b2000000-0000-0000-0000-00000000000a', 'b2000000-0000-0000-0000-00000000000b', '2027-07-01', '2027-07-01', 'plane', 'estimate'
 );
 
 -- Saving a batch
@@ -103,10 +108,11 @@ select lives_ok(
             "amountTarget": 1, "amountConservative": 1, "currency": "EUR", "informationState": "estimate",
             "source": {"id": "b2000000-0000-0000-0000-000000000099"}}}},
          {"position": 9, "ref": "b1-stay", "op": "create_stay", "reason": "pgTAP: a stay for the new scenario",
-          "payload": {"data": {"scenario": {"item": 1}, "location": "pgTAP stay", "startDate": "2027-07-01",
+          "payload": {"data": {"scenario": {"item": 1}, "location": {"id": "b2000000-0000-0000-0000-00000000000c"}, "startDate": "2027-07-01",
             "nights": 3, "kind": "independent", "informationState": "estimate"}}, "dependsOn": [1]},
          {"position": 10, "ref": "b1-move", "op": "create_movement", "reason": "pgTAP: a movement for the new scenario",
-          "payload": {"data": {"scenario": {"item": 1}, "sequence": 1, "fromLocation": "Home", "toLocation": "pgTAP stay",
+          "payload": {"data": {"scenario": {"item": 1}, "sequence": 1, "fromLocation": {"id": "b2000000-0000-0000-0000-00000000000a"},
+            "toLocation": {"id": "b2000000-0000-0000-0000-00000000000c"},
             "departDate": "2027-07-01", "arriveDate": "2027-07-01", "mode": "plane", "informationState": "estimate"}},
           "dependsOn": [1]},
          {"position": 11, "ref": "b1-update-stay", "op": "update_stay", "reason": "pgTAP: nights corrected",
@@ -114,7 +120,7 @@ select lives_ok(
           "payload": {"changes": {"nights": {"from": 5, "to": 6}}}},
          {"position": 12, "ref": "b1-update-stay-stale", "op": "update_stay", "reason": "pgTAP: written against old data",
           "targetId": "b2000000-0000-0000-0000-000000000010",
-          "payload": {"changes": {"location": {"from": "wrong", "to": "pgTAP stay renamed"}}}},
+          "payload": {"changes": {"location": {"from": "b2000000-0000-0000-0000-00000000000a", "to": {"id": "b2000000-0000-0000-0000-00000000000c"}}}}},
          {"position": 13, "ref": "b1-update-stay-field", "op": "update_stay", "reason": "pgTAP: not a field",
           "targetId": "b2000000-0000-0000-0000-000000000010",
           "payload": {"changes": {"scenarioId": {"from": null, "to": "b2000000-0000-0000-0000-000000000004"}}}},
@@ -240,9 +246,9 @@ select lives_ok(
 );
 
 select results_eq(
-  $$ select scenario_id = (select result_id from proposal_items where ref = 'b1-scn'), location, nights, kind::text
-     from stays where location = 'pgTAP stay' $$,
-  $$ values (true, 'pgTAP stay'::text, 3::smallint, 'independent'::text) $$,
+  $$ select scenario_id = (select result_id from proposal_items where ref = 'b1-scn'), location_id, nights, kind::text
+     from stays where location_id = 'b2000000-0000-0000-0000-00000000000c' $$,
+  $$ values (true, 'b2000000-0000-0000-0000-00000000000c'::uuid, 3::smallint, 'independent'::text) $$,
   'the stay''s scenario reference resolved to the scenario the earlier approval created'
 );
 
@@ -260,9 +266,9 @@ select lives_ok(
 );
 
 select results_eq(
-  $$ select scenario_id = (select result_id from proposal_items where ref = 'b1-scn'), from_location, to_location
-     from movements where to_location = 'pgTAP stay' $$,
-  $$ values (true, 'Home'::text, 'pgTAP stay'::text) $$,
+  $$ select scenario_id = (select result_id from proposal_items where ref = 'b1-scn'), from_location_id, to_location_id
+     from movements where to_location_id = 'b2000000-0000-0000-0000-00000000000c' $$,
+  $$ values (true, 'b2000000-0000-0000-0000-00000000000a'::uuid, 'b2000000-0000-0000-0000-00000000000c'::uuid) $$,
   'the movement''s scenario reference resolved the same way'
 );
 
@@ -327,10 +333,10 @@ select throws_like(
 );
 
 select results_eq(
-  $$ select i.status::text, s.location
+  $$ select i.status::text, s.location_id
      from proposal_items i, stays s
      where i.ref = 'b1-update-stay-stale' and s.id = 'b2000000-0000-0000-0000-000000000010' $$,
-  $$ values ('pending'::text, 'pgTAP existing stay'::text) $$,
+  $$ values ('pending'::text, 'b2000000-0000-0000-0000-00000000000b'::uuid) $$,
   'the stale item stays pending and the stay is untouched'
 );
 

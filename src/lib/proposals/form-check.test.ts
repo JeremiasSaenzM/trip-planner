@@ -10,6 +10,7 @@ const TRIP_ID = "20000000-0000-0000-0000-000000000001";
 const SCENARIO_ID = "50000000-0000-0000-0000-000000000001";
 const LINE_ID = "70000000-0000-0000-0000-000000000002"; // Round-trip flight: 520 / 650 / 820 GBP
 const SOURCE_ID = "30000000-0000-0000-0000-000000000001";
+const LOCATION_ID = fixtures.locations[0].id;
 
 const rows: CurrentRows = {
   competitions: fixtures.competitions,
@@ -20,6 +21,7 @@ const rows: CurrentRows = {
   savingsEntries: fixtures.savingsEntries,
   stays: fixtures.stays,
   movements: fixtures.movements,
+  locations: fixtures.locations,
   flightOptions: fixtures.flightOptions,
   flightSegments: fixtures.flightSegments,
 };
@@ -111,7 +113,14 @@ describe("checkAgainstForm: creates go through the form's own schema", () => {
   it("accepts a valid stay", () => {
     expect(
       check("create_stay", {
-        data: { scenario: { id: SCENARIO_ID }, location: "Fontvieux", startDate: "2027-07-04", nights: 8, kind: "festival", informationState: "estimate" },
+        data: {
+          scenario: { id: SCENARIO_ID },
+          location: { id: LOCATION_ID },
+          startDate: "2027-07-04",
+          nights: 8,
+          kind: "festival",
+          informationState: "estimate",
+        },
       }),
     ).toEqual({ ok: true });
   });
@@ -121,8 +130,8 @@ describe("checkAgainstForm: creates go through the form's own schema", () => {
       data: {
         scenario: { id: SCENARIO_ID },
         sequence: 1,
-        fromLocation: "Madrid",
-        toLocation: "Fontvieux",
+        fromLocation: { id: LOCATION_ID },
+        toLocation: { id: LOCATION_ID },
         departDate: "2027-07-04",
         arriveDate: "2027-07-03",
         mode: "plane",
@@ -223,6 +232,7 @@ describe("currentFields", () => {
     update_stay: fixtures.stays[0].id,
     update_movement: fixtures.movements[0].id,
     update_flight_option: fixtures.flightOptions[0].id,
+    update_location: fixtures.locations[0].id,
   };
 
   it.each(Object.keys(targets) as UpdateOp[])("covers exactly the fields %s can change", (op) => {

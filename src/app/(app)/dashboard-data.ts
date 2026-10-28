@@ -8,6 +8,7 @@ import type {
   FlightOption,
   FlightSegment,
   FxRate,
+  Location,
   Movement,
   OpenItem,
   Payment,
@@ -129,6 +130,9 @@ export type DashboardData =
        * scenario_id is not null, with no shared/null option). */
       stays: Stay[];
       movements: Movement[];
+      /** Owner-scoped, not trip-scoped (see 20261029090000_locations.sql)
+       * -- the same place is reusable across every trip. */
+      locations: Location[];
       /** The night-by-night strip the Scenario Overview page renders --
        * generated from this scenario's movements, never typed in.
        * Parameterized by Movement (not the default TimelineMovement) so
@@ -183,6 +187,7 @@ export async function loadDashboardData(params: {
     sources,
     stays,
     movements,
+    locations,
     flightOptions,
     flightSegments,
     decisions,
@@ -198,6 +203,7 @@ export async function loadDashboardData(params: {
     dataSource.getSources(),
     dataSource.getStays(),
     dataSource.getMovements(),
+    dataSource.getLocations(),
     dataSource.getFlightOptions(),
     dataSource.getFlightSegments(),
     dataSource.getDecisions(),
@@ -287,7 +293,15 @@ export async function loadDashboardData(params: {
   });
   const pathContinuityIssues = checkPathContinuity(scenarioMovements);
   const unaccountedNights = checkNightsAccountedFor(scenarioMovements, scenarioStays);
-  const movementsMissingBudgetLine = findMovementsMissingBudgetLine(scenarioMovements);
+  const locationName = (locationId: string) => locations.find((l) => l.id === locationId)?.name ?? locationId;
+  const movementsMissingBudgetLine = findMovementsMissingBudgetLine(
+    scenarioMovements.map((movement) => ({
+      id: movement.id,
+      fromLocation: locationName(movement.fromLocationId),
+      toLocation: locationName(movement.toLocationId),
+      budgetLineId: movement.budgetLineId,
+    })),
+  );
   const budgetLineMatchesStay = checkBudgetLineMatchesStay(scenarioStays, scenarioBudgetLines);
   const budgetLineNightsAddUp = checkBudgetLineNightsAddUp({
     budgetLines: scenarioBudgetLines,
@@ -310,6 +324,7 @@ export async function loadDashboardData(params: {
       decisions: tripDecisions,
       movements: scenarioMovements,
       stays: scenarioStays,
+      locations,
       budgetLines: scenarioBudgetLines,
       rates,
       basis,
@@ -364,6 +379,7 @@ export async function loadDashboardData(params: {
       missingFxRates,
       stays: scenarioStays,
       movements: scenarioMovements,
+      locations,
       itineraryTimeline,
       stayNightsCheck,
       festivalStayCoverage,
@@ -444,6 +460,7 @@ export async function loadDashboardData(params: {
     missingFxRates,
     stays: scenarioStays,
     movements: scenarioMovements,
+    locations,
     itineraryTimeline,
     stayNightsCheck,
     festivalStayCoverage,

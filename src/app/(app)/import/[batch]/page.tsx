@@ -48,6 +48,7 @@ async function BatchScreen({ params }: { params: PageProps<"/import/[batch]">["p
     savingsEntries,
     stays,
     movements,
+    locations,
     flightOptions,
     flightSegments,
   ] = await Promise.all([
@@ -62,6 +63,7 @@ async function BatchScreen({ params }: { params: PageProps<"/import/[batch]">["p
     dataSource.getSavingsEntries(),
     dataSource.getStays(),
     dataSource.getMovements(),
+    dataSource.getLocations(),
     dataSource.getFlightOptions(),
     dataSource.getFlightSegments(),
   ]);
@@ -79,6 +81,7 @@ async function BatchScreen({ params }: { params: PageProps<"/import/[batch]">["p
     savingsEntries,
     stays,
     movements,
+    locations,
     flightOptions,
     flightSegments,
   });

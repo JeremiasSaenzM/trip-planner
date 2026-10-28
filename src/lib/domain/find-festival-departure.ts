@@ -2,7 +2,14 @@ import { earliestPossibleInstant, latestPossibleInstant } from "./calculate-onwa
 
 export type FestivalDepartureMovement = {
   sequence: number;
-  fromLocation: string;
+  fromLocationId: string;
+  // The IANA zone of fromLocationId, resolved by the caller from the
+  // locations table. The departing movement's own local clock reading
+  // is interpreted as being in this zone -- it departs from the
+  // festival's own location, so that's the zone it's actually in, not
+  // an approximation the way summing several legs' naive times would
+  // be. Null when that location doesn't have a zone recorded yet.
+  fromZone: string | null;
   departDate: string;
   departTime: string | null;
 };
@@ -10,15 +17,9 @@ export type FestivalDepartureMovement = {
 export type FindFestivalDepartureInput = {
   /** This scenario's full movement chain, any order. */
   movements: FestivalDepartureMovement[];
-  /** The festival-kind stay's location -- null when no festival-kind
+  /** The festival-kind stay's location id -- null when no festival-kind
    * stay is recorded yet. */
-  festivalStayLocation: string | null;
-  /** The festival's own IANA zone. The departing movement's own local
-   * clock reading is interpreted as being in this zone -- it departs
-   * from the festival's own location, so that's the zone it's actually
-   * in, not an approximation the way summing several legs' naive times
-   * would be. */
-  timezone: string | null;
+  festivalStayLocationId: string | null;
 };
 
 export type FestivalDepartureResult =
@@ -36,22 +37,19 @@ export type FestivalDepartureResult =
  * a different question this doesn't answer (deliberately not built
  * here -- see the Phase 6.5 discussion).
  *
- * Found as the LAST movement, by sequence, whose fromLocation is the
+ * Found as the LAST movement, by sequence, whose fromLocationId is the
  * festival stay -- not the first, so a day trip out and back during the
  * festival isn't mistaken for leaving it for good.
  */
 export function findFestivalDeparture(input: FindFestivalDepartureInput): FestivalDepartureResult {
-  if (input.festivalStayLocation === null) {
+  if (input.festivalStayLocationId === null) {
     return { status: "unknown", reason: "no festival-kind stay recorded to depart from" };
-  }
-  if (input.timezone === null) {
-    return { status: "unknown", reason: "competition has no time zone recorded yet" };
   }
 
   const sorted = [...input.movements].sort((a, b) => a.sequence - b.sequence);
   let departureIndex = -1;
   for (let i = sorted.length - 1; i >= 0; i--) {
-    if (sorted[i].fromLocation === input.festivalStayLocation) {
+    if (sorted[i].fromLocationId === input.festivalStayLocationId) {
       departureIndex = i;
       break;
     }
@@ -61,7 +59,10 @@ export function findFestivalDeparture(input: FindFestivalDepartureInput): Festiv
   }
 
   const departure = sorted[departureIndex];
-  const zone = input.timezone;
+  if (departure.fromZone === null) {
+    return { status: "unknown", reason: "the departure location has no time zone recorded yet" };
+  }
+  const zone = departure.fromZone;
 
   if (departure.departTime !== null) {
     const departsAt = earliestPossibleInstant(departure.departDate, departure.departTime).setZone(zone, {

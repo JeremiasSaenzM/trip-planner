@@ -265,15 +265,16 @@ function FlightOptionCard({
             </p>
             <ConstraintRow label="No US/Canada stop" result={evaluation.usCanadaStop} />
             <ConstraintRow label="At the festival on time" result={evaluation.festivalArrivalDeparture} />
-            {evaluation.festivalArrivalDeparture.caveats.map((caveat) => (
+            {evaluation.festivalLocationTimezone.status === "mismatch" && (
               <p
-                key={caveat}
                 className="rounded-md bg-amber-50 p-2 text-xs text-amber-800 dark:bg-amber-950/40 dark:text-amber-300"
-                data-testid="festival-check-caveat"
+                data-testid="festival-location-timezone-mismatch"
               >
-                {caveat}
+                The festival stay&apos;s location ({evaluation.festivalLocationTimezone.festivalStayTimezone}) and the
+                competition ({evaluation.festivalLocationTimezone.competitionTimezone}) don&apos;t agree on a time zone --
+                worth checking which one is wrong.
               </p>
-            ))}
+            )}
             <ConstraintRow label="Checked baggage allowed" result={evaluation.baggage} />
             <div className="flex items-start justify-between gap-2">
               <span>If bought now</span>

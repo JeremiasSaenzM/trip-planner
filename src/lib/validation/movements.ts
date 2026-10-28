@@ -18,8 +18,8 @@ export const movementMode = z.enum([
 
 const movementFields = z.object({
   sequence: z.number().int(),
-  fromLocation: z.string().trim().min(1, "Say where this leg starts"),
-  toLocation: z.string().trim().min(1, "Say where this leg ends"),
+  fromLocationId: id,
+  toLocationId: id,
   departDate: isoDate,
   departTime: isoTime.optional(),
   arriveDate: isoDate,

@@ -162,6 +162,8 @@ function resultStillExists(item: ProposalItem, rows: ReviewRows): boolean {
       return rows.flightOptions.some((o) => o.id === item.resultId);
     case "create_flight_segment":
       return rows.flightSegments.some((s) => s.id === item.resultId);
+    case "create_location":
+      return rows.locations.some((l) => l.id === item.resultId);
   }
 }
 
@@ -259,7 +261,9 @@ export function unknownReferences(
               ? rows.flightOptions.some(
                   (o) => o.id === value.id && rows.scenarios.some((s) => s.id === o.scenarioId && s.tripId === tripId),
                 )
-              : rows.budgetLines.some((l) => l.id === value.id && l.tripId === tripId);
+              : kind === "location"
+                ? rows.locations.some((l) => l.id === value.id)
+                : rows.budgetLines.some((l) => l.id === value.id && l.tripId === tripId);
     return exists ? [] : [`${field}: no ${kind.replace("_", " ")} with id ${value.id} in this trip`];
   });
 }
@@ -278,6 +282,8 @@ function existingName(id: string, kind: ReferenceKind, rows: ReviewRows): string
       return rows.budgetLines.find((l) => l.id === id)?.description ?? null;
     case "flight_option":
       return rows.flightOptions.find((o) => o.id === id)?.label ?? null;
+    case "location":
+      return rows.locations.find((l) => l.id === id)?.name ?? null;
   }
 }
 
@@ -301,16 +307,22 @@ function describeTarget(op: ProposalItem["op"], id: string, rows: ReviewRows): s
     }
     case "update_stay": {
       const stay = rows.stays.find((s) => s.id === id);
-      return stay ? `${stay.location}, ${stay.startDate}` : null;
+      return stay ? `${existingName(stay.locationId, "location", rows) ?? "?"}, ${stay.startDate}` : null;
     }
     case "update_movement": {
       const movement = rows.movements.find((m) => m.id === id);
-      return movement ? `${movement.fromLocation} → ${movement.toLocation}, ${movement.departDate}` : null;
+      return movement
+        ? `${existingName(movement.fromLocationId, "location", rows) ?? "?"} → ${
+            existingName(movement.toLocationId, "location", rows) ?? "?"
+          }, ${movement.departDate}`
+        : null;
     }
     case "update_flight_option": {
       const option = rows.flightOptions.find((o) => o.id === id);
       return option ? option.label : null;
     }
+    case "update_location":
+      return rows.locations.find((l) => l.id === id)?.name ?? null;
     default:
       return null;
   }

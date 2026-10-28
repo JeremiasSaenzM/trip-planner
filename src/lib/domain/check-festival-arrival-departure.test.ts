@@ -1,14 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { NAIVE_LOCAL_TIME_CAVEAT, type OnwardTravelResult } from "./calculate-onward-travel-minutes";
+import type { OnwardTravelResult } from "./calculate-onward-travel-minutes";
 import { checkFestivalArrivalDeparture, type FestivalArrivalDepartureInput } from "./check-festival-arrival-departure";
 import type { FestivalDepartureResult } from "./find-festival-departure";
 
 function known(minutes: number): OnwardTravelResult {
-  return { status: "known", minutes, caveat: NAIVE_LOCAL_TIME_CAVEAT };
+  return { status: "known", minutes };
 }
 
 function bounded(minMinutes: number, maxMinutes: number): OnwardTravelResult {
-  return { status: "bounded", minMinutes, maxMinutes, caveat: NAIVE_LOCAL_TIME_CAVEAT };
+  return { status: "bounded", minMinutes, maxMinutes };
 }
 
 function unknown(reason: string): OnwardTravelResult {
@@ -193,24 +193,5 @@ describe("checkFestivalArrivalDeparture", () => {
     });
     expect(result.status).toBe("unknown");
     expect(result.reasons[1]).toMatch(/straddl/i);
-  });
-
-  // The naive-local-time simplification was accepted on condition that
-  // its limitation stay stated, not merely computed. onwardTravel is
-  // the only remaining source of it: festivalDeparture reads a single
-  // movement's own local clock as the festival's own zone, which is
-  // what it actually means, not an approximation.
-
-  it("carries the naive-local-time caveat through from onward travel when it resolved", () => {
-    const result = checkFestivalArrivalDeparture(base);
-    expect(result.caveats).toEqual([NAIVE_LOCAL_TIME_CAVEAT]);
-  });
-
-  it("carries no caveat when onward travel is unknown, regardless of the festival departure", () => {
-    const result = checkFestivalArrivalDeparture({
-      ...base,
-      onwardTravel: unknown("no festival-kind stay recorded to travel onward to"),
-    });
-    expect(result.caveats).toEqual([]);
   });
 });
