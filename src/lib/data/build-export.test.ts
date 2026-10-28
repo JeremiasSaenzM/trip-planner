@@ -21,6 +21,7 @@ describe("buildExportPayload", () => {
       flightSegments: fixtures.flightSegments,
       stays: fixtures.stays,
       movements: fixtures.movements,
+      locations: fixtures.locations,
       proposalBatches: fixtures.proposalBatches,
       proposalItems: fixtures.proposalItems,
       changeLog: fixtures.changeLog,
@@ -28,9 +29,9 @@ describe("buildExportPayload", () => {
 
     expect(result.exportedAt).toBe("2026-10-15T12:00:00.000Z");
     expect(result.schemaVersion).toBe(EXPORT_SCHEMA_VERSION);
-    // Pinned: stays and movements (Phase 6.4) changed the exported
-    // shape, so this has to have moved past 5.
-    expect(EXPORT_SCHEMA_VERSION).toBe(6);
+    // Pinned: locations (Phase 6.5b) changed the exported shape, so
+    // this has to have moved past 6.
+    expect(EXPORT_SCHEMA_VERSION).toBe(7);
     expect(result.data.trips).toBe(fixtures.trips);
     expect(result.data.changeLog).toBe(fixtures.changeLog);
     expect(Object.keys(result.data)).toEqual([
@@ -48,6 +49,7 @@ describe("buildExportPayload", () => {
       "flightSegments",
       "stays",
       "movements",
+      "locations",
       "proposalBatches",
       "proposalItems",
       "changeLog",
@@ -71,6 +73,7 @@ describe("buildExportPayload", () => {
       flightSegments: [],
       stays: [],
       movements: [],
+      locations: [],
       proposalBatches: [],
       proposalItems: [],
       changeLog: [],
@@ -98,6 +101,7 @@ describe("buildExportPayload", () => {
       flightSegments: [],
       stays: [],
       movements: [],
+      locations: [],
       proposalBatches: [],
       proposalItems: [],
       changeLog: [],
