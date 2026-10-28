@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import { checkBudgetLineDaysAddUp } from "./check-budget-line-days-add-up";
 
-const OUTBOUND = { sequence: 1, fromLocation: "Home", toLocation: "Away", departDate: "2027-07-04", arriveDate: "2027-07-04" };
-const RETURN = { sequence: 2, fromLocation: "Away", toLocation: "Home", departDate: "2027-07-19", arriveDate: "2027-07-19" };
+const OUTBOUND = { sequence: 1, fromLocationId: "Home", toLocationId: "Away", departDate: "2027-07-04", arriveDate: "2027-07-04" };
+const RETURN = { sequence: 2, fromLocationId: "Away", toLocationId: "Home", departDate: "2027-07-19", arriveDate: "2027-07-19" };
 
 describe("checkBudgetLineDaysAddUp", () => {
   it("passes when category E's day-quantity lines sum to the days on the ground", () => {

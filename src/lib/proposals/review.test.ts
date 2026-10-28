@@ -18,6 +18,7 @@ const rows: ReviewRows = {
   savingsEntries: fixtures.savingsEntries,
   stays: fixtures.stays,
   movements: fixtures.movements,
+  locations: fixtures.locations,
   flightOptions: fixtures.flightOptions,
   flightSegments: fixtures.flightSegments,
 };
@@ -80,7 +81,8 @@ describe("reviewBatch", () => {
       createdAt: "2026-10-12T00:00:00Z",
     };
     const review = reviewBatch([updateStay], rows)[0];
-    expect(review.targetLabel).toBe(`${stay.location}, ${stay.startDate}`);
+    const locationName = fixtures.locations.find((l) => l.id === stay.locationId)!.name;
+    expect(review.targetLabel).toBe(`${locationName}, ${stay.startDate}`);
   });
 
   it("lists what depends on an item, so rejecting it can ask what to do with them", () => {

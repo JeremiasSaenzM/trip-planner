@@ -12,6 +12,7 @@ import {
 import { createStayInput, deleteStayInput, updateStayInput } from "@/lib/validation/stays";
 
 import { initialFormActionState, type FormActionState } from "./form-action-state";
+import { resolveLocationId } from "./location-actions";
 import { firstIssueMessage, optionalText } from "./server-action-helpers";
 import { resolveSourceId } from "./source-actions";
 
@@ -26,15 +27,17 @@ function revalidateAll() {
 
 export async function createStay(_previous: FormActionState, formData: FormData): Promise<FormActionState> {
   let sourceId: string | undefined;
+  let locationId: string;
   try {
     sourceId = await resolveSourceId(formData, "source");
+    locationId = await resolveLocationId(formData, "location");
   } catch (error) {
     return { status: "error", message: (error as Error).message };
   }
 
   const parsed = createStayInput.safeParse({
     scenarioId: formData.get("scenarioId"),
-    location: formData.get("location"),
+    locationId,
     startDate: formData.get("startDate"),
     nights: Number(formData.get("nights")),
     kind: formData.get("kind"),
@@ -58,15 +61,17 @@ export async function createStay(_previous: FormActionState, formData: FormData)
 
 export async function updateStay(_previous: FormActionState, formData: FormData): Promise<FormActionState> {
   let sourceId: string | undefined;
+  let locationId: string;
   try {
     sourceId = await resolveSourceId(formData, "source");
+    locationId = await resolveLocationId(formData, "location");
   } catch (error) {
     return { status: "error", message: (error as Error).message };
   }
 
   const parsed = updateStayInput.safeParse({
     id: formData.get("id"),
-    location: formData.get("location"),
+    locationId,
     startDate: formData.get("startDate"),
     nights: Number(formData.get("nights")),
     kind: formData.get("kind"),
@@ -108,8 +113,12 @@ export async function deleteStay(_previous: FormActionState, formData: FormData)
 
 export async function createMovement(_previous: FormActionState, formData: FormData): Promise<FormActionState> {
   let sourceId: string | undefined;
+  let fromLocationId: string;
+  let toLocationId: string;
   try {
     sourceId = await resolveSourceId(formData, "source");
+    fromLocationId = await resolveLocationId(formData, "fromLocation");
+    toLocationId = await resolveLocationId(formData, "toLocation");
   } catch (error) {
     return { status: "error", message: (error as Error).message };
   }
@@ -117,8 +126,8 @@ export async function createMovement(_previous: FormActionState, formData: FormD
   const parsed = createMovementInput.safeParse({
     scenarioId: formData.get("scenarioId"),
     sequence: Number(formData.get("sequence")),
-    fromLocation: formData.get("fromLocation"),
-    toLocation: formData.get("toLocation"),
+    fromLocationId,
+    toLocationId,
     departDate: formData.get("departDate"),
     departTime: optionalText(formData.get("departTime")),
     arriveDate: formData.get("arriveDate"),
@@ -145,8 +154,12 @@ export async function createMovement(_previous: FormActionState, formData: FormD
 
 export async function updateMovement(_previous: FormActionState, formData: FormData): Promise<FormActionState> {
   let sourceId: string | undefined;
+  let fromLocationId: string;
+  let toLocationId: string;
   try {
     sourceId = await resolveSourceId(formData, "source");
+    fromLocationId = await resolveLocationId(formData, "fromLocation");
+    toLocationId = await resolveLocationId(formData, "toLocation");
   } catch (error) {
     return { status: "error", message: (error as Error).message };
   }
@@ -154,8 +167,8 @@ export async function updateMovement(_previous: FormActionState, formData: FormD
   const parsed = updateMovementInput.safeParse({
     id: formData.get("id"),
     sequence: Number(formData.get("sequence")),
-    fromLocation: formData.get("fromLocation"),
-    toLocation: formData.get("toLocation"),
+    fromLocationId,
+    toLocationId,
     departDate: formData.get("departDate"),
     departTime: optionalText(formData.get("departTime")),
     arriveDate: formData.get("arriveDate"),

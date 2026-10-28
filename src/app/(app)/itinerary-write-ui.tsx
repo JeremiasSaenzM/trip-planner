@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useId, useState } from "react";
 
-import type { BudgetLine, FlightOption, Movement, Source, Stay } from "@/lib/data/types";
+import type { BudgetLine, FlightOption, Location, Movement, Source, Stay } from "@/lib/data/types";
 import type { InfoState } from "@/lib/domain/types";
 
 import { formatAmount, formatDate, formatUnitAmount } from "./format";
@@ -96,6 +96,107 @@ function FlightOptionPicker({
   );
 }
 
+// A stay's location, or a movement's from/to location -- always
+// required, unlike SourcePicker/FlightOptionPicker, since every one of
+// these fields has to resolve to a real locations row (locations table,
+// 20261029090000). Same "pick existing, or add one inline" shape as
+// SourcePicker: submits "${name}Choice" (an existing location's id, or
+// the sentinel "__new__") plus "${name}New*" fields for the new-location
+// sub-form -- resolveLocationId() in location-actions.ts reads exactly
+// these names back off the FormData.
+function LocationPicker({
+  name,
+  label,
+  locations,
+  value,
+  onChange,
+}: {
+  name: string;
+  label: string;
+  locations: Location[];
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const sorted = [...locations].sort((a, b) => a.name.localeCompare(b.name));
+  const domId = useId();
+  // Same reasoning as SourcePicker's mustCreate: a required picker with
+  // no locations to pick from has exactly one path, so it starts there
+  // rather than on an empty, unselectable placeholder.
+  const mustCreate = sorted.length === 0;
+  const selected = mustCreate ? "__new__" : value;
+
+  const nameId = `${domId}-name`;
+  const fieldId = (field: string) => `${domId}-${field}`;
+  const labelledBy = (...fields: string[]) => [nameId, ...fields.map((field) => `${fieldId(field)}-label`)].join(" ");
+
+  return (
+    <div className="space-y-2 rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
+      <label htmlFor={domId} className={labelClass}>
+        <span id={nameId}>{label}</span>
+      </label>
+      <select
+        id={domId}
+        name={`${name}Choice`}
+        value={selected}
+        onChange={(event) => onChange(event.target.value)}
+        required
+        className={inputClass}
+      >
+        <option value="" disabled>
+          Choose a location
+        </option>
+        {sorted.map((location) => (
+          <option key={location.id} value={location.id}>
+            {location.name}
+            {location.timezone ? "" : " (no time zone yet)"}
+          </option>
+        ))}
+        <option value="__new__">Add a new location…</option>
+      </select>
+
+      {selected === "__new__" && (
+        <div className="space-y-2.5 border-t border-zinc-200 pt-2.5 dark:border-zinc-800">
+          <div className="space-y-1.5">
+            <label id={`${fieldId("name")}-label`} htmlFor={fieldId("name")} className={labelClass}>
+              Name
+            </label>
+            <input
+              id={fieldId("name")}
+              name={`${name}NewName`}
+              required
+              aria-labelledby={labelledBy("name")}
+              className={inputClass}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label id={`${fieldId("timezone")}-label`} htmlFor={fieldId("timezone")} className={labelClass}>
+              Time zone (optional, e.g. Europe/Paris)
+            </label>
+            <input
+              id={fieldId("timezone")}
+              name={`${name}NewTimezone`}
+              placeholder="Europe/Paris"
+              aria-labelledby={labelledBy("timezone")}
+              className={inputClass}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label id={`${fieldId("notes")}-label`} htmlFor={fieldId("notes")} className={labelClass}>
+              Notes (optional)
+            </label>
+            <input
+              id={fieldId("notes")}
+              name={`${name}NewNotes`}
+              aria-labelledby={labelledBy("notes")}
+              className={inputClass}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function InfoStateSelect({ id, defaultValue }: { id: string; defaultValue: InfoState }) {
   return (
     <select id={id} name="informationState" defaultValue={defaultValue} className={inputClass}>
@@ -115,25 +216,23 @@ export function AddStayForm({
   budgetLines,
   flightOptions,
   sources,
+  locations,
 }: {
   scenarioId: string;
   budgetLines: BudgetLine[];
   flightOptions: FlightOption[];
   sources: Source[];
+  locations: Location[];
 }) {
   const [state, formAction, pending] = useActionState(createStay, initialFormActionState);
   const [sourceChoice, setSourceChoice] = useState("");
+  const [locationChoice, setLocationChoice] = useState("");
 
   return (
     <form action={formAction} className="space-y-3">
       <input type="hidden" name="scenarioId" value={scenarioId} />
 
-      <div className="space-y-1.5">
-        <label htmlFor="stay-location" className={labelClass}>
-          Location
-        </label>
-        <input id="stay-location" name="location" required className={inputClass} />
-      </div>
+      <LocationPicker name="location" label="Location" locations={locations} value={locationChoice} onChange={setLocationChoice} />
 
       <div className="grid grid-cols-2 gap-2.5">
         <div className="space-y-1.5">
@@ -195,11 +294,13 @@ export function StayList({
   budgetLines,
   flightOptions,
   sources,
+  locations,
 }: {
   stays: Stay[];
   budgetLines: BudgetLine[];
   flightOptions: FlightOption[];
   sources: Source[];
+  locations: Location[];
 }) {
   if (stays.length === 0) {
     return <p className="text-sm text-zinc-500 dark:text-zinc-400">No stays recorded yet.</p>;
@@ -210,7 +311,14 @@ export function StayList({
   return (
     <div className="space-y-2" data-testid="stays-list">
       {sorted.map((stay) => (
-        <StayRow key={stay.id} stay={stay} budgetLines={budgetLines} flightOptions={flightOptions} sources={sources} />
+        <StayRow
+          key={stay.id}
+          stay={stay}
+          budgetLines={budgetLines}
+          flightOptions={flightOptions}
+          sources={sources}
+          locations={locations}
+        />
       ))}
     </div>
   );
@@ -221,11 +329,13 @@ function StayRow({
   budgetLines,
   flightOptions,
   sources,
+  locations,
 }: {
   stay: Stay;
   budgetLines: BudgetLine[];
   flightOptions: FlightOption[];
   sources: Source[];
+  locations: Location[];
 }) {
   const [mode, setMode] = useState<"view" | "edit" | "delete">("view");
   const [attempt, setAttempt] = useState(0);
@@ -236,6 +346,7 @@ function StayRow({
   }
 
   const budgetLine = stay.budgetLineId ? budgetLines.find((line) => line.id === stay.budgetLineId) : null;
+  const locationName = locations.find((l) => l.id === stay.locationId)?.name ?? stay.locationId;
 
   return (
     <div className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
@@ -243,7 +354,7 @@ function StayRow({
           by location through edit/delete too -- e2e locates a row by
           this text, which a swapped-in form wouldn't otherwise show. */}
       <p className="font-medium">
-        {stay.location} — {STAY_KIND_LABELS[stay.kind]}
+        {locationName} — {STAY_KIND_LABELS[stay.kind]}
       </p>
       {mode === "edit" ? (
         <EditStayForm
@@ -252,10 +363,11 @@ function StayRow({
           budgetLines={budgetLines}
           flightOptions={flightOptions}
           sources={sources}
+          locations={locations}
           onDone={() => setMode("view")}
         />
       ) : mode === "delete" ? (
-        <DeleteStayForm key={attempt} stay={stay} onDone={() => setMode("view")} />
+        <DeleteStayForm key={attempt} stay={stay} locationName={locationName} onDone={() => setMode("view")} />
       ) : (
         <>
           <p className="text-xs text-zinc-500 dark:text-zinc-400">
@@ -282,17 +394,20 @@ function EditStayForm({
   budgetLines,
   flightOptions,
   sources,
+  locations,
   onDone,
 }: {
   stay: Stay;
   budgetLines: BudgetLine[];
   flightOptions: FlightOption[];
   sources: Source[];
+  locations: Location[];
   onDone: () => void;
 }) {
   const [state, formAction, pending] = useActionState(updateStay, initialFormActionState);
   const formId = useId();
   const [sourceChoice, setSourceChoice] = useState(stay.sourceId ?? "");
+  const [locationChoice, setLocationChoice] = useState(stay.locationId);
 
   useEffect(() => {
     if (state.status === "success") onDone();
@@ -302,12 +417,13 @@ function EditStayForm({
     <form action={formAction} className="mt-2 space-y-2.5">
       <input type="hidden" name="id" value={stay.id} />
 
-      <div className="space-y-1.5">
-        <label htmlFor={`${formId}-location`} className={labelClass}>
-          New location
-        </label>
-        <input id={`${formId}-location`} name="location" required defaultValue={stay.location} className={inputClass} />
-      </div>
+      <LocationPicker
+        name="location"
+        label="New location"
+        locations={locations}
+        value={locationChoice}
+        onChange={setLocationChoice}
+      />
 
       <div className="grid grid-cols-2 gap-2.5">
         <div className="space-y-1.5">
@@ -392,14 +508,22 @@ function EditStayForm({
   );
 }
 
-function DeleteStayForm({ stay, onDone }: { stay: Stay; onDone: () => void }) {
+function DeleteStayForm({
+  stay,
+  locationName,
+  onDone,
+}: {
+  stay: Stay;
+  locationName: string;
+  onDone: () => void;
+}) {
   const [state, formAction, pending] = useActionState(deleteStay, initialFormActionState);
   const formId = useId();
 
   return (
     <form action={formAction} className="mt-2 space-y-2.5">
       <input type="hidden" name="id" value={stay.id} />
-      <p className="text-sm">Delete the stay in {stay.location}?</p>
+      <p className="text-sm">Delete the stay in {locationName}?</p>
       <div className="space-y-1.5">
         <label htmlFor={`${formId}-reason`} className={labelClass}>
           Reason for deleting this
@@ -426,14 +550,18 @@ export function AddMovementForm({
   budgetLines,
   flightOptions,
   sources,
+  locations,
 }: {
   scenarioId: string;
   budgetLines: BudgetLine[];
   flightOptions: FlightOption[];
   sources: Source[];
+  locations: Location[];
 }) {
   const [state, formAction, pending] = useActionState(createMovement, initialFormActionState);
   const [sourceChoice, setSourceChoice] = useState("");
+  const [fromLocationChoice, setFromLocationChoice] = useState("");
+  const [toLocationChoice, setToLocationChoice] = useState("");
 
   return (
     <form action={formAction} className="space-y-3">
@@ -447,18 +575,20 @@ export function AddMovementForm({
       </div>
 
       <div className="grid grid-cols-2 gap-2.5">
-        <div className="space-y-1.5">
-          <label htmlFor="movement-from" className={labelClass}>
-            From
-          </label>
-          <input id="movement-from" name="fromLocation" required className={inputClass} />
-        </div>
-        <div className="space-y-1.5">
-          <label htmlFor="movement-to" className={labelClass}>
-            To
-          </label>
-          <input id="movement-to" name="toLocation" required className={inputClass} />
-        </div>
+        <LocationPicker
+          name="fromLocation"
+          label="From"
+          locations={locations}
+          value={fromLocationChoice}
+          onChange={setFromLocationChoice}
+        />
+        <LocationPicker
+          name="toLocation"
+          label="To"
+          locations={locations}
+          value={toLocationChoice}
+          onChange={setToLocationChoice}
+        />
       </div>
 
       <div className="grid grid-cols-2 gap-2.5">
@@ -543,11 +673,13 @@ export function MovementList({
   budgetLines,
   flightOptions,
   sources,
+  locations,
 }: {
   movements: Movement[];
   budgetLines: BudgetLine[];
   flightOptions: FlightOption[];
   sources: Source[];
+  locations: Location[];
 }) {
   if (movements.length === 0) {
     return <p className="text-sm text-zinc-500 dark:text-zinc-400">No movements recorded yet.</p>;
@@ -564,6 +696,7 @@ export function MovementList({
           budgetLines={budgetLines}
           flightOptions={flightOptions}
           sources={sources}
+          locations={locations}
         />
       ))}
     </div>
@@ -575,11 +708,13 @@ function MovementRow({
   budgetLines,
   flightOptions,
   sources,
+  locations,
 }: {
   movement: Movement;
   budgetLines: BudgetLine[];
   flightOptions: FlightOption[];
   sources: Source[];
+  locations: Location[];
 }) {
   const [mode, setMode] = useState<"view" | "edit" | "delete">("view");
   const [attempt, setAttempt] = useState(0);
@@ -590,6 +725,8 @@ function MovementRow({
   }
 
   const budgetLine = movement.budgetLineId ? budgetLines.find((line) => line.id === movement.budgetLineId) : null;
+  const fromLocationName = locations.find((l) => l.id === movement.fromLocationId)?.name ?? movement.fromLocationId;
+  const toLocationName = locations.find((l) => l.id === movement.toLocationId)?.name ?? movement.toLocationId;
 
   return (
     <div className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
@@ -597,7 +734,7 @@ function MovementRow({
           by its route through edit/delete too -- e2e locates a row by
           this text, which a swapped-in form wouldn't otherwise show. */}
       <p className="font-medium">
-        {movement.sequence}. {movement.fromLocation} → {movement.toLocation} ({MOVEMENT_MODE_LABELS[movement.mode]})
+        {movement.sequence}. {fromLocationName} → {toLocationName} ({MOVEMENT_MODE_LABELS[movement.mode]})
       </p>
       {mode === "edit" ? (
         <EditMovementForm
@@ -606,10 +743,17 @@ function MovementRow({
           budgetLines={budgetLines}
           flightOptions={flightOptions}
           sources={sources}
+          locations={locations}
           onDone={() => setMode("view")}
         />
       ) : mode === "delete" ? (
-        <DeleteMovementForm key={attempt} movement={movement} onDone={() => setMode("view")} />
+        <DeleteMovementForm
+          key={attempt}
+          movement={movement}
+          fromLocationName={fromLocationName}
+          toLocationName={toLocationName}
+          onDone={() => setMode("view")}
+        />
       ) : (
         <>
           <p className="text-xs text-zinc-500 dark:text-zinc-400">
@@ -636,17 +780,21 @@ function EditMovementForm({
   budgetLines,
   flightOptions,
   sources,
+  locations,
   onDone,
 }: {
   movement: Movement;
   budgetLines: BudgetLine[];
   flightOptions: FlightOption[];
   sources: Source[];
+  locations: Location[];
   onDone: () => void;
 }) {
   const [state, formAction, pending] = useActionState(updateMovement, initialFormActionState);
   const formId = useId();
   const [sourceChoice, setSourceChoice] = useState(movement.sourceId ?? "");
+  const [fromLocationChoice, setFromLocationChoice] = useState(movement.fromLocationId);
+  const [toLocationChoice, setToLocationChoice] = useState(movement.toLocationId);
 
   useEffect(() => {
     if (state.status === "success") onDone();
@@ -672,24 +820,20 @@ function EditMovementForm({
       </div>
 
       <div className="grid grid-cols-2 gap-2.5">
-        <div className="space-y-1.5">
-          <label htmlFor={`${formId}-from`} className={labelClass}>
-            New from
-          </label>
-          <input
-            id={`${formId}-from`}
-            name="fromLocation"
-            required
-            defaultValue={movement.fromLocation}
-            className={inputClass}
-          />
-        </div>
-        <div className="space-y-1.5">
-          <label htmlFor={`${formId}-to`} className={labelClass}>
-            New to
-          </label>
-          <input id={`${formId}-to`} name="toLocation" required defaultValue={movement.toLocation} className={inputClass} />
-        </div>
+        <LocationPicker
+          name="fromLocation"
+          label="New from"
+          locations={locations}
+          value={fromLocationChoice}
+          onChange={setFromLocationChoice}
+        />
+        <LocationPicker
+          name="toLocation"
+          label="New to"
+          locations={locations}
+          value={toLocationChoice}
+          onChange={setToLocationChoice}
+        />
       </div>
 
       <div className="grid grid-cols-2 gap-2.5">
@@ -820,7 +964,17 @@ function EditMovementForm({
   );
 }
 
-function DeleteMovementForm({ movement, onDone }: { movement: Movement; onDone: () => void }) {
+function DeleteMovementForm({
+  movement,
+  fromLocationName,
+  toLocationName,
+  onDone,
+}: {
+  movement: Movement;
+  fromLocationName: string;
+  toLocationName: string;
+  onDone: () => void;
+}) {
   const [state, formAction, pending] = useActionState(deleteMovement, initialFormActionState);
   const formId = useId();
 
@@ -828,7 +982,7 @@ function DeleteMovementForm({ movement, onDone }: { movement: Movement; onDone: 
     <form action={formAction} className="mt-2 space-y-2.5">
       <input type="hidden" name="id" value={movement.id} />
       <p className="text-sm">
-        Delete the movement {movement.fromLocation} → {movement.toLocation}?
+        Delete the movement {fromLocationName} → {toLocationName}?
       </p>
       <div className="space-y-1.5">
         <label htmlFor={`${formId}-reason`} className={labelClass}>

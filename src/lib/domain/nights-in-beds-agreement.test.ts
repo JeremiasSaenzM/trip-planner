@@ -15,8 +15,8 @@ import { checkStayNightsMatchWindow } from "./check-stay-nights-match-window";
 describe("the nights-in-beds checks agree with each other", () => {
   it("agrees for a scenario with an overnight movement crossing midnight", () => {
     const movements = [
-      { sequence: 1, fromLocation: "Home", toLocation: "Away", departDate: "2027-07-02", arriveDate: "2027-07-03" },
-      { sequence: 2, fromLocation: "Away", toLocation: "Home", departDate: "2027-07-14", arriveDate: "2027-07-14" },
+      { sequence: 1, fromLocationId: "Home", toLocationId: "Away", departDate: "2027-07-02", arriveDate: "2027-07-03" },
+      { sequence: 2, fromLocationId: "Away", toLocationId: "Home", departDate: "2027-07-14", arriveDate: "2027-07-14" },
     ];
     const stays = [{ nights: 11 }];
     const tripDepartureDate = "2027-07-02";
@@ -29,7 +29,7 @@ describe("the nights-in-beds checks agree with each other", () => {
       tripDepartureDate,
       tripReturnDate,
     });
-    const unaccounted = checkNightsAccountedFor(movements, [{ location: "Away", startDate: "2027-07-03", nights: 11 }]);
+    const unaccounted = checkNightsAccountedFor(movements, [{ locationId: "Away", startDate: "2027-07-03", nights: 11 }]);
 
     expect(stayCheck).toEqual({ status: "ok" });
     expect(linesCheck).toEqual({ status: "ok" });
@@ -40,8 +40,8 @@ describe("the nights-in-beds checks agree with each other", () => {
 
   it("agrees when a scenario's nights genuinely don't add up", () => {
     const movements = [
-      { sequence: 1, fromLocation: "Home", toLocation: "Away", departDate: "2027-07-02", arriveDate: "2027-07-03" },
-      { sequence: 2, fromLocation: "Away", toLocation: "Home", departDate: "2027-07-14", arriveDate: "2027-07-14" },
+      { sequence: 1, fromLocationId: "Home", toLocationId: "Away", departDate: "2027-07-02", arriveDate: "2027-07-03" },
+      { sequence: 2, fromLocationId: "Away", toLocationId: "Home", departDate: "2027-07-14", arriveDate: "2027-07-14" },
     ];
     const tripDepartureDate = "2027-07-02";
     const tripReturnDate = "2027-07-14";

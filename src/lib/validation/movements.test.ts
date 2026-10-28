@@ -6,8 +6,8 @@ describe("createMovementInput", () => {
   const BASE = {
     scenarioId: "11111111-1111-4111-8111-111111111111",
     sequence: 1,
-    fromLocation: "Madrid",
-    toLocation: "Fontvieux",
+    fromLocationId: "22222222-2222-4222-8222-222222222222",
+    toLocationId: "33333333-3333-4333-8333-333333333333",
     departDate: "2027-07-04",
     arriveDate: "2027-07-04",
     mode: "plane" as const,
@@ -28,9 +28,9 @@ describe("createMovementInput", () => {
     expect(result.success).toBe(false);
   });
 
-  it("rejects a blank from/to location", () => {
-    expect(createMovementInput.safeParse({ ...BASE, fromLocation: " " }).success).toBe(false);
-    expect(createMovementInput.safeParse({ ...BASE, toLocation: " " }).success).toBe(false);
+  it("rejects a malformed from/to locationId -- a movement always references real location rows now", () => {
+    expect(createMovementInput.safeParse({ ...BASE, fromLocationId: "Madrid" }).success).toBe(false);
+    expect(createMovementInput.safeParse({ ...BASE, toLocationId: "Fontvieux" }).success).toBe(false);
   });
 
   it("rejects an unrecognised mode", () => {
@@ -42,8 +42,8 @@ describe("updateMovementInput", () => {
   const BASE = {
     id: "11111111-1111-4111-8111-111111111111",
     sequence: 1,
-    fromLocation: "Madrid",
-    toLocation: "Fontvieux",
+    fromLocationId: "22222222-2222-4222-8222-222222222222",
+    toLocationId: "33333333-3333-4333-8333-333333333333",
     departDate: "2027-07-04",
     arriveDate: "2027-07-04",
     mode: "plane" as const,

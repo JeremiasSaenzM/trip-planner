@@ -255,10 +255,26 @@ export type FlightSegment = {
 // 20261023090000_stays_movements.sql for the reasoning behind storing
 // movements rather than deriving them from stays, and for why
 // source_id is nullable on both with nothing enforcing it yet.
+// A named place with its own IANA time zone, reused across every stay
+// and movement that refers to it (and, since this is owner_id-scoped
+// rather than trip_id-scoped, across every trip -- "Home" is entered
+// once, not once per trip). timezone is nullable: it can't be derived
+// from a name, so a freshly-backfilled location starts without one,
+// and the app has to say so rather than guess.
+export type Location = {
+  id: string;
+  ownerId: string;
+  name: string;
+  timezone: string | null;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type Stay = {
   id: string;
   scenarioId: string;
-  location: string;
+  locationId: string;
   startDate: string;
   nights: number;
   kind: StayKind;
@@ -280,8 +296,8 @@ export type Movement = {
   /** Explicit order along the home-to-home chain -- not derived from
    * the dates, since two legs on the same day still need an order. */
   sequence: number;
-  fromLocation: string;
-  toLocation: string;
+  fromLocationId: string;
+  toLocationId: string;
   departDate: string;
   /** Local time of day, HH:MM:SS -- null until it's known. */
   departTime: string | null;
@@ -342,7 +358,9 @@ export type ProposalOp =
   | "update_movement"
   | "create_flight_option"
   | "create_flight_segment"
-  | "update_flight_option";
+  | "update_flight_option"
+  | "create_location"
+  | "update_location";
 export type ProposalStatus = "pending" | "approved" | "rejected";
 
 export type ProposalBatch = {
@@ -522,8 +540,17 @@ export type UpdateBudgetLineWrite = {
 };
 export type DeleteBudgetLineWrite = { id: string; reason: string };
 
+type LocationFieldsWrite = {
+  name: string;
+  timezone?: string;
+  notes?: string;
+};
+export type CreateLocationWrite = LocationFieldsWrite;
+export type UpdateLocationWrite = LocationFieldsWrite & { id: string; reason: string };
+export type DeleteLocationWrite = { id: string; reason: string };
+
 type StayFieldsWrite = {
-  location: string;
+  locationId: string;
   startDate: string;
   nights: number;
   kind: StayKind;
@@ -539,8 +566,8 @@ export type DeleteStayWrite = { id: string; reason: string };
 
 type MovementFieldsWrite = {
   sequence: number;
-  fromLocation: string;
-  toLocation: string;
+  fromLocationId: string;
+  toLocationId: string;
   departDate: string;
   departTime?: string;
   arriveDate: string;
@@ -683,6 +710,7 @@ export type DataSource = {
   getFlightSegments(): Promise<FlightSegment[]>;
   getStays(): Promise<Stay[]>;
   getMovements(): Promise<Movement[]>;
+  getLocations(): Promise<Location[]>;
   getChangeLog(): Promise<ChangeLogEntry[]>;
   getProposalBatches(): Promise<ProposalBatch[]>;
   getProposalItems(): Promise<ProposalItem[]>;
@@ -715,6 +743,9 @@ export type DataSource = {
   createMovement(input: CreateMovementWrite): Promise<Movement>;
   updateMovement(input: UpdateMovementWrite): Promise<Movement>;
   deleteMovement(input: DeleteMovementWrite): Promise<void>;
+  createLocation(input: CreateLocationWrite): Promise<Location>;
+  updateLocation(input: UpdateLocationWrite): Promise<Location>;
+  deleteLocation(input: DeleteLocationWrite): Promise<void>;
   createFlightOption(input: CreateFlightOptionWrite): Promise<FlightOption>;
   updateFlightOption(input: UpdateFlightOptionWrite): Promise<FlightOption>;
   deleteFlightOption(input: DeleteFlightOptionWrite): Promise<void>;

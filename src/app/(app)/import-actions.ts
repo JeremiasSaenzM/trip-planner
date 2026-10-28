@@ -50,6 +50,7 @@ async function loadRows(): Promise<ReviewRows & { tripId: string | null }> {
     movements,
     flightOptions,
     flightSegments,
+    locations,
   ] = await Promise.all([
     dataSource.getTrips(),
     dataSource.getSources(),
@@ -63,6 +64,7 @@ async function loadRows(): Promise<ReviewRows & { tripId: string | null }> {
     dataSource.getMovements(),
     dataSource.getFlightOptions(),
     dataSource.getFlightSegments(),
+    dataSource.getLocations(),
   ]);
   return {
     tripId: trips[0]?.id ?? null,
@@ -77,6 +79,7 @@ async function loadRows(): Promise<ReviewRows & { tripId: string | null }> {
     movements,
     flightOptions,
     flightSegments,
+    locations,
   };
 }
 

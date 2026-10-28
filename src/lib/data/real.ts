@@ -12,6 +12,7 @@ import type {
   FlightOption,
   FlightSegment,
   FxRate,
+  Location,
   Movement,
   OpenItem,
   Payment,
@@ -173,11 +174,23 @@ function mapBudgetLineRow(row: Record<string, unknown>): BudgetLine {
   };
 }
 
+function mapLocationRow(row: Record<string, unknown>): Location {
+  return {
+    id: row.id as string,
+    ownerId: row.owner_id as string,
+    name: row.name as string,
+    timezone: row.timezone as string | null,
+    notes: row.notes as string | null,
+    createdAt: row.created_at as string,
+    updatedAt: row.updated_at as string,
+  };
+}
+
 function mapStayRow(row: Record<string, unknown>): Stay {
   return {
     id: row.id as string,
     scenarioId: row.scenario_id as string,
-    location: row.location as string,
+    locationId: row.location_id as string,
     startDate: row.start_date as string,
     nights: row.nights as number,
     kind: row.kind as Stay["kind"],
@@ -196,8 +209,8 @@ function mapMovementRow(row: Record<string, unknown>): Movement {
     id: row.id as string,
     scenarioId: row.scenario_id as string,
     sequence: row.sequence as number,
-    fromLocation: row.from_location as string,
-    toLocation: row.to_location as string,
+    fromLocationId: row.from_location_id as string,
+    toLocationId: row.to_location_id as string,
     departDate: row.depart_date as string,
     departTime: row.depart_time as string | null,
     arriveDate: row.arrive_date as string,
@@ -422,6 +435,13 @@ export const realDataSource: DataSource = {
     const { data, error } = await supabase.from("movements").select("*");
     if (error) throw error;
     return (data ?? []).map(mapMovementRow);
+  },
+
+  async getLocations() {
+    const supabase = await createClient();
+    const { data, error } = await supabase.from("locations").select("*");
+    if (error) throw error;
+    return (data ?? []).map(mapLocationRow);
   },
 
   // Read-only: change_log has no owner write policy at all (only the
@@ -882,7 +902,7 @@ export const realDataSource: DataSource = {
       .from("stays")
       .insert({
         scenario_id: input.scenarioId,
-        location: input.location,
+        location_id: input.locationId,
         start_date: input.startDate,
         nights: input.nights,
         kind: input.kind,
@@ -903,7 +923,7 @@ export const realDataSource: DataSource = {
     const supabase = await createClient();
     const { data, error } = await supabase.rpc("update_stay", {
       p_id: input.id,
-      p_location: input.location,
+      p_location_id: input.locationId,
       p_start_date: input.startDate,
       p_nights: input.nights,
       p_kind: input.kind,
@@ -936,8 +956,8 @@ export const realDataSource: DataSource = {
       .insert({
         scenario_id: input.scenarioId,
         sequence: input.sequence,
-        from_location: input.fromLocation,
-        to_location: input.toLocation,
+        from_location_id: input.fromLocationId,
+        to_location_id: input.toLocationId,
         depart_date: input.departDate,
         depart_time: input.departTime ?? null,
         arrive_date: input.arriveDate,
@@ -962,8 +982,8 @@ export const realDataSource: DataSource = {
     const { data, error } = await supabase.rpc("update_movement", {
       p_id: input.id,
       p_sequence: input.sequence,
-      p_from_location: input.fromLocation,
-      p_to_location: input.toLocation,
+      p_from_location_id: input.fromLocationId,
+      p_to_location_id: input.toLocationId,
       p_depart_date: input.departDate,
       p_depart_time: input.departTime ?? null,
       p_arrive_date: input.arriveDate,
@@ -985,6 +1005,51 @@ export const realDataSource: DataSource = {
     assertWritesAllowed();
     const supabase = await createClient();
     const { error } = await supabase.rpc("delete_movement", {
+      p_id: input.id,
+      p_reason: input.reason,
+    });
+    if (error) throw error;
+  },
+
+  // Also a plain insert -- same reasoning as createStay/createBudgetLine.
+  async createLocation(input) {
+    assertWritesAllowed();
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("locations")
+      .insert({
+        name: input.name,
+        timezone: input.timezone ?? null,
+        notes: input.notes ?? null,
+      })
+      .select("*")
+      .single();
+    if (error) throw error;
+    return mapLocationRow(data);
+  },
+
+  async updateLocation(input) {
+    assertWritesAllowed();
+    const supabase = await createClient();
+    const { data, error } = await supabase.rpc("update_location", {
+      p_id: input.id,
+      p_name: input.name,
+      p_timezone: input.timezone ?? null,
+      p_notes: input.notes ?? null,
+      p_reason: input.reason,
+    });
+    if (error) throw error;
+    return mapLocationRow(data as Record<string, unknown>);
+  },
+
+  // The FK (locations referenced by stays/movements, no cascade or
+  // set-null) is what makes this safe to offer at all: delete_location
+  // refuses, naming the referencing row, rather than letting a bare
+  // foreign-key violation surface (20261029090100).
+  async deleteLocation(input) {
+    assertWritesAllowed();
+    const supabase = await createClient();
+    const { error } = await supabase.rpc("delete_location", {
       p_id: input.id,
       p_reason: input.reason,
     });

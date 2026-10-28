@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 
 import { getCurrentUser } from "@/lib/auth";
-import type { BudgetLine, Competition, Movement, Trip } from "@/lib/data/types";
+import type { BudgetLine, Competition, Location, Movement, Trip } from "@/lib/data/types";
 import type { InfoState } from "@/lib/domain/types";
 
 import { countDaysOnGround, type ItineraryDay } from "@/lib/domain/build-itinerary-timeline";
@@ -52,7 +52,7 @@ async function ScenarioOverview({ searchParams }: { searchParams: PageProps<"/sc
   if (data.status === "no_trip") return <EmptyState>No trip yet. Start one from Overview.</EmptyState>;
   if (data.status === "no_scenario") return <EmptyState>No scenario yet for this trip.</EmptyState>;
 
-  const { trip, scenario, competition, rollup, savings, departure, pots, budgetLines, sources } = data;
+  const { trip, scenario, competition, rollup, savings, departure, pots, budgetLines, sources, locations } = data;
   const binding = savings?.bindingRequirement[data.basis] ?? null;
   const evidence = summarizeBudgetEvidence(budgetLines, sources);
 
@@ -117,7 +117,7 @@ async function ScenarioOverview({ searchParams }: { searchParams: PageProps<"/sc
           <div className="mt-4">
             <CardLabel>Night by night</CardLabel>
             <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">{daysAwayText(data.movements)}</p>
-            <ItineraryStrip days={data.itineraryTimeline} />
+            <ItineraryStrip days={data.itineraryTimeline} locations={locations} />
           </div>
         </Card>
 
@@ -129,6 +129,7 @@ async function ScenarioOverview({ searchParams }: { searchParams: PageProps<"/sc
               budgetLines={data.budgetLines}
               flightOptions={data.flightOptions}
               sources={data.sources}
+              locations={locations}
             />
           </div>
           <div className="mt-4 border-t border-zinc-200 pt-4 dark:border-zinc-800">
@@ -137,6 +138,7 @@ async function ScenarioOverview({ searchParams }: { searchParams: PageProps<"/sc
               budgetLines={data.budgetLines}
               flightOptions={data.flightOptions}
               sources={data.sources}
+              locations={locations}
             />
           </div>
         </Card>
@@ -149,6 +151,7 @@ async function ScenarioOverview({ searchParams }: { searchParams: PageProps<"/sc
               budgetLines={data.budgetLines}
               flightOptions={data.flightOptions}
               sources={data.sources}
+              locations={locations}
             />
           </div>
           <div className="mt-4 border-t border-zinc-200 pt-4 dark:border-zinc-800">
@@ -157,6 +160,7 @@ async function ScenarioOverview({ searchParams }: { searchParams: PageProps<"/sc
               budgetLines={data.budgetLines}
               flightOptions={data.flightOptions}
               sources={data.sources}
+              locations={locations}
             />
           </div>
         </Card>
@@ -412,7 +416,9 @@ function ItineraryChecks({ data }: { data: Extract<DashboardData, { status: "rea
     budgetLineMatchesStay,
     budgetLineNightsAddUp,
     budgetLineDaysAddUp,
+    locations,
   } = data;
+  const locationName = (locationId: string) => locations.find((l) => l.id === locationId)?.name ?? locationId;
 
   const nothingToReport =
     stayNightsCheck.status !== "mismatch" &&
@@ -453,7 +459,7 @@ function ItineraryChecks({ data }: { data: Extract<DashboardData, { status: "rea
           {pathContinuityIssues
             .map(
               (issue) =>
-                `#${issue.sequence} starts from ${issue.actualFromLocation}, not ${issue.expectedFromLocation}`,
+                `#${issue.sequence} starts from ${locationName(issue.actualFromLocationId)}, not ${locationName(issue.expectedFromLocationId)}`,
             )
             .join("; ")}
           .
@@ -462,7 +468,7 @@ function ItineraryChecks({ data }: { data: Extract<DashboardData, { status: "rea
       {unaccountedNights.length > 0 && (
         <Caveat>
           {unaccountedNights.length} night{unaccountedNights.length === 1 ? "" : "s"} with no stay recorded:{" "}
-          {unaccountedNights.map((night) => `${formatDate(night.date)} (${night.requiredLocation})`).join(", ")}.
+          {unaccountedNights.map((night) => `${formatDate(night.date)} (${locationName(night.requiredLocationId)})`).join(", ")}.
         </Caveat>
       )}
       {movementsMissingBudgetLine.length > 0 && (
@@ -509,8 +515,13 @@ function ItineraryChecks({ data }: { data: Extract<DashboardData, { status: "rea
 }
 
 // Generated, never typed in -- buildItineraryTimeline() walks the
-// movement chain once; this just renders what comes back.
-function ItineraryStrip({ days }: { days: ItineraryDay<Movement>[] }) {
+// movement chain once; this just renders what comes back, resolving
+// each location id to a display name through the lookup passed in --
+// buildItineraryTimeline itself never does this (see its own header
+// comment: comparing by id, never by name, is the point).
+function ItineraryStrip({ days, locations }: { days: ItineraryDay<Movement>[]; locations: Location[] }) {
+  const locationName = (locationId: string) => locations.find((l) => l.id === locationId)?.name ?? locationId;
+
   if (days.length === 0) {
     return <Missing>No movements recorded yet, so there&apos;s nothing to walk night by night.</Missing>;
   }
@@ -526,13 +537,14 @@ function ItineraryStrip({ days }: { days: ItineraryDay<Movement>[] }) {
               {day.movements.map((movement, index) => (
                 <span key={movement.id}>
                   {index > 0 ? " → " : ""}
-                  {movement.fromLocation} → {movement.toLocation} ({MOVEMENT_MODE_LABELS[movement.mode]})
+                  {locationName(movement.fromLocationId)} → {locationName(movement.toLocationId)} (
+                  {MOVEMENT_MODE_LABELS[movement.mode]})
                 </span>
               ))}
             </span>
           )}
           <span className="ml-1 text-zinc-500 dark:text-zinc-400">
-            {day.night.type === "at" && `Night: ${day.night.location}.`}
+            {day.night.type === "at" && `Night: ${locationName(day.night.locationId)}.`}
             {day.night.type === "in_transit" && "Night: overnight travel."}
             {day.night.type === "home" && "Home."}
           </span>

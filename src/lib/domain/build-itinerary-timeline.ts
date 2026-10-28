@@ -2,21 +2,21 @@ import { DateTime } from "luxon";
 
 export type TimelineMovement = {
   sequence: number;
-  fromLocation: string;
-  toLocation: string;
+  fromLocationId: string;
+  toLocationId: string;
   departDate: string;
   arriveDate: string;
 };
 
 export type TimelineStay = {
-  location: string;
+  locationId: string;
   startDate: string;
   nights: number;
 };
 
 export type ItineraryNight =
   | { type: "in_transit" }
-  | { type: "at"; location: string }
+  | { type: "at"; locationId: string }
   // The day of the final arrival home -- there's no trip night left to
   // account for, so it's neither in transit nor at a destination.
   | { type: "home" };
@@ -31,13 +31,13 @@ export type ItineraryDay<M extends TimelineMovement = TimelineMovement> = {
 
 export type PathContinuityIssue = {
   sequence: number;
-  expectedFromLocation: string;
-  actualFromLocation: string;
+  expectedFromLocationId: string;
+  actualFromLocationId: string;
 };
 
 export type UnaccountedNight = {
   date: string;
-  requiredLocation: string;
+  requiredLocationId: string;
 };
 
 function sortBySequence<M extends TimelineMovement>(movements: M[]): M[] {
@@ -84,6 +84,11 @@ function transitNightDates(movements: TimelineMovement[]): Set<string> {
  * movement landed (the gap between one movement's arrival and the
  * next one's departure), or -- for the single day of the final
  * arrival -- home, with no trip night left to account for.
+ *
+ * Everything here compares by location id, never by name: two cells
+ * reading the same place must compare equal regardless of how its
+ * name is later rendered (the exact duplication locations, 20261029090000,
+ * exists to remove). Display names are the caller's concern.
  */
 export function buildItineraryTimeline<M extends TimelineMovement>(movements: M[]): ItineraryDay<M>[] {
   if (movements.length === 0) return [];
@@ -101,7 +106,7 @@ export function buildItineraryTimeline<M extends TimelineMovement>(movements: M[
     const current = sorted[i];
     const next = sorted[i + 1];
     for (const date of datesBetween(current.arriveDate, next.departDate)) {
-      nightByDate.set(date, { type: "at", location: current.toLocation });
+      nightByDate.set(date, { type: "at", locationId: current.toLocationId });
     }
   }
   nightByDate.set(last.arriveDate, { type: "home" });
@@ -180,8 +185,8 @@ export function countDaysOnGround(movements: TimelineMovement[]): number {
 }
 
 /**
- * Check 3: each movement's from_location has to match the previous
- * movement's to_location -- the chain never teleports. Only compares
+ * Check 3: each movement's from-location has to match the previous
+ * movement's to-location -- the chain never teleports. Only compares
  * adjacent pairs, in sequence order; a chain of one movement has
  * nothing to compare.
  */
@@ -192,11 +197,11 @@ export function checkPathContinuity(movements: TimelineMovement[]): PathContinui
   for (let i = 1; i < sorted.length; i++) {
     const previous = sorted[i - 1];
     const current = sorted[i];
-    if (current.fromLocation !== previous.toLocation) {
+    if (current.fromLocationId !== previous.toLocationId) {
       issues.push({
         sequence: current.sequence,
-        expectedFromLocation: previous.toLocation,
-        actualFromLocation: current.fromLocation,
+        expectedFromLocationId: previous.toLocationId,
+        actualFromLocationId: current.fromLocationId,
       });
     }
   }
@@ -221,13 +226,13 @@ export function checkNightsAccountedFor(movements: TimelineMovement[], stays: Ti
     if (night.type !== "at") continue;
 
     const covered = stays.some((stay) => {
-      if (stay.location !== night.location) return false;
+      if (stay.locationId !== night.locationId) return false;
       const end = DateTime.fromISO(stay.startDate, { zone: "utc" }).plus({ days: stay.nights }).toISODate() as string;
       return day.date >= stay.startDate && day.date < end;
     });
 
     if (!covered) {
-      issues.push({ date: day.date, requiredLocation: night.location });
+      issues.push({ date: day.date, requiredLocationId: night.locationId });
     }
   }
 

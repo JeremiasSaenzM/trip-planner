@@ -34,6 +34,8 @@ export const OP_LABELS: Record<ProposalOp, string> = {
   create_flight_option: "New flight option",
   create_flight_segment: "New flight segment",
   update_flight_option: "Change flight option",
+  create_location: "New location",
+  update_location: "Change location",
 };
 
 const FIELD_LABELS: Record<string, string> = {

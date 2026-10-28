@@ -23,13 +23,17 @@ insert into scenarios (id, owner_id, trip_id, name, competition_id) values (
 insert into sources (id, owner_id, provider, tier, observed_on) values (
   '12000000-0000-0000-0000-000000000004', '10000000-0000-0000-0000-000000000001', 'pgTAP fare source', 2, '2026-10-01'
 );
-insert into stays (id, owner_id, scenario_id, location, start_date, nights, kind, information_state) values (
+insert into locations (id, owner_id, name) values
+  ('12000000-0000-0000-0000-00000000000a', '10000000-0000-0000-0000-000000000001', 'Testville'),
+  ('12000000-0000-0000-0000-00000000000b', '10000000-0000-0000-0000-000000000001', 'Home');
+insert into stays (id, owner_id, scenario_id, location_id, start_date, nights, kind, information_state) values (
   '12000000-0000-0000-0000-000000000005', '10000000-0000-0000-0000-000000000001',
-  '12000000-0000-0000-0000-000000000003', 'Testville', '2027-07-01', 5, 'festival', 'estimate'
+  '12000000-0000-0000-0000-000000000003', '12000000-0000-0000-0000-00000000000a', '2027-07-01', 5, 'festival', 'estimate'
 );
-insert into movements (id, owner_id, scenario_id, sequence, from_location, to_location, depart_date, arrive_date, mode, information_state) values (
+insert into movements (id, owner_id, scenario_id, sequence, from_location_id, to_location_id, depart_date, arrive_date, mode, information_state) values (
   '12000000-0000-0000-0000-000000000006', '10000000-0000-0000-0000-000000000001',
-  '12000000-0000-0000-0000-000000000003', 1, 'Home', 'Testville', '2027-07-01', '2027-07-01', 'plane', 'estimate'
+  '12000000-0000-0000-0000-000000000003', 1, '12000000-0000-0000-0000-00000000000b', '12000000-0000-0000-0000-00000000000a',
+  '2027-07-01', '2027-07-01', 'plane', 'estimate'
 );
 insert into flight_options (id, owner_id, scenario_id, label, fare, currency, source_id, observed_on) values (
   '12000000-0000-0000-0000-000000000007', '10000000-0000-0000-0000-000000000001',
@@ -142,7 +146,7 @@ select is(
 
 select lives_ok(
   $$ select update_stay(
-       '12000000-0000-0000-0000-000000000005', 'Testville', '2027-07-01', 5, 'festival',
+       '12000000-0000-0000-0000-000000000005', '12000000-0000-0000-0000-00000000000a', '2027-07-01', 5, 'festival',
        null, 'estimate', null, null, '12000000-0000-0000-0000-000000000007', 'pgTAP: linking the flight'
      ) $$,
   'update_stay accepts a flight_option_id'
@@ -154,7 +158,8 @@ select results_eq(
 );
 select lives_ok(
   $$ select update_movement(
-       '12000000-0000-0000-0000-000000000006', 1, 'Home', 'Testville', '2027-07-01', null, '2027-07-01', null,
+       '12000000-0000-0000-0000-000000000006', 1, '12000000-0000-0000-0000-00000000000b', '12000000-0000-0000-0000-00000000000a',
+       '2027-07-01', null, '2027-07-01', null,
        'plane', null, null, 'estimate', null, null, '12000000-0000-0000-0000-000000000007', 'pgTAP: linking the flight'
      ) $$,
   'update_movement accepts a flight_option_id'

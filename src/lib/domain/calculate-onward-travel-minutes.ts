@@ -2,8 +2,14 @@ import { DateTime } from "luxon";
 
 export type OnwardTravelMovement = {
   sequence: number;
-  fromLocation: string;
-  toLocation: string;
+  fromLocationId: string;
+  toLocationId: string;
+  // The IANA zone of fromLocationId/toLocationId respectively, resolved
+  // by the caller (flight-evaluation.ts) from the locations table --
+  // this file only ever sees ids and zones, never a lookup. Null when
+  // that location doesn't have a zone recorded yet.
+  fromZone: string | null;
+  toZone: string | null;
   departDate: string;
   departTime: string | null;
   arriveDate: string;
@@ -15,34 +21,24 @@ export type CalculateOnwardTravelMinutesInput = {
   flightOptionId: string;
   /** This scenario's full movement chain, any order. */
   movements: OnwardTravelMovement[];
-  /** The festival-kind stay's location, i.e. "actually being at the
+  /** The festival-kind stay's location id, i.e. "actually being at the
    * destination" per hard constraint 2 -- null when no festival-kind
    * stay is recorded yet. */
-  festivalStayLocation: string | null;
+  festivalStayLocationId: string | null;
 };
 
 export type OnwardTravelResult =
   | { status: "unknown"; reason: string }
-  | { status: "known"; minutes: number; caveat: string }
-  | { status: "bounded"; minMinutes: number; maxMinutes: number; caveat: string };
+  | { status: "known"; minutes: number }
+  | { status: "bounded"; minMinutes: number; maxMinutes: number };
 
-// Movements carry naive local clock times with no time zone of their
-// own (20261023090000_stays_movements.sql) -- unlike flight_segments,
-// which are real timestamptz. Walking this chain to a time difference
-// is a plain clock subtraction, with no way to tell whether a time zone
-// was silently crossed along the way. If one was, crossed WESTWARD
-// (clocks go back) it UNDERSTATES the true elapsed time -- the unsafe
-// direction for an arrive-in-time check, since it makes a late arrival
-// look on time. Crossed EASTWARD (clocks go forward) it OVERSTATES it --
-// safe, in that it can only make this check stricter than reality, never
-// more lenient. There is nothing in this data to say whether either
-// happened, so this is stated every time a number comes back, not only
-// when a crossing is suspected -- a check that can't be certain should
-// say which way it's uncertain, not stay silent about it.
-export const NAIVE_LOCAL_TIME_CAVEAT =
-  "Computed from these movements' own local clock times, which carry no time zone. If this leg " +
-  "crosses a time zone boundary travelling west, this understates elapsed travel time -- the unsafe " +
-  "direction for this check. Travelling east, it overstates it, which is safe here.";
+function zonedEarliest(date: string, time: string | null, zone: string): DateTime {
+  return earliestPossibleInstant(date, time).setZone(zone, { keepLocalTime: true });
+}
+
+function zonedLatest(date: string, time: string | null, zone: string): DateTime {
+  return latestPossibleInstant(date, time).setZone(zone, { keepLocalTime: true });
+}
 
 function toLocalInstant(date: string, time: string): DateTime {
   return DateTime.fromISO(`${date}T${time}`, { zone: "utc" });
@@ -53,7 +49,11 @@ function toLocalInstant(date: string, time: string): DateTime {
 // recorded, not a guess at a journey time. Used in pairs (one call for
 // the earliest end of an interval, one for the latest) so a caller can
 // test whether the pessimistic combination still settles a question,
-// or the optimistic one already settles it the other way.
+// or the optimistic one already settles it the other way. Both are
+// built on a UTC placeholder instant -- a real caller re-zones the
+// result with .setZone(zone, { keepLocalTime: true }) (zonedEarliest/
+// zonedLatest above), which keeps this pair's own logic untouched by
+// the move to real per-location zones (locations table, 20261029090000).
 export function earliestPossibleInstant(date: string, time: string | null): DateTime {
   return time !== null ? toLocalInstant(date, time) : DateTime.fromISO(`${date}T00:00:00`, { zone: "utc" });
 }
@@ -64,13 +64,13 @@ export function earliestPossibleInstant(date: string, time: string | null): Date
 // the pessimistic bound very slightly early, leaning toward pass. Where
 // it's instead the endpoint being SUBTRACTED to form minMinutes (the
 // flight's own arrival), the same shortfall nudges minMinutes very
-// slightly late, leaning toward fail -- the safer direction, per
-// NAIVE_LOCAL_TIME_CAVEAT's own reasoning, but still worth naming rather
-// than claiming one uniform lean. A caller using this standalone, not
-// in such a pair (findFestivalDeparture), only ever sees the first
-// lean. Either way it's under a minute against day-granularity data,
-// immaterial here. If anything ever hinges on that margin, the honest
-// pessimistic bound is the next day's start, exclusive, not 23:59.
+// slightly late, leaning toward fail -- the safer direction -- but
+// still worth naming rather than claiming one uniform lean. A caller
+// using this standalone, not in such a pair (findFestivalDeparture),
+// only ever sees the first lean. Either way it's under a minute against
+// day-granularity data, immaterial here. If anything ever hinges on
+// that margin, the honest pessimistic bound is the next day's start,
+// exclusive, not 23:59.
 export function latestPossibleInstant(date: string, time: string | null): DateTime {
   return time !== null ? toLocalInstant(date, time) : DateTime.fromISO(`${date}T23:59:00`, { zone: "utc" });
 }
@@ -87,15 +87,17 @@ export function latestPossibleInstant(date: string, time: string | null): DateTi
  * algebraically -- (departs - anchor) + (arrives - departs) reduces to
  * (arrives - anchor) -- so only the flight's own arrival and the final
  * leg's own arrival ever determine the total; what an intermediate leg's
- * time actually is, known or not, cancels regardless of its value. A
- * "known" result still requires every leg's times recorded (half-timed
- * data is a smell even where it's numerically moot), but when that's not
- * so, the same two endpoints -- bounded by the day they're recorded on
- * where a time is missing -- still bound the total, which is often
- * enough to settle hard constraint 2 without the missing time of day.
+ * time actually is, known or not, cancels regardless of its value. This
+ * holds however each endpoint is zoned, since it's instant subtraction
+ * throughout. A "known" result still requires every leg's time AND zone
+ * recorded (half-timed, or half-zoned, data is a smell even where it's
+ * numerically moot); when that's not so, the same two endpoints --
+ * bounded by the day they're recorded on where a time is missing --
+ * still bound the total, which is often enough to settle hard
+ * constraint 2 without the missing time of day.
  */
 export function calculateOnwardTravelMinutes(input: CalculateOnwardTravelMinutesInput): OnwardTravelResult {
-  if (input.festivalStayLocation === null) {
+  if (input.festivalStayLocationId === null) {
     return { status: "unknown", reason: "no festival-kind stay recorded to travel onward to" };
   }
 
@@ -106,13 +108,13 @@ export function calculateOnwardTravelMinutes(input: CalculateOnwardTravelMinutes
   }
 
   const flightMovement = sorted[flightIndex];
-  if (flightMovement.toLocation === input.festivalStayLocation) {
-    return { status: "known", minutes: 0, caveat: NAIVE_LOCAL_TIME_CAVEAT };
+  if (flightMovement.toLocationId === input.festivalStayLocationId) {
+    return { status: "known", minutes: 0 };
   }
 
   let destinationIndex = -1;
   for (let i = flightIndex + 1; i < sorted.length; i++) {
-    if (sorted[i].toLocation === input.festivalStayLocation) {
+    if (sorted[i].toLocationId === input.festivalStayLocationId) {
       destinationIndex = i;
       break;
     }
@@ -123,28 +125,34 @@ export function calculateOnwardTravelMinutes(input: CalculateOnwardTravelMinutes
 
   const onwardLegs = sorted.slice(flightIndex + 1, destinationIndex + 1);
   const destination = sorted[destinationIndex];
+
+  if (flightMovement.toZone === null || destination.toZone === null) {
+    return { status: "unknown", reason: "a location on this route has no time zone recorded yet" };
+  }
+
   const allTimesKnown =
     flightMovement.arriveTime !== null && onwardLegs.every((leg) => leg.departTime !== null && leg.arriveTime !== null);
+  const allZonesKnown = onwardLegs.every((leg) => leg.fromZone !== null && leg.toZone !== null);
 
-  if (allTimesKnown) {
+  if (allTimesKnown && allZonesKnown) {
     let totalMinutes = 0;
-    let anchor = toLocalInstant(flightMovement.arriveDate, flightMovement.arriveTime as string);
+    let anchor = zonedEarliest(flightMovement.arriveDate, flightMovement.arriveTime, flightMovement.toZone);
     for (const leg of onwardLegs) {
-      const departs = toLocalInstant(leg.departDate, leg.departTime as string);
-      const arrives = toLocalInstant(leg.arriveDate, leg.arriveTime as string);
+      const departs = zonedEarliest(leg.departDate, leg.departTime, leg.fromZone as string);
+      const arrives = zonedEarliest(leg.arriveDate, leg.arriveTime, leg.toZone as string);
       totalMinutes += departs.diff(anchor, "minutes").minutes + arrives.diff(departs, "minutes").minutes;
       anchor = arrives;
     }
-    return { status: "known", minutes: totalMinutes, caveat: NAIVE_LOCAL_TIME_CAVEAT };
+    return { status: "known", minutes: totalMinutes };
   }
 
-  const minMinutes = earliestPossibleInstant(destination.arriveDate, destination.arriveTime).diff(
-    latestPossibleInstant(flightMovement.arriveDate, flightMovement.arriveTime),
+  const minMinutes = zonedEarliest(destination.arriveDate, destination.arriveTime, destination.toZone).diff(
+    zonedLatest(flightMovement.arriveDate, flightMovement.arriveTime, flightMovement.toZone),
     "minutes",
   ).minutes;
-  const maxMinutes = latestPossibleInstant(destination.arriveDate, destination.arriveTime).diff(
-    earliestPossibleInstant(flightMovement.arriveDate, flightMovement.arriveTime),
+  const maxMinutes = zonedLatest(destination.arriveDate, destination.arriveTime, destination.toZone).diff(
+    zonedEarliest(flightMovement.arriveDate, flightMovement.arriveTime, flightMovement.toZone),
     "minutes",
   ).minutes;
-  return { status: "bounded", minMinutes, maxMinutes, caveat: NAIVE_LOCAL_TIME_CAVEAT };
+  return { status: "bounded", minMinutes, maxMinutes };
 }

@@ -6,6 +6,7 @@ import type {
   FlightOption,
   FlightSegment,
   FxRate,
+  Location,
   Movement,
   OpenItem,
   Payment,
@@ -826,6 +827,31 @@ export const flightSegments: FlightSegment[] = [
   },
 ];
 
+// Every place Candidate A's stays/movements below refer to, each with
+// a real IANA zone -- Fontvieux's matches competitions[1].timezone
+// (Europe/Paris) exactly, so demo mode doesn't spuriously trip the
+// festival-location/competition time-zone consistency check.
+export const locations: Location[] = [
+  {
+    id: "f4000000-0000-0000-0000-000000000001",
+    ownerId: "10000000-0000-0000-0000-000000000001",
+    name: "Madrid",
+    timezone: "Europe/Madrid",
+    notes: null,
+    createdAt: "2026-10-05T00:00:00Z",
+    updatedAt: "2026-10-05T00:00:00Z",
+  },
+  {
+    id: "f4000000-0000-0000-0000-000000000002",
+    ownerId: "10000000-0000-0000-0000-000000000001",
+    name: "Fontvieux",
+    timezone: "Europe/Paris",
+    notes: null,
+    createdAt: "2026-10-05T00:00:00Z",
+    updatedAt: "2026-10-05T00:00:00Z",
+  },
+];
+
 // Candidate A's itinerary: one festival stay in Fontvieux (matching the
 // accepted festival dates, 2027-07-05 to 2027-07-11 -- the stay starts
 // the night before and covers through the final night, satisfying the
@@ -840,7 +866,7 @@ export const stays: Stay[] = [
   {
     id: "f2000000-0000-0000-0000-000000000001",
     scenarioId: "50000000-0000-0000-0000-000000000001",
-    location: "Fontvieux",
+    locationId: "f4000000-0000-0000-0000-000000000002",
     startDate: "2027-07-04",
     nights: 8,
     kind: "festival",
@@ -859,8 +885,8 @@ export const movements: Movement[] = [
     id: "f3000000-0000-0000-0000-000000000001",
     scenarioId: "50000000-0000-0000-0000-000000000001",
     sequence: 1,
-    fromLocation: "Madrid",
-    toLocation: "Fontvieux",
+    fromLocationId: "f4000000-0000-0000-0000-000000000001",
+    toLocationId: "f4000000-0000-0000-0000-000000000002",
     departDate: "2027-07-04",
     departTime: "09:00:00",
     arriveDate: "2027-07-04",
@@ -879,8 +905,8 @@ export const movements: Movement[] = [
     id: "f3000000-0000-0000-0000-000000000002",
     scenarioId: "50000000-0000-0000-0000-000000000001",
     sequence: 2,
-    fromLocation: "Fontvieux",
-    toLocation: "Madrid",
+    fromLocationId: "f4000000-0000-0000-0000-000000000002",
+    toLocationId: "f4000000-0000-0000-0000-000000000001",
     departDate: "2027-07-12",
     departTime: "10:00:00",
     arriveDate: "2027-07-13",

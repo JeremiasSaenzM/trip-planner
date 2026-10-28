@@ -206,7 +206,7 @@ describe("demoDataSource writes", () => {
     await expect(
       demoDataSource.createStay({
         scenarioId: "50000000-0000-0000-0000-000000000001",
-        location: "Test",
+        locationId: "f4000000-0000-0000-0000-000000000001",
         startDate: "2027-01-01",
         nights: 1,
         kind: "independent",
@@ -216,7 +216,7 @@ describe("demoDataSource writes", () => {
     await expect(
       demoDataSource.updateStay({
         id: "f2000000-0000-0000-0000-000000000001",
-        location: "Test",
+        locationId: "f4000000-0000-0000-0000-000000000001",
         startDate: "2027-01-01",
         nights: 1,
         kind: "independent",
@@ -234,8 +234,8 @@ describe("demoDataSource writes", () => {
       demoDataSource.createMovement({
         scenarioId: "50000000-0000-0000-0000-000000000001",
         sequence: 1,
-        fromLocation: "Test",
-        toLocation: "Test",
+        fromLocationId: "f4000000-0000-0000-0000-000000000001",
+        toLocationId: "f4000000-0000-0000-0000-000000000001",
         departDate: "2027-01-01",
         arriveDate: "2027-01-01",
         mode: "plane",
@@ -246,8 +246,8 @@ describe("demoDataSource writes", () => {
       demoDataSource.updateMovement({
         id: "f3000000-0000-0000-0000-000000000001",
         sequence: 1,
-        fromLocation: "Test",
-        toLocation: "Test",
+        fromLocationId: "f4000000-0000-0000-0000-000000000001",
+        toLocationId: "f4000000-0000-0000-0000-000000000001",
         departDate: "2027-01-01",
         arriveDate: "2027-01-01",
         mode: "plane",
@@ -258,6 +258,20 @@ describe("demoDataSource writes", () => {
     await expect(
       demoDataSource.deleteMovement({
         id: "f3000000-0000-0000-0000-000000000001",
+        reason: "Test",
+      }),
+    ).rejects.toThrow(/disabled in demo mode/);
+    await expect(demoDataSource.createLocation({ name: "Test" })).rejects.toThrow(/disabled in demo mode/);
+    await expect(
+      demoDataSource.updateLocation({
+        id: "f4000000-0000-0000-0000-000000000001",
+        name: "Test",
+        reason: "Test",
+      }),
+    ).rejects.toThrow(/disabled in demo mode/);
+    await expect(
+      demoDataSource.deleteLocation({
+        id: "f4000000-0000-0000-0000-000000000001",
         reason: "Test",
       }),
     ).rejects.toThrow(/disabled in demo mode/);

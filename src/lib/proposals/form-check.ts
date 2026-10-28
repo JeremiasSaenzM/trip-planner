@@ -6,6 +6,7 @@ import type {
   FlightOption,
   FlightSegment,
   FxRate,
+  Location,
   Movement,
   Payment,
   ProposalOp,
@@ -18,6 +19,7 @@ import { createCompetitionInput, updateCompetitionInput } from "@/lib/validation
 import { createFlightOptionInput, updateFlightOptionInput } from "@/lib/validation/flight-options";
 import { createFlightSegmentInput } from "@/lib/validation/flight-segments";
 import { createFxRateInput, updateFxRateInput } from "@/lib/validation/fx-rates";
+import { createLocationInput, updateLocationInput } from "@/lib/validation/locations";
 import { createMovementInput, updateMovementInput } from "@/lib/validation/movements";
 import { createPaymentInput, updatePaymentDetailsInput } from "@/lib/validation/payments";
 import { updateSavingsEntryInput } from "@/lib/validation/savings-entries";
@@ -47,6 +49,7 @@ export type CurrentRows = {
   movements: Movement[];
   flightOptions: FlightOption[];
   flightSegments: FlightSegment[];
+  locations: Location[];
 };
 
 export type StoredPayload = { data: Record<string, unknown> } | { changes: Record<string, FieldChange> };
@@ -145,7 +148,7 @@ export function currentFields(op: UpdateOp, targetId: string, rows: CurrentRows)
       const row = rows.stays.find((s) => s.id === targetId);
       return row
         ? {
-            location: row.location,
+            location: row.locationId,
             startDate: row.startDate,
             nights: row.nights,
             kind: row.kind,
@@ -162,8 +165,8 @@ export function currentFields(op: UpdateOp, targetId: string, rows: CurrentRows)
       return row
         ? {
             sequence: row.sequence,
-            fromLocation: row.fromLocation,
-            toLocation: row.toLocation,
+            fromLocation: row.fromLocationId,
+            toLocation: row.toLocationId,
             departDate: row.departDate,
             departTime: row.departTime,
             arriveDate: row.arriveDate,
@@ -199,6 +202,10 @@ export function currentFields(op: UpdateOp, targetId: string, rows: CurrentRows)
             notes: row.notes,
           }
         : null;
+    }
+    case "update_location": {
+      const row = rows.locations.find((l) => l.id === targetId);
+      return row ? { name: row.name, timezone: row.timezone, notes: row.notes } : null;
     }
   }
 }
@@ -296,22 +303,26 @@ function checkCreate(
       return result(createFxRateInput.safeParse({ ...rest, sourceId: ref(source) }));
     }
     case "create_stay": {
-      const { scenario, budgetLine, source, ...rest } = data as CreateData<"create_stay">;
+      const { scenario, location, budgetLine, source, ...rest } = data as CreateData<"create_stay">;
       return result(
         createStayInput.safeParse({
           ...rest,
           scenarioId: ref(scenario),
+          locationId: ref(location),
           budgetLineId: ref(budgetLine),
           sourceId: ref(source),
         }),
       );
     }
     case "create_movement": {
-      const { scenario, budgetLine, source, ...rest } = data as CreateData<"create_movement">;
+      const { scenario, fromLocation, toLocation, budgetLine, source, ...rest } =
+        data as CreateData<"create_movement">;
       return result(
         createMovementInput.safeParse({
           ...rest,
           scenarioId: ref(scenario),
+          fromLocationId: ref(fromLocation),
+          toLocationId: ref(toLocation),
           budgetLineId: ref(budgetLine),
           sourceId: ref(source),
         }),
@@ -325,6 +336,8 @@ function checkCreate(
       const { flightOption, ...rest } = data as CreateData<"create_flight_segment">;
       return result(createFlightSegmentInput.safeParse({ ...rest, flightOptionId: ref(flightOption) }));
     }
+    case "create_location":
+      return result(createLocationInput.safeParse(data as CreateData<"create_location">));
   }
 }
 
@@ -415,7 +428,7 @@ function checkUpdate(op: UpdateOp, id: string, merged: Record<string, unknown>, 
       return result(
         updateStayInput.safeParse({
           id,
-          location: merged.location,
+          locationId: merged.location,
           startDate: merged.startDate,
           nights: merged.nights,
           kind: merged.kind,
@@ -432,8 +445,8 @@ function checkUpdate(op: UpdateOp, id: string, merged: Record<string, unknown>, 
         updateMovementInput.safeParse({
           id,
           sequence: merged.sequence,
-          fromLocation: merged.fromLocation,
-          toLocation: merged.toLocation,
+          fromLocationId: merged.fromLocation,
+          toLocationId: merged.toLocation,
           departDate: merged.departDate,
           departTime: absent(merged.departTime),
           arriveDate: merged.arriveDate,
@@ -466,6 +479,16 @@ function checkUpdate(op: UpdateOp, id: string, merged: Record<string, unknown>, 
           competitionRelated: merged.competitionRelated,
           status: merged.status,
           bookingReference: absent(merged.bookingReference),
+          notes: absent(merged.notes),
+          reason,
+        }),
+      );
+    case "update_location":
+      return result(
+        updateLocationInput.safeParse({
+          id,
+          name: merged.name,
+          timezone: absent(merged.timezone),
           notes: absent(merged.notes),
           reason,
         }),

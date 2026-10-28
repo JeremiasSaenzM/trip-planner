@@ -5,7 +5,7 @@ import { createStayInput, deleteStayInput, updateStayInput } from "./stays";
 describe("createStayInput", () => {
   const BASE = {
     scenarioId: "11111111-1111-4111-8111-111111111111",
-    location: "Fontvieux",
+    locationId: "22222222-2222-4222-8222-222222222222",
     startDate: "2027-07-04",
     nights: 8,
     kind: "festival" as const,
@@ -21,8 +21,8 @@ describe("createStayInput", () => {
     expect(createStayInput.safeParse({ ...BASE, nights: -1 }).success).toBe(false);
   });
 
-  it("rejects a blank location", () => {
-    expect(createStayInput.safeParse({ ...BASE, location: "  " }).success).toBe(false);
+  it("rejects a malformed locationId -- a stay always references a real location row now", () => {
+    expect(createStayInput.safeParse({ ...BASE, locationId: "Fontvieux" }).success).toBe(false);
   });
 
   it("rejects an unrecognised kind", () => {
@@ -41,7 +41,7 @@ describe("updateStayInput", () => {
   it("requires a reason", () => {
     const base = {
       id: "11111111-1111-4111-8111-111111111111",
-      location: "Fontvieux",
+      locationId: "22222222-2222-4222-8222-222222222222",
       startDate: "2027-07-04",
       nights: 8,
       kind: "festival" as const,

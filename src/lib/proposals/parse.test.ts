@@ -5,6 +5,7 @@ import { MAX_PROPOSAL_ITEMS, MAX_PROPOSAL_TEXT_BYTES } from "./schema";
 
 const SCENARIO_ID = "50000000-0000-0000-0000-000000000001";
 const LINE_ID = "70000000-0000-0000-0000-000000000002";
+const LOCATION_ID = "f4000000-0000-0000-0000-000000000001";
 
 function paste(items: unknown[], extra: Record<string, unknown> = {}): string {
   return JSON.stringify({ format: "trip-planner-proposals", version: 1, ...extra, items });
@@ -80,7 +81,14 @@ describe("parseProposalPaste: a valid batch", () => {
     const stay = {
       op: "create_stay",
       reason: "Fixed accommodation",
-      data: { scenario: { ref: "scn" }, location: "Fontvieux", startDate: "2027-07-04", nights: 8, kind: "festival", informationState: "estimate" },
+      data: {
+        scenario: { ref: "scn" },
+        location: { id: LOCATION_ID },
+        startDate: "2027-07-04",
+        nights: 8,
+        kind: "festival",
+        informationState: "estimate",
+      },
     };
     const movement = {
       op: "create_movement",
@@ -88,8 +96,8 @@ describe("parseProposalPaste: a valid batch", () => {
       data: {
         scenario: { ref: "scn" },
         sequence: 1,
-        fromLocation: "Madrid",
-        toLocation: "Fontvieux",
+        fromLocation: { id: LOCATION_ID },
+        toLocation: { id: LOCATION_ID },
         departDate: "2027-07-04",
         arriveDate: "2027-07-04",
         mode: "plane",
@@ -174,7 +182,7 @@ describe("parseProposalPaste: malformed input", () => {
 
   it("refuses an operation outside the whitelist", () => {
     expect(problemsOf(paste([{ op: "delete_trip", reason: "x", data: {} }]))[0]).toMatch(
-      /^Item 1 \(delete_trip\): "op" must be one of create_source, .*update_flight_option\.$/,
+      /^Item 1 \(delete_trip\): "op" must be one of create_source, .*update_location\.$/,
     );
   });
 

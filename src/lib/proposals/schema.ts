@@ -7,6 +7,7 @@ import { airportCode, countryCode, flightDirection, isoInstant } from "@/lib/val
 import { rateKind } from "@/lib/validation/fx-rates";
 import { movementMode } from "@/lib/validation/movements";
 import { paymentTiming, refundability } from "@/lib/validation/payments";
+import { ianaTimezone } from "@/lib/validation/locations";
 import { confidence, currencyCode, httpUrl, id, infoState } from "@/lib/validation/shared";
 import { stayKind } from "@/lib/validation/stays";
 
@@ -43,6 +44,8 @@ export const PROPOSAL_OPS = [
   "create_flight_option",
   "create_flight_segment",
   "update_flight_option",
+  "create_location",
+  "update_location",
 ] as const satisfies readonly ProposalOp[];
 
 export type CreateOp = Extract<ProposalOp, `create_${string}`>;
@@ -55,7 +58,7 @@ export function isUpdateOp(op: ProposalOp): op is UpdateOp {
 // What a reference field points at. An {"item": n} reference must point
 // at an approved create of exactly this kind (proposal_ref() checks
 // again at approval).
-export type ReferenceKind = "source" | "competition" | "scenario" | "budget_line" | "flight_option";
+export type ReferenceKind = "source" | "competition" | "scenario" | "budget_line" | "flight_option" | "location";
 
 export const REFERENCE_FIELDS: Record<ProposalOp, Record<string, ReferenceKind>> = {
   create_source: {},
@@ -70,13 +73,32 @@ export const REFERENCE_FIELDS: Record<ProposalOp, Record<string, ReferenceKind>>
   update_payment: { datesSource: "source", source: "source" },
   update_fx_rate: { source: "source" },
   update_savings_entry: {},
-  create_stay: { scenario: "scenario", budgetLine: "budget_line", source: "source" },
-  create_movement: { scenario: "scenario", budgetLine: "budget_line", source: "source" },
-  update_stay: { budgetLine: "budget_line", source: "source", flightOption: "flight_option" },
-  update_movement: { budgetLine: "budget_line", source: "source", flightOption: "flight_option" },
+  create_stay: { scenario: "scenario", location: "location", budgetLine: "budget_line", source: "source" },
+  create_movement: {
+    scenario: "scenario",
+    fromLocation: "location",
+    toLocation: "location",
+    budgetLine: "budget_line",
+    source: "source",
+  },
+  update_stay: {
+    location: "location",
+    budgetLine: "budget_line",
+    source: "source",
+    flightOption: "flight_option",
+  },
+  update_movement: {
+    fromLocation: "location",
+    toLocation: "location",
+    budgetLine: "budget_line",
+    source: "source",
+    flightOption: "flight_option",
+  },
   create_flight_option: { scenario: "scenario", source: "source" },
   create_flight_segment: { flightOption: "flight_option" },
   update_flight_option: { source: "source" },
+  create_location: {},
+  update_location: {},
 };
 
 // Ids are compared as text against what Postgres returns (always lower
@@ -192,7 +214,7 @@ export const CREATE_DATA = {
   }),
   create_stay: z.strictObject({
     scenario: reference,
-    location: name,
+    location: reference,
     startDate: isoDate,
     nights: z.number().int().positive(),
     kind: stayKind,
@@ -204,8 +226,8 @@ export const CREATE_DATA = {
   create_movement: z.strictObject({
     scenario: reference,
     sequence: z.number().int(),
-    fromLocation: name,
-    toLocation: name,
+    fromLocation: reference,
+    toLocation: reference,
     departDate: isoDate,
     departTime: isoTime.optional(),
     arriveDate: isoDate,
@@ -245,6 +267,11 @@ export const CREATE_DATA = {
     departAt: isoInstant,
     arriveAt: isoInstant,
     isTechnicalStop: z.boolean(),
+  }),
+  create_location: z.strictObject({
+    name,
+    timezone: ianaTimezone.optional(),
+    notes: freeText.optional(),
   }),
 } satisfies Record<CreateOp, z.ZodType>;
 
@@ -323,7 +350,7 @@ export const UPDATE_CHANGES = {
     .refine(atLeastOneChange, "An update needs at least one change"),
   update_stay: z
     .strictObject({
-      location: change(name).optional(),
+      location: referenceChange.optional(),
       startDate: change(isoDate).optional(),
       nights: change(z.number().int().positive()).optional(),
       kind: change(stayKind).optional(),
@@ -337,8 +364,8 @@ export const UPDATE_CHANGES = {
   update_movement: z
     .strictObject({
       sequence: change(z.number().int()).optional(),
-      fromLocation: change(name).optional(),
-      toLocation: change(name).optional(),
+      fromLocation: referenceChange.optional(),
+      toLocation: referenceChange.optional(),
       departDate: change(isoDate).optional(),
       departTime: change(isoTime.nullable()).optional(),
       arriveDate: change(isoDate).optional(),
@@ -368,6 +395,13 @@ export const UPDATE_CHANGES = {
       competitionRelated: change(z.boolean()).optional(),
       status: change(flightOptionStatus).optional(),
       bookingReference: change(freeText.nullable()).optional(),
+      notes: change(freeText.nullable()).optional(),
+    })
+    .refine(atLeastOneChange, "An update needs at least one change"),
+  update_location: z
+    .strictObject({
+      name: change(name).optional(),
+      timezone: change(ianaTimezone.nullable()).optional(),
       notes: change(freeText.nullable()).optional(),
     })
     .refine(atLeastOneChange, "An update needs at least one change"),
@@ -405,6 +439,8 @@ export const pastedItem = z.discriminatedUnion("op", [
   createItem("create_flight_option"),
   createItem("create_flight_segment"),
   updateItem("update_flight_option"),
+  createItem("create_location"),
+  updateItem("update_location"),
 ]);
 export type PastedItem = z.infer<typeof pastedItem>;
 

@@ -264,20 +264,24 @@ insert into flight_segments (owner_id, flight_option_id, direction, segment_orde
 -- 07-12 needs no stay, a live example of check 4 not requiring a bed
 -- for a night spent in the air. The return leg is deliberately left
 -- without a budget line, to show that warning too.
-insert into stays (id, owner_id, scenario_id, location, start_date, nights, kind, budget_line_id, information_state) values
+insert into locations (id, owner_id, name) values
+  ('f1000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', 'Madrid'),
+  ('f1000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000001', 'Fontvieux');
+
+insert into stays (id, owner_id, scenario_id, location_id, start_date, nights, kind, budget_line_id, information_state) values
   ('f2000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001',
-   '50000000-0000-0000-0000-000000000001', 'Fontvieux', '2027-07-04', 8, 'festival',
+   '50000000-0000-0000-0000-000000000001', 'f1000000-0000-0000-0000-000000000002', '2027-07-04', 8, 'festival',
    '70000000-0000-0000-0000-000000000003', 'estimate');
 
 insert into movements (
-  id, owner_id, scenario_id, sequence, from_location, to_location,
+  id, owner_id, scenario_id, sequence, from_location_id, to_location_id,
   depart_date, depart_time, arrive_date, arrive_time, mode, budget_line_id, information_state, notes, flight_option_id
 ) values
   ('f3000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001',
-   '50000000-0000-0000-0000-000000000001', 1, 'Madrid', 'Fontvieux',
+   '50000000-0000-0000-0000-000000000001', 1, 'f1000000-0000-0000-0000-000000000001', 'f1000000-0000-0000-0000-000000000002',
    '2027-07-04', '09:00:00', '2027-07-04', '22:30:00', 'plane',
    '70000000-0000-0000-0000-000000000002', 'estimate', null, 'c0000000-0000-0000-0000-000000000001'),
   ('f3000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000001',
-   '50000000-0000-0000-0000-000000000001', 2, 'Fontvieux', 'Madrid',
+   '50000000-0000-0000-0000-000000000001', 2, 'f1000000-0000-0000-0000-000000000002', 'f1000000-0000-0000-0000-000000000001',
    '2027-07-12', '10:00:00', '2027-07-13', '03:30:00', 'plane',
    null, 'estimate', 'Return leg not yet priced separately.', 'c0000000-0000-0000-0000-000000000001');
