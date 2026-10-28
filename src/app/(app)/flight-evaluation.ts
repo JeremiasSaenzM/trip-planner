@@ -8,7 +8,6 @@ import {
   type TotalItineraryCostBudgetLine,
   type TotalItineraryCostResult,
 } from "@/lib/domain/calculate-total-itinerary-cost";
-import { calculateTravelToAirportMinutes } from "@/lib/domain/calculate-travel-to-airport-minutes";
 import { checkAcceptanceSafeguard, type AcceptanceSafeguardResult } from "@/lib/domain/check-acceptance-safeguard";
 import { checkBaggageAllowance, type BaggageAllowanceResult } from "@/lib/domain/check-baggage-allowance";
 import {
@@ -16,6 +15,7 @@ import {
   type FestivalArrivalDepartureResult,
 } from "@/lib/domain/check-festival-arrival-departure";
 import { checkUsCanadaStop, type UsCanadaStopResult } from "@/lib/domain/check-us-canada-stop";
+import { findFestivalDeparture, type FestivalDepartureResult } from "@/lib/domain/find-festival-departure";
 import { resolveFlightOptionTiming } from "@/lib/domain/resolve-flight-option-timing";
 import type { Basis } from "@/lib/domain/types";
 
@@ -29,7 +29,7 @@ export type FlightOptionEvaluation = {
   effectiveFlightCost: EffectiveFlightCostResult;
   totalItineraryCost: TotalItineraryCostResult;
   onwardTravel: OnwardTravelResult;
-  travelToAirport: OnwardTravelResult;
+  festivalDeparture: FestivalDepartureResult;
 };
 
 // The four checks and two costs the Flight options section renders,
@@ -78,17 +78,19 @@ export function evaluateFlightOption(input: {
     movements: onwardMovements,
     festivalStayLocation: festivalStay?.location ?? null,
   });
-  const travelToAirport = calculateTravelToAirportMinutes({
-    flightOptionId: option.id,
+  // Option-independent: when the traveller leaves the festival location
+  // is a fact about the scenario's own movement chain, not about which
+  // flight option is being evaluated.
+  const festivalDeparture = findFestivalDeparture({
     movements: onwardMovements,
     festivalStayLocation: festivalStay?.location ?? null,
+    timezone: competition?.timezone ?? null,
   });
 
   const festivalArrivalDeparture = checkFestivalArrivalDeparture({
     outboundArrivalAt: timing.outboundArrivalAt,
     onwardTravel,
-    returnDepartureAt: timing.returnDepartureAt,
-    travelToAirport,
+    festivalDeparture,
     festivalStartDate: competition?.startDate ?? null,
     festivalEndDate: competition?.endDate ?? null,
     timezone: competition?.timezone ?? null,
@@ -138,6 +140,6 @@ export function evaluateFlightOption(input: {
     effectiveFlightCost,
     totalItineraryCost,
     onwardTravel,
-    travelToAirport,
+    festivalDeparture,
   };
 }

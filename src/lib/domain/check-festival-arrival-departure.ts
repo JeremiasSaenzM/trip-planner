@@ -1,5 +1,6 @@
 import { DateTime } from "luxon";
 import type { OnwardTravelResult } from "./calculate-onward-travel-minutes";
+import type { FestivalDepartureResult } from "./find-festival-departure";
 import { worstStatus, type ConstraintStatus, type HardConstraintResult, type InfoState } from "./types";
 
 export type FestivalArrivalDepartureInput = {
@@ -7,10 +8,9 @@ export type FestivalArrivalDepartureInput = {
   outboundArrivalAt: string | null;
   /** Minutes from landing to actually being at the destination. */
   onwardTravel: OnwardTravelResult;
-  /** ISO-8601 instant the outbound flight home departs. */
-  returnDepartureAt: string | null;
-  /** Minutes from the destination to the departure airport. */
-  travelToAirport: OnwardTravelResult;
+  /** When the traveller leaves the festival-kind stay's location -- a
+   * fact about the scenario's movement chain, not about any flight. */
+  festivalDeparture: FestivalDepartureResult;
   /** YYYY-MM-DD, the first official festival day. */
   festivalStartDate: string | null;
   /** YYYY-MM-DD, the final official festival day. */
@@ -23,11 +23,15 @@ export type FestivalArrivalDepartureInput = {
 // Movement times being naive local with no time zone of their own is a
 // real limitation on what this check can promise -- the condition on
 // which that simplification was accepted was that the limitation stay
-// stated, not merely computed. onwardTravel/travelToAirport already
-// carry it (NAIVE_LOCAL_TIME_CAVEAT); checkFestivalArrivalDeparture only
-// has to forward it, deduplicated, whenever either leg actually used a
-// movement-based figure to decide this (known or bounded, never when
-// a leg is unknown and so never used one at all).
+// stated, not merely computed. onwardTravel already carries it
+// (NAIVE_LOCAL_TIME_CAVEAT); checkFestivalArrivalDeparture only has to
+// forward it when it actually used a movement-based figure to decide
+// the arrival half (known or bounded, never when onwardTravel is
+// unknown and so never used one at all). festivalDeparture carries no
+// such caveat: it reads one movement's own local clock reading as the
+// festival's own zone, which is what that clock actually means --
+// there's no cross-leg summing here for a silent zone crossing to hide
+// in.
 export type FestivalArrivalDepartureResult = HardConstraintResult & { provisional: boolean; caveats: string[] };
 
 // A zero-width bound (min === max) means both endpoints that actually
@@ -101,68 +105,75 @@ function arrivalLeg(input: FestivalArrivalDepartureInput): { status: ConstraintS
 }
 
 function departureLeg(input: FestivalArrivalDepartureInput): { status: ConstraintStatus; reason: string } {
-  if (!input.returnDepartureAt || !input.festivalEndDate || !input.timezone) {
-    return { status: "unknown", reason: "missing return departure time, festival end date, or time zone" };
+  if (!input.festivalEndDate || !input.timezone) {
+    return { status: "unknown", reason: "missing festival end date or time zone" };
   }
 
   const festivalEnds = DateTime.fromISO(input.festivalEndDate, { zone: input.timezone })
     .startOf("day")
     .plus({ days: 1 });
-  const departs = DateTime.fromISO(input.returnDepartureAt);
 
-  if (input.travelToAirport.status === "unknown") {
-    return { status: "unknown", reason: `travel-to-airport time unknown: ${input.travelToAirport.reason}` };
+  if (input.festivalDeparture.status === "unknown") {
+    return { status: "unknown", reason: `festival departure unknown: ${input.festivalDeparture.reason}` };
   }
 
-  if (input.travelToAirport.status === "bounded") {
-    const { minMinutes, maxMinutes } = input.travelToAirport;
-    const exact = minMinutes === maxMinutes;
-    const basis = boundBasisPhrase(minMinutes, maxMinutes);
-    const earliestDepartureIfSlowest = festivalEnds.plus({ minutes: maxMinutes });
-    const earliestDepartureIfQuickest = festivalEnds.plus({ minutes: minMinutes });
+  if (input.festivalDeparture.status === "bounded") {
+    const earliestDeparture = DateTime.fromISO(input.festivalDeparture.earliestDepartsAt);
+    const latestDeparture = DateTime.fromISO(input.festivalDeparture.latestDepartsAt);
 
-    if (departs >= earliestDepartureIfSlowest) {
+    if (earliestDeparture >= festivalEnds) {
       return {
         status: "pass",
-        reason: exact
-          ? `departs at ${departs.toISO()}, ${basis} -- after the final festival day plus the required travel to the airport (${earliestDepartureIfSlowest.toISO()})`
-          : `departs at ${departs.toISO()}, ${basis} -- after the final festival day plus even the slowest ` +
-            `possible travel to the airport (${earliestDepartureIfSlowest.toISO()}), so the missing time of day isn't needed`,
+        reason:
+          `leaves the festival location no earlier than ${earliestDeparture.toISO()} on the recorded date alone -- ` +
+          `after the final festival day has ended (${festivalEnds.toISO()}) even in the earliest case, so the missing time of day isn't needed`,
       };
     }
-    if (departs < earliestDepartureIfQuickest) {
+    if (latestDeparture < festivalEnds) {
       return {
         status: "fail",
-        reason: exact
-          ? `departs at ${departs.toISO()}, ${basis} -- before the final festival day plus the required travel to the airport (${earliestDepartureIfQuickest.toISO()})`
-          : `departs at ${departs.toISO()}, ${basis} -- before the final festival day plus even the quickest ` +
-            `possible travel to the airport (${earliestDepartureIfQuickest.toISO()}), so the missing time of day isn't needed`,
+        reason:
+          `leaves the festival location by ${latestDeparture.toISO()} at the latest on the recorded date alone -- ` +
+          `before the final festival day has ended (${festivalEnds.toISO()}) even in the latest case, so the missing time of day isn't needed`,
       };
     }
+    // Unreachable today by invariant, not by accident, so worth keeping
+    // rather than deleting: festivalEnds is always a midnight (derived
+    // via startOf("day")), and an untimed departure's bound is always
+    // exactly one calendar day (00:00 to 23:59 of its own date) -- a
+    // midnight can only land at that interval's own start (decided by
+    // the pass branch above) or past its end (the fail branch), never
+    // strictly inside it. The invariant breaks, and this branch goes
+    // live, the day festivalEndDate stops meaning "ends at midnight" --
+    // e.g. a closing concert with its own end time instead of a whole
+    // final day.
     return {
       status: "unknown",
       reason:
-        `departs at ${departs.toISO()}, straddling -- ${basis} -- the required departure window between ` +
-        `the quickest and slowest possible travel to the airport (${earliestDepartureIfQuickest.toISO()} to ${earliestDepartureIfSlowest.toISO()}), so the missing time of day would decide this`,
+        `leaves the festival location sometime between ${earliestDeparture.toISO()} and ${latestDeparture.toISO()}, ` +
+        `straddling the end of the final festival day (${festivalEnds.toISO()}) -- the missing time of day would decide this`,
     };
   }
 
-  const earliestDeparture = festivalEnds.plus({ minutes: input.travelToAirport.minutes });
+  const departs = DateTime.fromISO(input.festivalDeparture.departsAt);
 
-  if (departs >= earliestDeparture) {
-    return { status: "pass", reason: "departs after the final festival day has ended, allowing travel to the airport" };
+  if (departs >= festivalEnds) {
+    return { status: "pass", reason: "leaves the festival location after the final festival day has ended" };
   }
   return {
     status: "fail",
-    reason: `departs at ${departs.toISO()}, before the earliest allowed departure (${earliestDeparture.toISO()})`,
+    reason: `leaves the festival location at ${departs.toISO()}, before the final festival day has ended (${festivalEnds.toISO()})`,
   };
 }
 
 /**
  * Hard constraint 2: at the destination (landing plus onward travel)
- * before the first official festival day begins, and departing only
- * after the final official festival day has ended (plus travel time to
- * the airport). What happens inside the festival is irrelevant here.
+ * before the first official festival day begins, and leaving the
+ * festival location only after the final official festival day has
+ * ended. What happens inside the festival is irrelevant here, and so
+ * is whether a later flight is actually caught -- that's a different
+ * question (making the flight, not leaving the festival on time), not
+ * built into this check.
  */
 export function checkFestivalArrivalDeparture(
   input: FestivalArrivalDepartureInput,
@@ -170,7 +181,7 @@ export function checkFestivalArrivalDeparture(
   const arrival = arrivalLeg(input);
   const departure = departureLeg(input);
 
-  const caveats = [...new Set([input.onwardTravel, input.travelToAirport].filter((leg) => leg.status !== "unknown").map((leg) => leg.caveat))];
+  const caveats = input.onwardTravel.status !== "unknown" ? [input.onwardTravel.caveat] : [];
 
   return {
     status: worstStatus([arrival.status, departure.status]),

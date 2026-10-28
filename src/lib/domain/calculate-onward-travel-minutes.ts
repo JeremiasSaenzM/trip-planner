@@ -59,18 +59,18 @@ export function earliestPossibleInstant(date: string, time: string | null): Date
 }
 
 // 23:59, not the exclusive start of the next day -- 59 seconds short of
-// the true end of day. Where this instant feeds a maxMinutes directly
-// (the destination leg's own arrival here; the flight's own departure
-// in the travel-to-airport mirror), the shortfall nudges the pessimistic
-// bound very slightly early, leaning toward pass. Where it's instead the
-// endpoint being SUBTRACTED to form minMinutes (the flight's own arrival
-// here; the origin leg's own departure there), the same shortfall nudges
-// minMinutes very slightly late, leaning toward fail -- the safer
-// direction, per NAIVE_LOCAL_TIME_CAVEAT's own reasoning, but still
-// worth naming rather than claiming one uniform lean. Either way it's
-// under a minute against day-granularity data, immaterial here. If
-// anything ever hinges on that margin, the honest pessimistic bound is
-// the next day's start, exclusive, not 23:59.
+// the true end of day. Here, where this instant feeds a maxMinutes
+// directly (the destination leg's own arrival), the shortfall nudges
+// the pessimistic bound very slightly early, leaning toward pass. Where
+// it's instead the endpoint being SUBTRACTED to form minMinutes (the
+// flight's own arrival), the same shortfall nudges minMinutes very
+// slightly late, leaning toward fail -- the safer direction, per
+// NAIVE_LOCAL_TIME_CAVEAT's own reasoning, but still worth naming rather
+// than claiming one uniform lean. A caller using this standalone, not
+// in such a pair (findFestivalDeparture), only ever sees the first
+// lean. Either way it's under a minute against day-granularity data,
+// immaterial here. If anything ever hinges on that margin, the honest
+// pessimistic bound is the next day's start, exclusive, not 23:59.
 export function latestPossibleInstant(date: string, time: string | null): DateTime {
   return time !== null ? toLocalInstant(date, time) : DateTime.fromISO(`${date}T23:59:00`, { zone: "utc" });
 }
