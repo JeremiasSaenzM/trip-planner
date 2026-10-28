@@ -91,8 +91,10 @@ function proposalCard(page: Page, n: number) {
 
 test("the full first-run journey, starting from a signed-out, empty account", async ({ page }) => {
   // One long journey on purpose (each step builds on the last), so it
-  // gets more than Playwright's default 30 s for the whole test.
-  test.setTimeout(120_000);
+  // gets more than Playwright's default 30 s for the whole test. Phase
+  // 6.5b added more steps (a location round-trip, an extra proposal
+  // item) than the previous budget had headroom for.
+  test.setTimeout(180_000);
 
   await test.step("log in via the magic link", async () => {
     await page.goto("/login");
@@ -711,19 +713,29 @@ test("the full first-run journey, starting from a signed-out, empty account", as
   });
 
   await test.step("add movements and a stay, see the night-count warning, then fix it", async () => {
+    // Neither location exists yet, so both pickers start on "Add a new
+    // location…" already -- LocationPicker's mustCreate (itinerary-write-ui.tsx).
     await page.getByLabel("Order in the chain").fill("1");
-    await page.getByLabel("From").fill("Home");
+    // getByRole, not getByLabel -- these fields' accessible name comes
+    // from a two-ref aria-labelledby ("From" + "Name"), which getByLabel
+    // doesn't resolve (it only matches a field's own native label text,
+    // "Name" alone, ambiguous across the three LocationPickers on this
+    // page); getByRole computes the full accessible name per spec.
+    await page.getByRole("textbox", { name: "From Name", exact: true }).fill("Home");
     // exact: true -- the Flight options section's "Mandatory fees"
     // field (always rendered on this same page) contains "to" too.
-    await page.getByLabel("To", { exact: true }).fill("Cardiff");
+    await page.getByRole("textbox", { name: "To Name", exact: true }).fill("Cardiff");
     await page.getByLabel("Departs").fill("2027-07-03");
     await page.getByLabel("Arrives").fill("2027-07-03");
     await page.getByRole("button", { name: "Add movement", exact: true }).click();
     await expect(movementRow(page, "Home → Cardiff")).toBeVisible();
 
+    // Home and Cardiff now exist as real locations -- picked from the
+    // list this time, not re-created (the unique-per-owner name would
+    // refuse a second "Cardiff" anyway).
     await page.getByLabel("Order in the chain").fill("2");
-    await page.getByLabel("From").fill("Cardiff");
-    await page.getByLabel("To", { exact: true }).fill("Home");
+    await page.getByLabel("From", { exact: true }).selectOption({ label: "Cardiff (no time zone yet)" });
+    await page.getByLabel("To", { exact: true }).selectOption({ label: "Home (no time zone yet)" });
     await page.getByLabel("Departs").fill("2027-07-14");
     await page.getByLabel("Arrives").fill("2027-07-14");
     await page.getByRole("button", { name: "Add movement", exact: true }).click();
@@ -740,7 +752,7 @@ test("the full first-run journey, starting from a signed-out, empty account", as
 
     // The trip's travel window is Jul 3 - Jul 14 (11 nights) -- a
     // 10-night stay doesn't add up, the check this phase exists for.
-    await page.getByLabel("Location").fill("Cardiff");
+    await page.getByLabel("Location", { exact: true }).selectOption({ label: "Cardiff (no time zone yet)" });
     await page.getByLabel("First night").fill("2027-07-03");
     await page.getByLabel("Nights").fill("10");
     await page.getByLabel("Kind").selectOption("festival");
@@ -809,14 +821,17 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await expect(optionA.getByTestId("constraint-badge").filter({ hasText: "Pass" })).toHaveCount(2);
     await expect(optionA.getByTestId("constraint-badge").filter({ hasText: "Unknown" })).toHaveCount(1);
     await expect(optionA.getByTestId("acceptance-safeguard-badge")).toContainText("Safe to buy");
-    // Nothing resolved this check yet, so there's no basis to caveat.
-    await expect(optionA.getByTestId("festival-check-caveat")).toHaveCount(0);
 
     // Linking the existing Home -> Cardiff / Cardiff -> Home movements
-    // to this option gives the festival check a chain to walk -- both
-    // ends land exactly at the festival-kind stay's own location, so
-    // onward/return travel time is known (0 minutes) and the check
-    // resolves instead of staying "Unknown".
+    // to this option gives the festival check a chain to walk. The
+    // outbound leg lands exactly at the festival-kind stay's own
+    // location, so calculateOnwardTravelMinutes resolves it (0 minutes)
+    // without needing a zone at all -- but findFestivalDeparture has no
+    // such shortcut: it always needs the departure location's own zone
+    // to interpret a local clock reading, even just to bound a result.
+    // Neither Home nor Cardiff has one in this flow, so the combined
+    // badge stays "Unknown" -- only the arrival half's own reason text
+    // changes, from "can't resolve" to an actual pass.
     const outboundMovement = movementRow(page, "Home → Cardiff");
     await outboundMovement.getByRole("button", { name: "Edit", exact: true }).click();
     await outboundMovement.getByLabel("Flight option (optional)").selectOption({ label: "F-e2e-A (Candidate)" });
@@ -829,15 +844,17 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await returnMovement.getByLabel("Reason for this change").fill("Linking the return flight");
     await returnMovement.getByRole("button", { name: "Save", exact: true }).click();
 
-    await expect(optionA.getByTestId("constraint-badge").filter({ hasText: "Pass" })).toHaveCount(3);
-    await expect(optionA.getByTestId("constraint-badge").filter({ hasText: "Unknown" })).toHaveCount(0);
+    await expect(optionA.getByTestId("constraint-badge").filter({ hasText: "Pass" })).toHaveCount(2);
+    await expect(optionA.getByTestId("constraint-badge").filter({ hasText: "Unknown" })).toHaveCount(1);
+    await expect(optionA.getByText("at the destination before the first festival day begins")).toBeVisible();
+    await expect(
+      optionA.getByText("festival departure unknown: the departure location has no time zone recorded yet"),
+    ).toBeVisible();
 
-    // Movement times are naive local with no time zone of their own --
-    // a real limitation on what "At the festival on time" can promise,
-    // visible on the card now that the check resolves, not just
-    // computed and left unseen.
-    await expect(optionA.getByTestId("festival-check-caveat")).toBeVisible();
-    await expect(optionA.getByTestId("festival-check-caveat")).toContainText("no time zone");
+    // Neither the competition nor Cardiff has a time zone recorded in
+    // this flow, so there's nothing to compare -- the mismatch warning
+    // stays unknown, not shown, rather than guessing.
+    await expect(optionA.getByTestId("festival-location-timezone-mismatch")).toHaveCount(0);
 
     // F-e2e-B: no segments, baggage and refundability unrecorded,
     // competition-related and not yet accepted -- unknown must not
@@ -912,6 +929,9 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     expect(flightDeposit.amountTarget).toBe(110);
     expect(flightDeposit.amountMin).toBe(90);
 
+    const home = before.data.locations.find((location: { name: string }) => location.name === "Home");
+    expect(home).toBeTruthy();
+
     const line = (scenarioRef: string, category: string, description: string, amounts: [number, number, number]) => ({
       scenario: { ref: scenarioRef },
       category,
@@ -962,11 +982,17 @@ test("the full first-run journey, starting from a signed-out, empty account", as
         { op: "create_scenario", ref: "abandoned", reason: "A second idea", data: { name: "Abandoned idea" } },
         { op: "create_budget_line", reason: "For the second idea", data: line("abandoned", "A", "Abandoned idea line", [1, 1, 1]) },
         {
+          op: "create_location",
+          ref: "olympics-village",
+          reason: "A new place for the Olympics candidate",
+          data: { name: "Olympics village" },
+        },
+        {
           op: "create_stay",
           reason: "Housing for the Olympics candidate -- nights don't match the travel window yet, on purpose",
           data: {
             scenario: { ref: "olympics-scn" },
-            location: "Olympics village",
+            location: { ref: "olympics-village" },
             startDate: "2027-07-03",
             nights: 5,
             kind: "independent",
@@ -979,8 +1005,8 @@ test("the full first-run journey, starting from a signed-out, empty account", as
           data: {
             scenario: { ref: "olympics-scn" },
             sequence: 1,
-            fromLocation: "Home",
-            toLocation: "Olympics village",
+            fromLocation: { id: home.id },
+            toLocation: { ref: "olympics-village" },
             departDate: "2027-07-03",
             arriveDate: "2027-07-03",
             mode: "plane",
@@ -1002,11 +1028,11 @@ test("the full first-run journey, starting from a signed-out, empty account", as
 
   await test.step("Overview says proposals are waiting, and nothing is written yet", async () => {
     await page.goto("/");
-    await expect(page.getByRole("link", { name: "12 research proposals waiting for review" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "13 research proposals waiting for review" })).toBeVisible();
     await page.goto("/scenarios");
     await expect(scenarioCard(page, "Olympics 2028")).toHaveCount(0);
     await page.goto("/");
-    await page.getByRole("link", { name: "12 research proposals waiting for review" }).click();
+    await page.getByRole("link", { name: "13 research proposals waiting for review" }).click();
     await expect(page).toHaveURL("/import");
     await page.getByRole("link", { name: "Olympics research session" }).click();
     await expect(page).toHaveURL(batchUrl);
@@ -1051,9 +1077,9 @@ test("the full first-run journey, starting from a signed-out, empty account", as
 
   await test.step("approve all ready: the chain goes through in one click, the stale one stays", async () => {
     await page.getByRole("button", { name: /Approve all ready/ }).click();
-    await expect(page.getByRole("status")).toHaveText("Approved 8 items.");
+    await expect(page.getByRole("status")).toHaveText("Approved 9 items.");
 
-    for (const n of [1, 2, 3, 4, 5, 7, 11, 12]) {
+    for (const n of [1, 2, 3, 4, 5, 7, 11, 12, 13]) {
       await expect(proposalCard(page, n).getByText("Approved -- written to your plan.")).toBeVisible();
     }
     await expect(proposalCard(page, 8).getByText("Out of date")).toBeVisible();
@@ -1079,7 +1105,8 @@ test("the full first-run journey, starting from a signed-out, empty account", as
   await test.step("an import that produces a 6.4 warning still approves -- those checks are warnings, not blocks", async () => {
     const after = await (await page.request.get("/export/download")).json();
     const olympics = after.data.scenarios.find((s: { name: string }) => s.name === "Olympics 2028");
-    expect(after.data.stays.some((s: { location: string }) => s.location === "Olympics village")).toBe(true);
+    const olympicsVillage = after.data.locations.find((l: { name: string }) => l.name === "Olympics village");
+    expect(after.data.stays.some((s: { locationId: string }) => s.locationId === olympicsVillage?.id)).toBe(true);
 
     await page.goto(`/scenario?scenario=${olympics.id}`);
     await expect(page.getByText("Stays total 5 nights, but the trip's travel window is 11 nights.")).toBeVisible();
@@ -1121,15 +1148,17 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     const exported = JSON.parse(readFileSync(path!, "utf-8"));
 
     expect(typeof exported.exportedAt).toBe("string");
-    expect(exported.schemaVersion).toBe(6);
+    expect(exported.schemaVersion).toBe(7);
     expect(exported.data.trips[0]).toMatchObject({ departureDate: "2027-07-03", returnDate: "2027-07-14" });
 
-    const exportedStay = exported.data.stays.find((stay: { location: string }) => stay.location === "Cardiff");
+    const cardiff = exported.data.locations.find((l: { name: string }) => l.name === "Cardiff");
+    const home = exported.data.locations.find((l: { name: string }) => l.name === "Home");
+    const exportedStay = exported.data.stays.find((stay: { locationId: string }) => stay.locationId === cardiff?.id);
     expect(exportedStay).toMatchObject({ nights: 11, kind: "festival" });
     expect(
       exported.data.movements.some(
-        (movement: { fromLocation: string; toLocation: string }) =>
-          movement.fromLocation === "Home" && movement.toLocation === "Cardiff",
+        (movement: { fromLocationId: string; toLocationId: string }) =>
+          movement.fromLocationId === home?.id && movement.toLocationId === cardiff?.id,
       ),
     ).toBe(true);
     const dateless = exported.data.competitions.find(
@@ -1199,7 +1228,7 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     expect(exported.data.scenarios.some((s: { name: string }) => s.name === "Abandoned idea")).toBe(false);
 
     const proposals: { position: number; status: string; decisionReason: string | null }[] = exported.data.proposalItems;
-    expect(proposals.filter((p) => p.status === "approved")).toHaveLength(8);
+    expect(proposals.filter((p) => p.status === "approved")).toHaveLength(9);
     expect(proposals.filter((p) => p.status === "rejected")).toHaveLength(4);
     expect(proposals.find((p) => p.position === 9)!.decisionReason).toBe(
       "Rejected with item 9, which it depends on: Dropping this idea",
