@@ -4,8 +4,8 @@ import { createCompetitionInput, updateCompetitionInput } from "./competitions";
 
 const VALID = {
   tripId: "11111111-1111-4111-8111-111111111111",
-  name: "Llangollen International Musical Eisteddfod",
-  city: "Llangollen",
+  name: "Thornmere International Choir Festival",
+  city: "Thornmere",
   country: "United Kingdom",
   startDate: "2027-07-06",
   endDate: "2027-07-11",
