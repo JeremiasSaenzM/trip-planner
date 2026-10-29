@@ -133,24 +133,24 @@ test("the full first-run journey, starting from a signed-out, empty account", as
 
   await test.step("create a trip from the empty state", async () => {
     await expect(page.getByText("Start your trip")).toBeVisible();
-    await page.getByLabel("Trip name").fill("Llangollen 2027");
+    await page.getByLabel("Trip name").fill("Thornmere 2029");
     await page.getByRole("button", { name: "Create trip", exact: true }).click();
     await expect(page.getByText("Add a competition")).toBeVisible();
   });
 
   await test.step("add a competition", async () => {
-    await page.getByLabel("Name").fill("Llangollen International Musical Eisteddfod");
-    await page.getByLabel("City").fill("Llangollen");
+    await page.getByLabel("Name").fill("Thornmere International Choir Festival");
+    await page.getByLabel("City").fill("Thornmere");
     await page.getByLabel("Country").fill("United Kingdom");
-    await page.getByLabel("Official festival dates: first day").fill("2027-07-06");
-    await page.getByLabel("Official festival dates: final day").fill("2027-07-11");
+    await page.getByLabel("Official festival dates: first day").fill("2029-11-06");
+    await page.getByLabel("Official festival dates: final day").fill("2029-11-11");
     await page.getByLabel("Time zone").fill("Europe/London");
     await page.getByRole("button", { name: "Add competition", exact: true }).click();
     await expect(page.getByText("Create a scenario")).toBeVisible();
   });
 
   await test.step("create a scenario and reach the dashboard", async () => {
-    await page.getByLabel("Name").fill("Llangollen 2027");
+    await page.getByLabel("Name").fill("Thornmere 2029");
     await page.getByRole("button", { name: "Create scenario", exact: true }).click();
     await expect(page.getByText("Required monthly saving")).toBeVisible();
   });
@@ -457,8 +457,8 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await expect(row.getByRole("button", { name: "Save", exact: true })).toBeVisible();
   });
 
-  const FIRST_COMPETITION = "Llangollen International Musical Eisteddfod";
-  const DATELESS_COMPETITION = "World Choir Games (host TBA)";
+  const FIRST_COMPETITION = "Thornmere International Choir Festival";
+  const DATELESS_COMPETITION = "Global Choir Festival (host TBA)";
   let firstScenarioId = "";
   let datelessScenarioId = "";
 
@@ -470,7 +470,7 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     ).searchParams.get("scenario")!;
     await page.getByRole("link", { name: "Manage scenarios" }).click();
     await expect(page).toHaveURL(/\/scenarios\?scenario=/);
-    await expect(scenarioCard(page, "Llangollen 2027").getByText("Selected")).toBeVisible();
+    await expect(scenarioCard(page, "Thornmere 2029").getByText("Selected")).toBeVisible();
   });
 
   await test.step("add a second competition with no city and no dates", async () => {
@@ -524,7 +524,7 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await addForm.getByRole("button", { name: "Add budget line", exact: true }).click();
     await expect(budgetLineRow(page, "Host TBA registration")).toBeVisible();
 
-    await page.getByRole("link", { name: "Llangollen 2027", exact: true }).click();
+    await page.getByRole("link", { name: "Thornmere 2029", exact: true }).click();
     await expect(page).toHaveURL(new RegExp(`scenario=${firstScenarioId}`));
     await expect(budgetLineRow(page, "Flight deposit")).toBeVisible();
     await expect(budgetLineRow(page, "Host TBA registration")).toHaveCount(0);
@@ -611,7 +611,7 @@ test("the full first-run journey, starting from a signed-out, empty account", as
 
   await test.step("payments due after the festival starts, or with no due date, are listed as moved to departure", async () => {
     for (const [description, amount, dueDate] of [
-      ["Post-festival hotel", "120", "2027-07-15"],
+      ["Post-festival hotel", "120", "2029-11-15"],
       ["Choir arrangement", "80", ""],
     ]) {
       // A fresh page each time, so the second payment can't inherit the
@@ -629,19 +629,19 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await page.goto(`/?scenario=${firstScenarioId}`);
     // No travel window yet: the festival's first official day stands in.
     await expect(page.getByTestId("departure-anchor")).toHaveText(
-      "No departure date set for the trip yet, so saving toward the festival's first day, Jul 6, 2027. " +
-        "Your last income before then arrives Jun 30, 2027.",
+      "No departure date set for the trip yet, so saving toward the festival's first day, Nov 6, 2029. " +
+        "Your last income before then arrives Oct 31, 2029.",
     );
     const pots = page.getByTestId("deadline-pots");
-    await expect(pots.getByText("Post-festival hotel — $120, due Jul 15, 2027, needed before you leave")).toBeVisible();
+    await expect(pots.getByText("Post-festival hotel — $120, due Nov 15, 2029, needed before you leave")).toBeVisible();
     await expect(pots.getByText("Choir arrangement — $80, no due date, assumed due at departure")).toBeVisible();
     await expect(pots.getByText("Registration fee — $300, due Feb 1, 2027")).toBeVisible();
 
     // Saved for by the last month-end income before leaving, not the
     // departure day itself -- and the pot says why.
     const departurePot = page.getByTestId("deadline-pot").filter({ hasText: "Post-festival hotel" });
-    await expect(departurePot).toContainText("By Jun 30, 2027 · last income before you leave");
-    await expect(departurePot.getByTestId("pot-income-note")).toContainText("Jul 6, 2027 (you leave)");
+    await expect(departurePot).toContainText("By Oct 31, 2029 · last income before you leave");
+    await expect(departurePot.getByTestId("pot-income-note")).toContainText("Nov 6, 2029 (you leave)");
     await expect(departurePot).toContainText("Choir arrangement");
   });
 
@@ -651,19 +651,19 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await expect(page.getByTestId("travel-window")).toContainText("Leave: not set");
 
     await travelWindow.getByRole("button", { name: "Set travel window", exact: true }).click();
-    await travelWindow.getByLabel("Departure date").fill("2027-07-03");
-    await travelWindow.getByLabel("Return date").fill("2027-07-14");
+    await travelWindow.getByLabel("Departure date").fill("2029-11-03");
+    await travelWindow.getByLabel("Return date").fill("2029-11-14");
     await travelWindow.getByLabel("Reason for this change").fill("Arriving a few days early");
     await travelWindow.getByRole("button", { name: "Save", exact: true }).click();
-    await expect(page.getByTestId("travel-window")).toContainText("Leave: Jul 3, 2027 · Return: Jul 14, 2027");
+    await expect(page.getByTestId("travel-window")).toContainText("Leave: Nov 3, 2029 · Return: Nov 14, 2029");
 
     await page.goto(`/?scenario=${firstScenarioId}`);
     await expect(page.getByTestId("departure-anchor")).toHaveText(
-      "Saving toward your departure on Jul 3, 2027. Your last income before then arrives Jun 30, 2027.",
+      "Saving toward your departure on Nov 3, 2029. Your last income before then arrives Oct 31, 2029.",
     );
     const departurePot = page.getByTestId("deadline-pot").filter({ hasText: "Post-festival hotel" });
-    await expect(departurePot).toContainText("By Jun 30, 2027 · last income before you leave");
-    await expect(departurePot.getByTestId("pot-income-note")).toContainText("Jul 3, 2027 (you leave)");
+    await expect(departurePot).toContainText("By Oct 31, 2029 · last income before you leave");
+    await expect(departurePot.getByTestId("pot-income-note")).toContainText("Nov 3, 2029 (you leave)");
     await expect(page.getByText(/departure date is on or after the festival/)).toHaveCount(0);
 
     // Trip-wide: a scenario whose competition has no dates now has a
@@ -678,10 +678,10 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await page.getByRole("link", { name: "About this scenario" }).click();
     await expect(page).toHaveURL(new RegExp(`/scenario\\?scenario=${firstScenarioId}`));
 
-    await expect(page.getByTestId("scenario-name")).toHaveText("Llangollen 2027");
+    await expect(page.getByTestId("scenario-name")).toHaveText("Thornmere 2029");
     const whatThisIs = page.locator("section").filter({ has: page.getByRole("heading", { name: "What this is" }) });
     await expect(whatThisIs.getByText(FIRST_COMPETITION)).toBeVisible();
-    await expect(whatThisIs.getByText("Leave Jul 3, 2027 · return Jul 14, 2027")).toBeVisible();
+    await expect(whatThisIs.getByText("Leave Nov 3, 2029 · return Nov 14, 2029")).toBeVisible();
     // Nothing invented for what isn't stored.
     await expect(whatThisIs.getByText(/No notes recorded for this scenario/)).toBeVisible();
 
@@ -696,7 +696,7 @@ test("the full first-run journey, starting from a signed-out, empty account", as
       .locator("section")
       .filter({ has: page.getByRole("heading", { name: "When money is needed" }) });
     await expect(
-      whenNeeded.getByText("Post-festival hotel — $120, due Jul 15, 2027, needed before you leave"),
+      whenNeeded.getByText("Post-festival hotel — $120, due Nov 15, 2029, needed before you leave"),
     ).toBeVisible();
 
     await expect(page.getByText("None of this scenario's budget lines has a source.")).toBeVisible();
@@ -725,8 +725,8 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     // exact: true -- the Flight options section's "Mandatory fees"
     // field (always rendered on this same page) contains "to" too.
     await page.getByRole("textbox", { name: "To Name", exact: true }).fill("Cardiff");
-    await page.getByLabel("Departs").fill("2027-07-03");
-    await page.getByLabel("Arrives").fill("2027-07-03");
+    await page.getByLabel("Departs").fill("2029-11-03");
+    await page.getByLabel("Arrives").fill("2029-11-03");
     await page.getByRole("button", { name: "Add movement", exact: true }).click();
     await expect(movementRow(page, "Home → Cardiff")).toBeVisible();
 
@@ -736,8 +736,8 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await page.getByLabel("Order in the chain").fill("2");
     await page.getByLabel("From", { exact: true }).selectOption({ label: "Cardiff (no time zone yet)" });
     await page.getByLabel("To", { exact: true }).selectOption({ label: "Home (no time zone yet)" });
-    await page.getByLabel("Departs").fill("2027-07-14");
-    await page.getByLabel("Arrives").fill("2027-07-14");
+    await page.getByLabel("Departs").fill("2029-11-14");
+    await page.getByLabel("Arrives").fill("2029-11-14");
     await page.getByRole("button", { name: "Add movement", exact: true }).click();
     await expect(movementRow(page, "Cardiff → Home")).toBeVisible();
 
@@ -750,10 +750,10 @@ test("the full first-run journey, starting from a signed-out, empty account", as
       page.getByText("2 movements with no budget line yet: Home → Cardiff, Cardiff → Home."),
     ).toBeVisible();
 
-    // The trip's travel window is Jul 3 - Jul 14 (11 nights) -- a
+    // The trip's travel window is Nov 3 - Nov 14 (11 nights) -- a
     // 10-night stay doesn't add up, the check this phase exists for.
     await page.getByLabel("Location", { exact: true }).selectOption({ label: "Cardiff (no time zone yet)" });
-    await page.getByLabel("First night").fill("2027-07-03");
+    await page.getByLabel("First night").fill("2029-11-03");
     await page.getByLabel("Nights").fill("10");
     await page.getByLabel("Kind").selectOption("festival");
     await page.getByRole("button", { name: "Add stay", exact: true }).click();
@@ -798,8 +798,8 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await optionA.getByLabel("To airport", { exact: true }).fill("LHR");
     await optionA.getByLabel("From country", { exact: true }).fill("US");
     await optionA.getByLabel("To country", { exact: true }).fill("GB");
-    await optionA.getByLabel(/^Departs at/).fill("2027-07-03T20:00:00-04:00");
-    await optionA.getByLabel(/^Arrives at/).fill("2027-07-04T08:00:00+01:00");
+    await optionA.getByLabel(/^Departs at/).fill("2029-11-03T20:00:00-04:00");
+    await optionA.getByLabel(/^Arrives at/).fill("2029-11-04T08:00:00+01:00");
     await optionA.getByRole("button", { name: "Add segment", exact: true }).click();
     await expect(optionA.getByTestId("flight-segments-list").getByText("JFK → LHR")).toBeVisible();
 
@@ -810,8 +810,8 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await optionA.getByLabel("To airport", { exact: true }).fill("JFK");
     await optionA.getByLabel("From country", { exact: true }).fill("GB");
     await optionA.getByLabel("To country", { exact: true }).fill("US");
-    await optionA.getByLabel(/^Departs at/).fill("2027-07-14T11:00:00+01:00");
-    await optionA.getByLabel(/^Arrives at/).fill("2027-07-14T14:00:00-04:00");
+    await optionA.getByLabel(/^Departs at/).fill("2029-11-14T11:00:00+01:00");
+    await optionA.getByLabel(/^Arrives at/).fill("2029-11-14T14:00:00-04:00");
     await optionA.getByRole("button", { name: "Add segment", exact: true }).click();
     await expect(optionA.getByTestId("flight-segments-list").getByText("LHR → JFK")).toBeVisible();
 
@@ -1149,7 +1149,7 @@ test("the full first-run journey, starting from a signed-out, empty account", as
 
     expect(typeof exported.exportedAt).toBe("string");
     expect(exported.schemaVersion).toBe(7);
-    expect(exported.data.trips[0]).toMatchObject({ departureDate: "2027-07-03", returnDate: "2027-07-14" });
+    expect(exported.data.trips[0]).toMatchObject({ departureDate: "2029-11-03", returnDate: "2029-11-14" });
 
     const cardiff = exported.data.locations.find((l: { name: string }) => l.name === "Cardiff");
     const home = exported.data.locations.find((l: { name: string }) => l.name === "Home");
@@ -1162,7 +1162,7 @@ test("the full first-run journey, starting from a signed-out, empty account", as
       ),
     ).toBe(true);
     const dateless = exported.data.competitions.find(
-      (competition: { name: string }) => competition.name === "World Choir Games (host TBA)",
+      (competition: { name: string }) => competition.name === "Global Choir Festival (host TBA)",
     );
     expect(dateless.startDate).toBeNull();
     expect(dateless.city).toBeNull();

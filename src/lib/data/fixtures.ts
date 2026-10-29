@@ -149,7 +149,7 @@ export const competitions: Competition[] = [
   {
     id: "40000000-0000-0000-0000-000000000003",
     tripId: "20000000-0000-0000-0000-000000000001",
-    name: "Fictional World Choir Games (host not announced)",
+    name: "Fictional Global Choir Festival (host not announced)",
     city: null,
     country: null,
     venue: null,
@@ -191,7 +191,7 @@ export const scenarios: Scenario[] = [
   {
     id: "50000000-0000-0000-0000-000000000003",
     tripId: "20000000-0000-0000-0000-000000000001",
-    name: "World Choir Games — host TBA",
+    name: "Global Choir Festival — host TBA",
     competitionId: "40000000-0000-0000-0000-000000000003",
     includesExtension: false,
     notes: null,
