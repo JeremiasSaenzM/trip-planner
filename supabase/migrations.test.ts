@@ -18,6 +18,23 @@ import { describe, expect, it } from "vitest";
 // DELETE is required to have set app.change_reason or app.actor earlier in
 // the same file, so the next such backfill fails this check locally and in
 // CI's vitest job (seconds, no Docker) instead of against real data.
+//
+// Scope, recorded here because this is where the next person will look:
+// this catches the missing-reason symptom only. A migration's actual match
+// and dedup semantics against real, messy data (e.g. the trim-based name
+// matching and merge-notice logic in the locations backfill) remain
+// unexercised by any test -- db reset still migrates an empty database and
+// seeds afterward, so a correct-looking backfill could still misjoin or
+// silently merge rows it shouldn't, and nothing here or in CI would know.
+// Counted across every migration ever written (2026-10-29): exactly one has
+// ever performed a top-level UPDATE/DELETE against pre-existing rows --
+// locations_backfill, and it failed the only time it ran against real data.
+// One for one is not a reassuring rate. A harness that runs a migration
+// against an already-populated database (not this file, and not attempted
+// here) is required before the next migration that writes to existing
+// rows -- the remaining locations migrations (dropping the old text
+// columns, timezone NOT NULL) are DDL that touches no rows, so nothing is
+// blocked yet, but the harness needs to exist before the next one that is.
 
 const MIGRATIONS_DIR = path.resolve(__dirname, "migrations");
 
