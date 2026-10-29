@@ -58,6 +58,15 @@ from (
 ) all_location_text
 on conflict (owner_id, name) do nothing;
 
+-- The change_log audit trigger requires a reason for any UPDATE/DELETE
+-- (change_log_capture()) -- set once, it holds for the rest of this
+-- migration's transaction, covering every bulk update below (stays,
+-- then both movements columns). Not actor = 'seed': these are real,
+-- pre-existing rows, not initial data loading, and the audit log
+-- should say what actually happened.
+select set_config('app.change_reason',
+  'Phase 6.5b migration backfill: populating location_id from the existing location text (20261029090100)', true);
+
 alter table stays add column location_id uuid references locations (id);
 update stays s
 set location_id = l.id
