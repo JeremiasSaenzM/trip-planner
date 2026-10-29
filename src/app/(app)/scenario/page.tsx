@@ -17,7 +17,7 @@ import { DeadlinePotList } from "../deadline-pots-ui";
 import { AddFlightOptionForm, FlightOptionComparisonTable, FlightOptionList } from "../flight-write-ui";
 import { formatDate, formatUsd } from "../format";
 import { INFO_STATE_LABELS } from "../info-state-labels";
-import { AddMovementForm, AddStayForm, MovementList, StayList } from "../itinerary-write-ui";
+import { AddMovementForm, AddStayForm, LocationList, MovementList, StayList } from "../itinerary-write-ui";
 import { MOVEMENT_MODE_LABELS } from "../itinerary-labels";
 import { departureAnchorText } from "../pot-item-text";
 import { summarizeBudgetEvidence } from "../scenario-evidence";
@@ -118,6 +118,13 @@ async function ScenarioOverview({ searchParams }: { searchParams: PageProps<"/sc
             <CardLabel>Night by night</CardLabel>
             <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">{daysAwayText(data.movements)}</p>
             <ItineraryStrip days={data.itineraryTimeline} locations={locations} />
+          </div>
+        </Card>
+
+        <Card>
+          <CardLabel>Locations</CardLabel>
+          <div className="mt-2">
+            <LocationList locations={locations} />
           </div>
         </Card>
 

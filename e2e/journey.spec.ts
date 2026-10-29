@@ -78,6 +78,10 @@ function movementRow(page: Page, label: string) {
   return page.getByTestId("movements-list").locator("div.rounded-xl").filter({ hasText: label });
 }
 
+function locationRow(page: Page, name: string) {
+  return page.getByTestId("locations-list").locator("div.rounded-xl").filter({ hasText: name });
+}
+
 function flightOptionCard(page: Page, label: string) {
   return page.getByTestId("flight-option-card").filter({ has: page.getByText(label, { exact: true }) });
 }
@@ -855,7 +859,35 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     // this flow, so there's nothing to compare -- the mismatch warning
     // stays unknown, not shown, rather than guessing.
     await expect(optionA.getByTestId("festival-location-timezone-mismatch")).toHaveCount(0);
+  });
 
+  await test.step("give a zone-less location its time zone through the edit form, and watch the dependent check answer itself", async () => {
+    // Cardiff is the one driving findFestivalDeparture's "unknown" above
+    // (find-festival-departure.ts: a departure location with no zone).
+    // Editing it here, not re-creating it -- the point of this whole
+    // phase is that a place never becomes two.
+    const cardiff = locationRow(page, "Cardiff");
+    await cardiff.getByRole("button", { name: "Edit", exact: true }).click();
+    await cardiff.getByLabel("Time zone (optional, e.g. Europe/Paris)").fill("Europe/London");
+    await cardiff.getByLabel("Reason for this change").fill("Recording Cardiff's real time zone");
+    await cardiff.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(cardiff.getByText("No time zone recorded yet")).not.toBeVisible();
+    await expect(cardiff.getByText("Europe/London")).toBeVisible();
+
+    // Same option as above, re-fetched after the edit -- the "festival
+    // departure unknown: ... no time zone recorded yet" reason is gone,
+    // replaced by an actual answer (pass or fail, either is fine: the
+    // point is it's no longer "unknown"). The arrival half was already
+    // settled, so this is the only constraint badge left to move.
+    const optionA = flightOptionCard(page, "F-e2e-A");
+    await expect(
+      optionA.getByText("festival departure unknown: the departure location has no time zone recorded yet"),
+    ).not.toBeVisible();
+    await expect(optionA.getByText(/leaves the festival location/)).toBeVisible();
+    await expect(optionA.getByTestId("constraint-badge").filter({ hasText: "Unknown" })).toHaveCount(0);
+  });
+
+  await test.step("continue the flight options flow", async () => {
     // F-e2e-B: no segments, baggage and refundability unrecorded,
     // competition-related and not yet accepted -- unknown must not
     // look like pass anywhere, and check 4 reads as "needs a decision",

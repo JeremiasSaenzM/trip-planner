@@ -18,6 +18,7 @@ import {
   updateStay,
 } from "./itinerary-actions";
 import { FLIGHT_OPTION_STATUS_LABELS } from "./flight-labels";
+import { updateLocation } from "./location-actions";
 import { MOVEMENT_MODE_LABELS, MOVEMENT_MODE_ORDER, STAY_KIND_LABELS, STAY_KIND_ORDER } from "./itinerary-labels";
 import { QUANTITY_UNIT_LABELS } from "./quantity-unit-labels";
 import { SourcePicker } from "./source-picker";
@@ -994,6 +995,125 @@ function DeleteMovementForm({
       <div className="flex gap-2">
         <button type="submit" disabled={pending} className={buttonClass}>
           {pending ? "Deleting…" : "Delete"}
+        </button>
+        <button type="button" onClick={onDone} className={secondaryButtonClass}>
+          Cancel
+        </button>
+      </div>
+    </form>
+  );
+}
+
+// Locations
+//
+// Not "add a new location" -- that already exists inline inside
+// LocationPicker above. This is the other half: editing one that
+// already exists. "(no time zone yet)" (LocationPicker's <option> text)
+// is the only place today that tells you a location needs a zone, and
+// until now nothing on this page let you act on that without creating a
+// duplicate. Same page, same section, so the fact and the fix sit
+// together -- no delete here; removing a location isn't what was asked
+// for, and delete_location's own referencing-row guard (20261029090100)
+// isn't exercised by any form yet.
+export function LocationList({ locations }: { locations: Location[] }) {
+  if (locations.length === 0) {
+    return <p className="text-sm text-zinc-500 dark:text-zinc-400">No locations recorded yet.</p>;
+  }
+
+  const sorted = [...locations].sort((a, b) => a.name.localeCompare(b.name));
+
+  return (
+    <div className="space-y-2" data-testid="locations-list">
+      {sorted.map((location) => (
+        <LocationRow key={location.id} location={location} />
+      ))}
+    </div>
+  );
+}
+
+function LocationRow({ location }: { location: Location }) {
+  const [mode, setMode] = useState<"view" | "edit">("view");
+  const [attempt, setAttempt] = useState(0);
+
+  function startEdit() {
+    setAttempt((value) => value + 1);
+    setMode("edit");
+  }
+
+  return (
+    <div className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800" data-testid="location-row">
+      {/* Kept outside the mode switch, same reasoning as StayRow -- a
+          row stays identifiable by name through its own edit. */}
+      <p className="font-medium">{location.name}</p>
+      {mode === "edit" ? (
+        <EditLocationForm key={attempt} location={location} onDone={() => setMode("view")} />
+      ) : (
+        <>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400">
+            {location.timezone ?? <span className="italic">No time zone recorded yet</span>}
+            {location.notes ? ` · ${location.notes}` : ""}
+          </p>
+          <div className="mt-2 flex flex-wrap gap-3 text-sm">
+            <button type="button" onClick={startEdit} className="text-zinc-600 underline dark:text-zinc-400">
+              Edit
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function EditLocationForm({ location, onDone }: { location: Location; onDone: () => void }) {
+  const [state, formAction, pending] = useActionState(updateLocation, initialFormActionState);
+  const formId = useId();
+
+  useEffect(() => {
+    if (state.status === "success") onDone();
+  }, [state, onDone]);
+
+  return (
+    <form action={formAction} className="mt-2 space-y-2.5">
+      <input type="hidden" name="id" value={location.id} />
+
+      <div className="space-y-1.5">
+        <label htmlFor={`${formId}-name`} className={labelClass}>
+          Name
+        </label>
+        <input id={`${formId}-name`} name="name" required defaultValue={location.name} className={inputClass} />
+      </div>
+
+      <div className="space-y-1.5">
+        <label htmlFor={`${formId}-timezone`} className={labelClass}>
+          Time zone (optional, e.g. Europe/Paris)
+        </label>
+        <input
+          id={`${formId}-timezone`}
+          name="timezone"
+          placeholder="Europe/Paris"
+          defaultValue={location.timezone ?? ""}
+          className={inputClass}
+        />
+      </div>
+
+      <div className="space-y-1.5">
+        <label htmlFor={`${formId}-notes`} className={labelClass}>
+          Notes (optional)
+        </label>
+        <input id={`${formId}-notes`} name="notes" defaultValue={location.notes ?? ""} className={inputClass} />
+      </div>
+
+      <div className="space-y-1.5">
+        <label htmlFor={`${formId}-reason`} className={labelClass}>
+          Reason for this change
+        </label>
+        <input id={`${formId}-reason`} name="reason" required className={inputClass} />
+      </div>
+
+      {state.status === "error" && <FormError message={state.message} />}
+      <div className="flex gap-2">
+        <button type="submit" disabled={pending} className={buttonClass}>
+          {pending ? "Saving…" : "Save"}
         </button>
         <button type="button" onClick={onDone} className={secondaryButtonClass}>
           Cancel
