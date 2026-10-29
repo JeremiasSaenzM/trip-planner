@@ -4,7 +4,7 @@ import { createTripInput, updateTripTravelWindowInput } from "./trips";
 
 describe("createTripInput", () => {
   it("accepts a named trip", () => {
-    expect(createTripInput.safeParse({ name: "Llangollen 2027" }).success).toBe(true);
+    expect(createTripInput.safeParse({ name: "Thornmere 2029" }).success).toBe(true);
   });
 
   it("rejects a blank name", () => {

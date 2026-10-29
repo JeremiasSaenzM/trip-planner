@@ -22,7 +22,7 @@ export function CreateTripForm() {
           <label htmlFor="trip-name" className={labelClass}>
             Trip name
           </label>
-          <input id="trip-name" name="name" required className={inputClass} placeholder="Llangollen 2027" />
+          <input id="trip-name" name="name" required className={inputClass} placeholder="Thornmere 2029" />
         </div>
         {state.status === "error" && <FormError message={state.message} />}
         <button type="submit" disabled={pending} className={buttonClass}>
@@ -57,7 +57,7 @@ export function AddCompetitionForm({ tripId }: { tripId: string }) {
             name="name"
             required
             className={inputClass}
-            placeholder="Llangollen International Musical Eisteddfod"
+            placeholder="Thornmere International Choir Festival"
           />
         </div>
         <div className="grid grid-cols-2 gap-3">
@@ -135,7 +135,7 @@ export function CreateScenarioForm({ tripId, competitions }: { tripId: string; c
             name="name"
             required
             className={inputClass}
-            placeholder="Llangollen 2027"
+            placeholder="Thornmere 2029"
           />
         </div>
         <div className="space-y-1.5">

@@ -8,7 +8,7 @@ const SCENARIO_ID = "33333333-3333-4333-8333-333333333333";
 
 describe("createScenarioInput", () => {
   it("accepts a scenario with a competition", () => {
-    const result = createScenarioInput.safeParse({ tripId: TRIP_ID, name: "Llangollen 2027", competitionId: COMPETITION_ID });
+    const result = createScenarioInput.safeParse({ tripId: TRIP_ID, name: "Thornmere 2029", competitionId: COMPETITION_ID });
     expect(result.success).toBe(true);
   });
 
@@ -27,7 +27,7 @@ describe("updateScenarioInput", () => {
   it("accepts a rename that links a competition", () => {
     const result = updateScenarioInput.safeParse({
       id: SCENARIO_ID,
-      name: "Llangollen 2027 + Paris",
+      name: "Thornmere 2029 + Paris",
       competitionId: COMPETITION_ID,
       reason: "Adding Paris",
     });

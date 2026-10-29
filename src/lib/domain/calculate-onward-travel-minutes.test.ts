@@ -4,18 +4,18 @@ import { calculateOnwardTravelMinutes } from "./calculate-onward-travel-minutes"
 
 const FLIGHT_OPTION_ID = "f0000000-0000-0000-0000-000000000001";
 const PARIS = "Europe/Paris"; // UTC+2 in July (CEST)
-const LONDON = "Europe/London"; // UTC+1 in July (BST) -- also Llangollen's zone
+const LONDON = "Europe/London"; // UTC+1 in July (BST) -- also Thornmere's zone
 
 describe("calculateOnwardTravelMinutes", () => {
   it("is zero when the flight already lands at the festival city", () => {
     const result = calculateOnwardTravelMinutes({
       flightOptionId: FLIGHT_OPTION_ID,
-      festivalStayLocationId: "Llangollen",
+      festivalStayLocationId: "Thornmere",
       movements: [
         {
           sequence: 1,
           fromLocationId: "Home",
-          toLocationId: "Llangollen",
+          toLocationId: "Thornmere",
           fromZone: null,
           toZone: LONDON,
           departDate: "2027-07-01",
@@ -106,11 +106,11 @@ describe("calculateOnwardTravelMinutes", () => {
   });
 
   it("walks forward through onward legs to the festival stay, summing waiting and travel time", () => {
-    // Paris (flight lands) -> London -> Llangollen, mirroring the
+    // Paris (flight lands) -> London -> Thornmere, mirroring the
     // traveller's actual route in the phase discussion.
     const result = calculateOnwardTravelMinutes({
       flightOptionId: FLIGHT_OPTION_ID,
-      festivalStayLocationId: "Llangollen",
+      festivalStayLocationId: "Thornmere",
       movements: [
         {
           sequence: 1,
@@ -139,7 +139,7 @@ describe("calculateOnwardTravelMinutes", () => {
         {
           sequence: 3,
           fromLocationId: "London",
-          toLocationId: "Llangollen",
+          toLocationId: "Thornmere",
           fromZone: LONDON,
           toZone: LONDON,
           departDate: "2027-07-01",
@@ -150,7 +150,7 @@ describe("calculateOnwardTravelMinutes", () => {
         },
       ],
     });
-    // Landing 14:00 Paris (12:00Z) -> arrives Llangollen 22:00 London
+    // Landing 14:00 Paris (12:00Z) -> arrives Thornmere 22:00 London
     // local (21:00Z) = 9 hours = 540 minutes. (A same-zone, naive
     // reading would have said 480 -- short by the hour Paris gains on
     // London, understating this westbound route.)
@@ -169,7 +169,7 @@ describe("calculateOnwardTravelMinutes", () => {
   it("reports unknown when nothing in the scenario is linked to this flight option", () => {
     const result = calculateOnwardTravelMinutes({
       flightOptionId: FLIGHT_OPTION_ID,
-      festivalStayLocationId: "Llangollen",
+      festivalStayLocationId: "Thornmere",
       movements: [
         {
           sequence: 1,
@@ -191,7 +191,7 @@ describe("calculateOnwardTravelMinutes", () => {
   it("reports unknown, not a wrong number, when a location on the route has no time zone recorded yet", () => {
     const result = calculateOnwardTravelMinutes({
       flightOptionId: FLIGHT_OPTION_ID,
-      festivalStayLocationId: "Llangollen",
+      festivalStayLocationId: "Thornmere",
       movements: [
         {
           sequence: 1,
@@ -208,7 +208,7 @@ describe("calculateOnwardTravelMinutes", () => {
         {
           sequence: 2,
           fromLocationId: "Paris",
-          toLocationId: "Llangollen",
+          toLocationId: "Thornmere",
           fromZone: null,
           toZone: LONDON,
           departDate: "2027-07-01",
@@ -225,7 +225,7 @@ describe("calculateOnwardTravelMinutes", () => {
   it("bounds the total by the day's limits, rather than giving up, when an onward leg has no time of day recorded", () => {
     const result = calculateOnwardTravelMinutes({
       flightOptionId: FLIGHT_OPTION_ID,
-      festivalStayLocationId: "Llangollen",
+      festivalStayLocationId: "Thornmere",
       movements: [
         {
           sequence: 1,
@@ -242,7 +242,7 @@ describe("calculateOnwardTravelMinutes", () => {
         {
           sequence: 2,
           fromLocationId: "Paris",
-          toLocationId: "Llangollen",
+          toLocationId: "Thornmere",
           fromZone: PARIS,
           toZone: LONDON,
           departDate: "2027-07-01",
@@ -262,13 +262,13 @@ describe("calculateOnwardTravelMinutes", () => {
   });
 
   it("bounds the total using only the flight's own arrival and the destination leg's own arrival, ignoring an untimed leg in between", () => {
-    // Paris (flight lands, known) -> London (untimed) -> Llangollen
+    // Paris (flight lands, known) -> London (untimed) -> Thornmere
     // (known) -- the London leg's own times telescope out of the total
     // algebraically, so a missing time there still leaves an exact
     // answer, not merely a bound.
     const result = calculateOnwardTravelMinutes({
       flightOptionId: FLIGHT_OPTION_ID,
-      festivalStayLocationId: "Llangollen",
+      festivalStayLocationId: "Thornmere",
       movements: [
         {
           sequence: 1,
@@ -297,7 +297,7 @@ describe("calculateOnwardTravelMinutes", () => {
         {
           sequence: 3,
           fromLocationId: "London",
-          toLocationId: "Llangollen",
+          toLocationId: "Thornmere",
           fromZone: LONDON,
           toZone: LONDON,
           departDate: "2027-07-01",
@@ -319,7 +319,7 @@ describe("calculateOnwardTravelMinutes", () => {
   it("reports unknown when the chain after the flight never reaches the festival stay", () => {
     const result = calculateOnwardTravelMinutes({
       flightOptionId: FLIGHT_OPTION_ID,
-      festivalStayLocationId: "Llangollen",
+      festivalStayLocationId: "Thornmere",
       movements: [
         {
           sequence: 1,
