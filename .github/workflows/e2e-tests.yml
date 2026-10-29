@@ -15,6 +15,12 @@ on:
     branches: [main]
   pull_request:
 
+# Cancels a run already superseded by a newer push on the same branch --
+# no coverage lost, just the minutes a stale run would otherwise burn.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   e2e-tests:
     runs-on: ubuntu-latest
