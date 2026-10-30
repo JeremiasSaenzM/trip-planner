@@ -29,7 +29,6 @@ import {
 } from "@/lib/domain/build-itinerary-timeline";
 import { buildObligations, type BuiltObligation, type MissingObligationRate } from "@/lib/domain/build-obligations";
 import { buildParallelSavingsPlan, type BuildParallelSavingsPlanResult } from "@/lib/domain/build-parallel-savings-plan";
-import { buildPhasedSavingsPlan, type BuildPhasedSavingsPlanResult } from "@/lib/domain/build-phased-savings-plan";
 import { calculateRequiredSavings, type CalculateRequiredSavingsResult } from "@/lib/domain/calculate-required-savings";
 import { checkBudgetLineDaysAddUp, type BudgetLineDaysCheckResult } from "@/lib/domain/check-budget-line-days-add-up";
 import { checkBudgetLineMatchesStay, type BudgetLineStayMismatch } from "@/lib/domain/check-budget-line-matches-stay";
@@ -93,10 +92,9 @@ export type DashboardData =
       availableUsd: number;
       /** Every deadline with the payments it's made of, and how each one
        * got there (moved, undated, ...) -- built from the same obligations
-       * as savings and both plans. null when noDepartureDate. */
+       * as savings and the parallel plan. null when noDepartureDate. */
       pots: DeadlinePot[] | null;
       /** null when noDepartureDate -- there are no obligations to plan against. */
-      phasedPlan: BuildPhasedSavingsPlanResult | null;
       parallelPlan: BuildParallelSavingsPlanResult | null;
       /** Scenario-scoped: this scenario's own payments plus the trip's shared ones. */
       payments: Payment[];
@@ -366,7 +364,6 @@ export async function loadDashboardData(params: {
       obligations: [],
       availableUsd: obligationsResult.availableUsd,
       pots: null,
-      phasedPlan: null,
       parallelPlan: null,
       payments: scenarioPayments,
       tripPayments,
@@ -401,15 +398,6 @@ export async function loadDashboardData(params: {
     savingsEntries: [{ amountUsd: obligationsResult.availableUsd, recordedOn: asOfDate }],
     obligations: obligationsResult.obligations,
     incomeCadence: TRAVELLER_INCOME_CADENCE,
-  });
-
-  const phasedPlan = buildPhasedSavingsPlan({
-    obligations: obligationsResult.obligations,
-    availableUsd: obligationsResult.availableUsd,
-    asOfDate,
-    basis,
-    incomeCadence: TRAVELLER_INCOME_CADENCE,
-    departureDate: obligationsResult.departureSaveBy,
   });
 
   const parallelPlan = buildParallelSavingsPlan({
@@ -447,7 +435,6 @@ export async function loadDashboardData(params: {
     obligations: obligationsResult.obligations,
     availableUsd: obligationsResult.availableUsd,
     pots,
-    phasedPlan,
     parallelPlan,
     payments: scenarioPayments,
     tripPayments,

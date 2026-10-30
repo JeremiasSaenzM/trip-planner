@@ -4,7 +4,6 @@ import { DateTime } from "luxon";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 import type { BuildParallelSavingsPlanResult } from "@/lib/domain/build-parallel-savings-plan";
-import type { BuildPhasedSavingsPlanResult, PhasedSavingsPhase } from "@/lib/domain/build-phased-savings-plan";
 
 import { formatDate, formatUsd } from "./format";
 
@@ -23,17 +22,9 @@ function formatUsdTick(value: number): string {
   return `$${Math.round(value).toLocaleString()}`;
 }
 
-// See charts.tsx's own comment: Recharts hard-codes axis tick and default
-// Tooltip colors, which need to follow the theme instead.
+// See charts.tsx's own comment: Recharts hard-codes axis tick colors,
+// which need to follow the theme instead.
 const AXIS_TICK = { fontSize: 11, fill: "var(--chart-neutral)" };
-const TOOLTIP_STYLE = {
-  contentStyle: {
-    backgroundColor: "var(--chart-tooltip-bg)",
-    border: "1px solid var(--chart-tooltip-border)",
-    borderRadius: 8,
-  },
-  labelStyle: { color: "var(--foreground)" },
-};
 
 type SawtoothPoint = {
   timestamp: number;
@@ -71,126 +62,6 @@ function BalanceTooltip({ active, payload }: { active?: boolean; payload?: { pay
       <p>Balance: {formatUsdTick(point.balance)}</p>
       <p>Saving this period: {formatUsdTick(point.monthlySaving)}/month</p>
     </div>
-  );
-}
-
-/** Pure, so the "final balance ~0" invariant can be tested without rendering. */
-export function buildPhasedSawtoothData(
-  plan: BuildPhasedSavingsPlanResult,
-  availableUsd: number,
-  asOfDate: string,
-): SawtoothPoint[] {
-  const pastDue = plan.phases.filter((phase) => phase.isPastDue);
-  const future = plan.phases.filter((phase) => !phase.isPastDue);
-  if (future.length === 0) return [];
-
-  const startingBalance = pastDue.length > 0 ? pastDue[pastDue.length - 1].balanceAfterPayment : availableUsd;
-
-  const data: SawtoothPoint[] = [
-    {
-      timestamp: toTimestamp(asOfDate),
-      balance: startingBalance,
-      isPeak: false,
-      label: null,
-      labelAnchor: "middle",
-      monthlySaving: future[0].monthlySaving ?? 0,
-    },
-  ];
-  future.forEach((phase, i) => {
-    data.push({
-      timestamp: toTimestamp(phase.toDate),
-      balance: phase.balanceBeforePayment,
-      isPeak: true,
-      label: `${phase.description} (${formatUsd(phase.balanceBeforePayment)})`,
-      labelAnchor: i === future.length - 1 ? "end" : "middle",
-      monthlySaving: phase.monthlySaving ?? 0,
-    });
-    data.push({
-      timestamp: toTimestamp(phase.toDate),
-      balance: phase.balanceAfterPayment,
-      isPeak: false,
-      label: null,
-      labelAnchor: "middle",
-      monthlySaving: phase.monthlySaving ?? 0,
-    });
-  });
-  return data;
-}
-
-export function PhasedSavingsChart({
-  plan,
-  availableUsd,
-  asOfDate,
-}: {
-  plan: BuildPhasedSavingsPlanResult;
-  availableUsd: number;
-  asOfDate: string;
-}) {
-  const pastDue = plan.phases.filter((phase) => phase.isPastDue);
-  const future = plan.phases.filter((phase) => !phase.isPastDue);
-
-  if (future.length === 0) {
-    return <p className="text-sm text-zinc-500 dark:text-zinc-400">No upcoming deadlines to plan a phase for yet.</p>;
-  }
-
-  const data = buildPhasedSawtoothData(plan, availableUsd, asOfDate);
-
-  return (
-    <div>
-      <ResponsiveContainer width="100%" height={240}>
-        <LineChart data={data} margin={{ top: 20, right: 8, left: 0, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
-          <XAxis
-            dataKey="timestamp"
-            type="number"
-            domain={["dataMin", "dataMax"]}
-            tickFormatter={formatDateTick}
-            tick={AXIS_TICK}
-            stroke="var(--chart-grid)"
-          />
-          <YAxis tick={AXIS_TICK} stroke="var(--chart-grid)" width={44} tickFormatter={formatUsdTick} />
-          <Tooltip
-            labelFormatter={(value) => formatDateTick(Number(value))}
-            formatter={(value) => formatUsdTick(Number(value))}
-            {...TOOLTIP_STYLE}
-          />
-          <Line
-            type="linear"
-            dataKey="balance"
-            name="Balance"
-            stroke="var(--chart-target)"
-            strokeWidth={2}
-            dot={<PeakDot />}
-          />
-        </LineChart>
-      </ResponsiveContainer>
-      <PhasedSavingsList pastDue={pastDue} future={future} />
-    </div>
-  );
-}
-
-function PhasedSavingsList({ pastDue, future }: { pastDue: PhasedSavingsPhase[]; future: PhasedSavingsPhase[] }) {
-  return (
-    <ul data-testid="phased-savings-list" className="mt-2 space-y-1 text-sm text-zinc-600 dark:text-zinc-400">
-      {pastDue.map((phase, i) =>
-        phase.shortfallNow === null ? (
-          <li key={`past-${i}`}>
-            {formatDate(phase.toDate)} · from money already set aside · {phase.description}
-          </li>
-        ) : (
-          <li key={`past-${i}`} className="text-red-700 dark:text-red-400">
-            Overdue since {formatDate(phase.toDate)} · short {formatUsd(phase.shortfallNow)} now ·{" "}
-            {phase.description}
-          </li>
-        ),
-      )}
-      {future.map((phase, i) => (
-        <li key={i}>
-          {formatDate(phase.fromDate)} → {formatDate(phase.toDate)} · save {formatUsd(phase.monthlySaving ?? 0)}
-          /month · {phase.description}
-        </li>
-      ))}
-    </ul>
   );
 }
 

@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import { buildDeadlinePots } from "./build-deadline-pots";
 import { buildObligations, type BudgetLineForObligations, type PaymentForObligations } from "./build-obligations";
 import { buildParallelSavingsPlan } from "./build-parallel-savings-plan";
-import { buildPhasedSavingsPlan } from "./build-phased-savings-plan";
 import { calculateRequiredSavings, cumulativeAt, requiredMonthlyAt } from "./calculate-required-savings";
 import type { FxRate } from "./convert-to-usd";
 import { TRAVELLER_INCOME_CADENCE } from "./income-cadence";
@@ -12,9 +11,9 @@ import { BASES } from "./types";
 
 // The whole savings pipeline, end to end, the way dashboard-data.ts runs
 // it: one set of obligations feeds the headline (calculateRequiredSavings),
-// the phased and parallel plans, and the expanded pot list. These tests
-// fail if any of them ever stops agreeing with the others about which
-// payments are in the plan.
+// the parallel plan, and the expanded pot list. These tests fail if any of
+// them ever stops agreeing with the others about which payments are in
+// the plan.
 //
 // Fictional amounts, shaped like a routing with money moving after the
 // festival starts: an arrival city a few days early, a stay after the
@@ -166,7 +165,7 @@ describe("the savings pipeline: headline, schedule and pots agree on one payment
       }
     });
 
-    it(`the phased and parallel plans plan for the same total as the pots (${basis})`, () => {
+    it(`the parallel plan plans for the same total as the pots (${basis})`, () => {
       const { result } = runPipeline(TRIP_DEPARTURE);
       const pots = buildDeadlinePots({ ...potInputs(result), basis });
       const potTotal = pots.reduce((sum, pot) => sum + pot.amountUsd, 0);
@@ -179,11 +178,9 @@ describe("the savings pipeline: headline, schedule and pots agree on one payment
         incomeCadence: TRAVELLER_INCOME_CADENCE,
       };
       const parallel = buildParallelSavingsPlan(common);
-      const phased = buildPhasedSavingsPlan(common);
 
       expect(parallel.pots.reduce((sum, pot) => sum + pot.amountUsd, 0)).toBeCloseTo(potTotal, 6);
       expect(parallel.pots.map((pot) => pot.dueDate)).toEqual(pots.map((pot) => pot.dueDate));
-      expect(phased.phases.map((phase) => phase.toDate)).toEqual(pots.map((pot) => pot.dueDate));
     });
   }
 });
@@ -329,16 +326,15 @@ describe("the chart data differs between bases when the amounts do", () => {
             cumulative: savings.schedule.map((entry) => cumulativeAt(entry, basis)),
             pots: pots.map((pot) => pot.amountUsd),
             parallel: buildParallelSavingsPlan(common).pots.map((pot) => pot.amountUsd),
-            phased: buildPhasedSavingsPlan(common).phases.map((phase) => phase.monthlySaving),
           },
         ];
       }),
     ) as unknown as Record<(typeof BASES)[number], Record<string, unknown>>;
   }
 
-  it("headline, schedule, pots and both plans differ between minimum, target and conservative", () => {
+  it("headline, schedule, pots and the parallel plan differ between minimum, target and conservative", () => {
     const data = chartData();
-    for (const key of ["headline", "cumulative", "pots", "parallel", "phased"]) {
+    for (const key of ["headline", "cumulative", "pots", "parallel"]) {
       expect(data.minimum[key], `${key}: minimum vs target`).not.toEqual(data.target[key]);
       expect(data.conservative[key], `${key}: conservative vs target`).not.toEqual(data.target[key]);
     }
@@ -391,16 +387,14 @@ describe("a remainder that's zero at the selected basis is never listed", () => 
     return {
       pots: buildDeadlinePots({ ...potInputs(result), basis }),
       parallel: buildParallelSavingsPlan(common),
-      phased: buildPhasedSavingsPlan(common),
     };
   }
 
-  it("leaves it out of the pots and both plans at the minimum basis", () => {
-    const { pots, parallel, phased } = run("minimum");
+  it("leaves it out of the pots and the parallel plan at the minimum basis", () => {
+    const { pots, parallel } = run("minimum");
     expect(pots.flatMap((pot) => pot.items).map((item) => item.timing)).toEqual(["on_date"]);
     expect(pots.map((pot) => pot.dueDate)).toEqual(["2027-03-31"]);
     expect(parallel.pots.map((pot) => pot.dueDate)).toEqual(["2027-03-31"]);
-    expect(phased.phases.map((phase) => phase.toDate)).toEqual(["2027-03-31"]);
   });
 
   it("still lists it at the bases where something is left to cover", () => {
