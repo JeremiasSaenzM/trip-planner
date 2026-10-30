@@ -13,7 +13,7 @@ import { Card, CardLabel, Caveat, noDepartureReason, RangeFigure } from "./dashb
 import { DeadlinePotList } from "./deadline-pots-ui";
 import { formatUsd } from "./format";
 import { departureAnchorText } from "./pot-item-text";
-import { ParallelSavingsChart, PhasedSavingsChart } from "./savings-plan-charts";
+import { ParallelSavingsChart } from "./savings-plan-charts";
 import { RecordSavingsEntryForm, SavingsEntryList } from "./savings-entries-ui";
 
 export const metadata: Metadata = { title: "Overview" };
@@ -61,7 +61,6 @@ async function Overview({ searchParams }: { searchParams: PageProps<"/">["search
     noDepartureDate,
     availableUsd,
     obligations,
-    phasedPlan,
     parallelPlan,
     competition,
     savingsEntries,
@@ -225,13 +224,6 @@ async function Overview({ searchParams }: { searchParams: PageProps<"/">["search
             basis={data.basis}
             departureSaveBy={data.departureSaveBy}
           />
-        </Card>
-      )}
-
-      {phasedPlan && (
-        <Card>
-          <CardLabel>One phase at a time</CardLabel>
-          <PhasedSavingsChart plan={phasedPlan} availableUsd={availableUsd} asOfDate={data.asOfDate} />
         </Card>
       )}
 

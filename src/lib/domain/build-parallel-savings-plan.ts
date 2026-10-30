@@ -8,7 +8,7 @@ export type SavingsPot = {
   amountUsd: number;
   isPastDue: boolean;
   /** This pot's share of availableUsd -- earliest due date claims its
-   * share first, same order as buildPhasedSavingsPlan. */
+   * share first. */
   availableShareUsd: number;
   /** null for a past-due pot -- it has no monthly rate, only a shortfall. */
   monthsFromToday: number | null;

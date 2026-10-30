@@ -39,8 +39,8 @@ export type DeadlineGroup<T extends ObligationForGrouping = ObligationForGroupin
  * Groups obligations sharing the same due date into one deadline, summing
  * their amounts (at the given basis) and combining their descriptions.
  * An unallocated remainder that's zero at this basis is left out.
- * Sorted ascending by due date -- the shared starting point for both
- * buildPhasedSavingsPlan() and buildParallelSavingsPlan().
+ * Sorted ascending by due date -- the shared starting point for
+ * buildParallelSavingsPlan() and buildDeadlinePots().
  *
  * departureDate (optional) is purely a labeling hint: a group of several
  * obligations that all land on the departure date is buildObligations()'s

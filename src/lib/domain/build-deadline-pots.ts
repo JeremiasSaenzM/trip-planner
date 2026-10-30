@@ -50,8 +50,8 @@ const TIMING_ORDER: Record<ObligationTiming, number> = {
  * Every deadline the savings plan saves toward, each listing the
  * individual obligations it's made of and how each one got there
  * (obligationTiming()). Built from the exact same obligations
- * calculateRequiredSavings() and the phased/parallel plans use, so the
- * list can never disagree with the headline figure about what's in it.
+ * calculateRequiredSavings() and the parallel plan use, so the list can
+ * never disagree with the headline figure about what's in it.
  *
  * Pots are keyed by saving deadline (an income date), so payments owed
  * on 30 June, 1 July and 2 July share one 30 June pot under month-end
