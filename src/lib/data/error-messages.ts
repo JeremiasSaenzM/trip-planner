@@ -32,6 +32,10 @@ const CHECK_CONSTRAINT_MESSAGES: Record<string, string> = {
   decisions_flight_risk_needs_rationale: "Say why you're accepting this risk.",
   flight_options_one_selected_or_booked_per_scenario:
     "This scenario already has a selected or booked flight option -- change that one first.",
+  accommodation_options_one_selected_or_booked_per_stay:
+    "This stay already has a selected or booked accommodation option -- change that one first.",
+  accommodation_options_conditional_needs_undiscounted:
+    "A conditional rate needs its undiscounted amount too -- add it, or turn off \"conditional\".",
   decisions_accepted_currency_format: "Currency must be a 3-letter code (e.g. USD).",
   payments_risk_accepted_decision_id_unique: "That decision already covers a different payment.",
   stays_nights_positive: "Nights must be more than zero.",
