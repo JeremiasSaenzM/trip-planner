@@ -23,6 +23,10 @@ export type Basis = (typeof BASES)[number];
 
 export type FlightBaggage = "included" | "paid_addon" | "not_allowed" | "unknown";
 
+/** Per night or per stay -- the distinction matters and must not be
+ * inferred from arithmetic (phase-6.6-accommodation.md). */
+export type AccommodationRateUnit = "per_night" | "per_stay";
+
 /** A stay's role in the trip -- check-festival-stay-coverage.ts filters
  * on "festival" specifically, which is what makes this a domain
  * discriminant rather than just a data label (contrast MovementMode,
