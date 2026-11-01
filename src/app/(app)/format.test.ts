@@ -1,7 +1,7 @@
 import { Settings } from "luxon";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { formatAmountCompact, formatDate } from "./format";
+import { formatAmountCompact, formatDate, formatObservationAge } from "./format";
 
 describe("formatDate", () => {
   afterEach(() => {
@@ -35,5 +35,20 @@ describe("formatAmountCompact", () => {
 
   it("keeps a real fraction", () => {
     expect(formatAmountCompact(96.5, "GBP")).toBe("£96.50");
+  });
+});
+
+describe("formatObservationAge", () => {
+  it("says 'today' for zero (or negative, a clock skew) days", () => {
+    expect(formatObservationAge(0)).toBe("Observed today");
+    expect(formatObservationAge(-1)).toBe("Observed today");
+  });
+
+  it("uses the singular for exactly one day", () => {
+    expect(formatObservationAge(1)).toBe("Observed 1 day ago");
+  });
+
+  it("uses the plural for more than one day", () => {
+    expect(formatObservationAge(14)).toBe("Observed 14 days ago");
   });
 });

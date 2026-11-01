@@ -7,6 +7,7 @@ import type { BudgetLine, Competition, Location, Movement, Trip } from "@/lib/da
 import type { InfoState } from "@/lib/domain/types";
 
 import { countDaysOnGround, type ItineraryDay } from "@/lib/domain/build-itinerary-timeline";
+import { observationAgeDays, SOURCE_STALENESS_DAYS } from "@/lib/domain/observation-age";
 
 import { CATEGORY_LABELS } from "../category-labels";
 import { CONFIDENCE_LABELS, CONFIDENCE_NOT_ASSESSED } from "../confidence-labels";
@@ -15,7 +16,7 @@ import { loadDashboardData, type DashboardData } from "../dashboard-data";
 import { Card, CardLabel, Caveat, EmptyState, noDepartureReason, RangeFigure } from "../dashboard-ui";
 import { DeadlinePotList } from "../deadline-pots-ui";
 import { AddFlightOptionForm, FlightOptionComparisonTable, FlightOptionList } from "../flight-write-ui";
-import { formatDate, formatUsd } from "../format";
+import { formatDate, formatObservationAge, formatUsd } from "../format";
 import { INFO_STATE_LABELS } from "../info-state-labels";
 import { AddMovementForm, AddStayForm, LocationList, MovementList, StayList } from "../itinerary-write-ui";
 import { MOVEMENT_MODE_LABELS } from "../itinerary-labels";
@@ -137,6 +138,7 @@ async function ScenarioOverview({ searchParams }: { searchParams: PageProps<"/sc
               flightOptions={data.flightOptions}
               sources={data.sources}
               locations={locations}
+              accommodationOptionEvaluations={data.accommodationOptionEvaluations}
             />
           </div>
           <div className="mt-4 border-t border-zinc-200 pt-4 dark:border-zinc-800">
@@ -183,6 +185,7 @@ async function ScenarioOverview({ searchParams }: { searchParams: PageProps<"/sc
             sources={data.sources}
             tripId={trip.id}
             competitionId={competition?.id ?? null}
+            asOfDate={data.asOfDate}
           />
           <div className="mt-4 border-t border-zinc-200 pt-4 dark:border-zinc-800">
             <AddFlightOptionForm scenarioId={scenario.id} sources={data.sources} />
@@ -273,12 +276,20 @@ async function ScenarioOverview({ searchParams }: { searchParams: PageProps<"/sc
                 <Missing>None of this scenario&apos;s budget lines has a source.</Missing>
               ) : (
                 <ul data-testid="sourced-lines" className="space-y-2">
-                  {evidence.sourced.map(({ line, source }) => (
+                  {evidence.sourced.map(({ line, source }) => {
+                    const ageDays = observationAgeDays(source.observedOn, data.asOfDate);
+                    const isStale = ageDays > SOURCE_STALENESS_DAYS;
+                    return (
                     <li key={line.id}>
                       <p className="font-medium">{lineName(line)}</p>
                       <p className="text-xs text-zinc-500 dark:text-zinc-400">
                         {source.provider} · Tier {source.tier} ({SOURCE_TIER_LABELS[source.tier]}) · observed{" "}
-                        {formatDate(source.observedOn)}
+                        {formatDate(source.observedOn)} ({formatObservationAge(ageDays)})
+                        {isStale && (
+                          <span className="ml-1 text-amber-700 dark:text-amber-400">
+                            (may be out of date -- worth checking again)
+                          </span>
+                        )}
                         {source.url ? (
                           <>
                             {" · "}
@@ -291,7 +302,8 @@ async function ScenarioOverview({ searchParams }: { searchParams: PageProps<"/sc
                         )}
                       </p>
                     </li>
-                  ))}
+                    );
+                  })}
                 </ul>
               )}
               <div data-testid="unsourced-lines">

@@ -5,6 +5,8 @@ import { useActionState, useEffect, useId, useState } from "react";
 import type { BudgetLine, FlightOption, Location, Movement, Source, Stay } from "@/lib/data/types";
 import type { InfoState } from "@/lib/domain/types";
 
+import type { AccommodationOptionEvaluation } from "./accommodation-evaluation";
+import { AccommodationOptionList, AddAccommodationOptionForm } from "./accommodation-write-ui";
 import { formatAmount, formatDate, formatUnitAmount } from "./format";
 import { buttonClass, FormError, inputClass, labelClass, secondaryButtonClass } from "./form-styles";
 import { initialFormActionState } from "./form-action-state";
@@ -296,12 +298,14 @@ export function StayList({
   flightOptions,
   sources,
   locations,
+  accommodationOptionEvaluations,
 }: {
   stays: Stay[];
   budgetLines: BudgetLine[];
   flightOptions: FlightOption[];
   sources: Source[];
   locations: Location[];
+  accommodationOptionEvaluations: AccommodationOptionEvaluation[];
 }) {
   if (stays.length === 0) {
     return <p className="text-sm text-zinc-500 dark:text-zinc-400">No stays recorded yet.</p>;
@@ -319,6 +323,9 @@ export function StayList({
           flightOptions={flightOptions}
           sources={sources}
           locations={locations}
+          accommodationOptionEvaluations={accommodationOptionEvaluations.filter(
+            (evaluation) => evaluation.option.stayId === stay.id,
+          )}
         />
       ))}
     </div>
@@ -331,13 +338,16 @@ function StayRow({
   flightOptions,
   sources,
   locations,
+  accommodationOptionEvaluations,
 }: {
   stay: Stay;
   budgetLines: BudgetLine[];
   flightOptions: FlightOption[];
   sources: Source[];
   locations: Location[];
+  accommodationOptionEvaluations: AccommodationOptionEvaluation[];
 }) {
+  const [addingAccommodation, setAddingAccommodation] = useState(false);
   const [mode, setMode] = useState<"view" | "edit" | "delete">("view");
   const [attempt, setAttempt] = useState(0);
 
@@ -383,6 +393,30 @@ function StayRow({
             <button type="button" onClick={() => startMode("delete")} className="text-red-600 underline dark:text-red-400">
               Delete
             </button>
+          </div>
+
+          <div className="mt-4 border-t border-zinc-200 pt-3 dark:border-zinc-800">
+            <p className="mb-2 text-xs font-medium tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
+              Accommodation
+            </p>
+            <AccommodationOptionList evaluations={accommodationOptionEvaluations} sources={sources} />
+            {addingAccommodation ? (
+              <div className="mt-3">
+                <AddAccommodationOptionForm
+                  stayId={stay.id}
+                  sources={sources}
+                  onDone={() => setAddingAccommodation(false)}
+                />
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setAddingAccommodation(true)}
+                className="mt-2 text-sm text-zinc-600 underline dark:text-zinc-400"
+              >
+                Add an accommodation option
+              </button>
+            )}
           </div>
         </>
       )}
