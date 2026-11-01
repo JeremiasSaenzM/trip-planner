@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import type { ProposalOp } from "@/lib/data/types";
+import { accommodationOptionStatus, accommodationRateUnit } from "@/lib/validation/accommodation-options";
 import { budgetCategory, quantityUnit } from "@/lib/validation/budget-lines";
 import { flightBaggage, flightOptionStatus } from "@/lib/validation/flight-options";
 import { airportCode, countryCode, flightDirection, isoInstant } from "@/lib/validation/flight-segments";
@@ -46,6 +47,8 @@ export const PROPOSAL_OPS = [
   "update_flight_option",
   "create_location",
   "update_location",
+  "create_accommodation_option",
+  "update_accommodation_option",
 ] as const satisfies readonly ProposalOp[];
 
 export type CreateOp = Extract<ProposalOp, `create_${string}`>;
@@ -58,7 +61,14 @@ export function isUpdateOp(op: ProposalOp): op is UpdateOp {
 // What a reference field points at. An {"item": n} reference must point
 // at an approved create of exactly this kind (proposal_ref() checks
 // again at approval).
-export type ReferenceKind = "source" | "competition" | "scenario" | "budget_line" | "flight_option" | "location";
+export type ReferenceKind =
+  | "source"
+  | "competition"
+  | "scenario"
+  | "budget_line"
+  | "flight_option"
+  | "location"
+  | "stay";
 
 export const REFERENCE_FIELDS: Record<ProposalOp, Record<string, ReferenceKind>> = {
   create_source: {},
@@ -99,6 +109,8 @@ export const REFERENCE_FIELDS: Record<ProposalOp, Record<string, ReferenceKind>>
   update_flight_option: { source: "source" },
   create_location: {},
   update_location: {},
+  create_accommodation_option: { stay: "stay", source: "source" },
+  update_accommodation_option: { source: "source" },
 };
 
 // Ids are compared as text against what Postgres returns (always lower
@@ -273,6 +285,27 @@ export const CREATE_DATA = {
     timezone: ianaTimezone.optional(),
     notes: freeText.optional(),
   }),
+  create_accommodation_option: z.strictObject({
+    stay: reference,
+    label: name,
+    propertyName: name,
+    address: freeText.optional(),
+    rateAmount: money,
+    rateUnit: accommodationRateUnit,
+    nights: z.number().int().positive(),
+    mandatoryFees: money,
+    currency: currencyCode,
+    informationState: infoState,
+    source: reference,
+    observedOn: isoDate,
+    refundability,
+    cancellationDeadline: isoDate.optional(),
+    bookingReference: freeText.optional(),
+    conditionalRate: z.boolean(),
+    undiscountedAmount: money.optional(),
+    isHostel: z.boolean(),
+    notes: freeText.optional(),
+  }),
 } satisfies Record<CreateOp, z.ZodType>;
 
 // What each update operation may change, field by field, as {"from":
@@ -405,6 +438,29 @@ export const UPDATE_CHANGES = {
       notes: change(freeText.nullable()).optional(),
     })
     .refine(atLeastOneChange, "An update needs at least one change"),
+  update_accommodation_option: z
+    .strictObject({
+      label: change(name).optional(),
+      propertyName: change(name).optional(),
+      address: change(freeText.nullable()).optional(),
+      rateAmount: change(money).optional(),
+      rateUnit: change(accommodationRateUnit).optional(),
+      nights: change(z.number().int().positive()).optional(),
+      mandatoryFees: change(money).optional(),
+      currency: change(currencyCode).optional(),
+      status: change(accommodationOptionStatus).optional(),
+      informationState: change(infoState).optional(),
+      source: requiredReferenceChange.optional(),
+      observedOn: change(isoDate).optional(),
+      refundability: change(refundability).optional(),
+      cancellationDeadline: change(isoDate.nullable()).optional(),
+      bookingReference: change(freeText.nullable()).optional(),
+      conditionalRate: change(z.boolean()).optional(),
+      undiscountedAmount: change(money.nullable()).optional(),
+      isHostel: change(z.boolean()).optional(),
+      notes: change(freeText.nullable()).optional(),
+    })
+    .refine(atLeastOneChange, "An update needs at least one change"),
 } satisfies Record<UpdateOp, z.ZodType>;
 
 export type CreateData<Op extends CreateOp> = z.infer<(typeof CREATE_DATA)[Op]>;
@@ -441,6 +497,8 @@ export const pastedItem = z.discriminatedUnion("op", [
   updateItem("update_flight_option"),
   createItem("create_location"),
   updateItem("update_location"),
+  createItem("create_accommodation_option"),
+  updateItem("update_accommodation_option"),
 ]);
 export type PastedItem = z.infer<typeof pastedItem>;
 

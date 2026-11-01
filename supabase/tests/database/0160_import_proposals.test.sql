@@ -16,8 +16,9 @@ select enum_has_labels('proposal_op', array[
   'update_competition', 'update_scenario', 'update_budget_line', 'update_payment', 'update_fx_rate', 'update_savings_entry',
   'create_stay', 'create_movement', 'update_stay', 'update_movement',
   'create_flight_option', 'create_flight_segment', 'update_flight_option',
-  'create_location', 'update_location'
-], 'proposal_op is exactly the twenty-one operations (v1 plus stays/movements plus flights plus locations)');
+  'create_location', 'update_location',
+  'create_accommodation_option', 'update_accommodation_option'
+], 'proposal_op is exactly the twenty-three operations (v1 plus stays/movements plus flights plus locations plus accommodation)');
 select enum_has_labels('proposal_status', array['pending', 'approved', 'rejected'], 'proposal_status is pending / approved / rejected');
 select ok((select relrowsecurity from pg_class where oid = 'proposal_batches'::regclass), 'RLS is on for proposal_batches');
 select ok((select relrowsecurity from pg_class where oid = 'proposal_items'::regclass), 'RLS is on for proposal_items');

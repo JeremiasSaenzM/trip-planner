@@ -12,7 +12,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
-select plan(57);
+select plan(60);
 
 select set_eq(
   $$ select c.relname::text from pg_class c
@@ -21,7 +21,7 @@ select set_eq(
     'trips', 'sources', 'competitions', 'scenarios', 'decisions', 'budget_lines',
     'payments', 'savings_entries', 'fx_rates', 'open_items', 'flight_options',
     'flight_segments', 'change_log', 'proposal_batches', 'proposal_items',
-    'stays', 'movements', 'locations'
+    'stays', 'movements', 'locations', 'accommodation_options'
   ],
   'every table in public has its expected grants declared in this file'
 );
@@ -102,6 +102,10 @@ select table_privs_are('public', 'movements', 'anon', array[]::text[], 'anon: no
 select table_privs_are('public', 'locations', 'authenticated', array['SELECT', 'INSERT', 'UPDATE', 'DELETE'], 'authenticated: locations');
 select table_privs_are('public', 'locations', 'service_role', array['SELECT', 'INSERT', 'UPDATE', 'DELETE'], 'service_role: locations');
 select table_privs_are('public', 'locations', 'anon', array[]::text[], 'anon: nothing on locations');
+
+select table_privs_are('public', 'accommodation_options', 'authenticated', array['SELECT', 'INSERT', 'UPDATE', 'DELETE'], 'authenticated: accommodation_options');
+select table_privs_are('public', 'accommodation_options', 'service_role', array['SELECT', 'INSERT', 'UPDATE', 'DELETE'], 'service_role: accommodation_options');
+select table_privs_are('public', 'accommodation_options', 'anon', array[]::text[], 'anon: nothing on accommodation_options');
 
 -- change_log is append-only and written only by its security definer
 -- trigger: read-only for everyone, service_role included.

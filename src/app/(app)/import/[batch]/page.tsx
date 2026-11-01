@@ -51,6 +51,7 @@ async function BatchScreen({ params }: { params: PageProps<"/import/[batch]">["p
     locations,
     flightOptions,
     flightSegments,
+    accommodationOptions,
   ] = await Promise.all([
     dataSource.getProposalBatches(),
     dataSource.getProposalItems(),
@@ -66,6 +67,7 @@ async function BatchScreen({ params }: { params: PageProps<"/import/[batch]">["p
     dataSource.getLocations(),
     dataSource.getFlightOptions(),
     dataSource.getFlightSegments(),
+    dataSource.getAccommodationOptions(),
   ]);
 
   const batch = batches.find((candidate) => candidate.id === batchId);
@@ -84,6 +86,7 @@ async function BatchScreen({ params }: { params: PageProps<"/import/[batch]">["p
     locations,
     flightOptions,
     flightSegments,
+    accommodationOptions,
   });
   const pendingCount = reviews.filter((review) => review.item.status === "pending").length;
   const readyCount = reviews.filter((review) => review.state.kind === "ready").length;
