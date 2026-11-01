@@ -86,6 +86,10 @@ function flightOptionCard(page: Page, label: string) {
   return page.getByTestId("flight-option-card").filter({ has: page.getByText(label, { exact: true }) });
 }
 
+function accommodationOptionCard(page: Page, label: string) {
+  return page.getByTestId("accommodation-option-card").filter({ has: page.getByText(label, { exact: true }) });
+}
+
 // /import/[batch] numbers each proposal "Item n" -- found by that exact
 // label, since an item's own text (a scenario's name, say) also shows up
 // in every later item that references it.
@@ -770,6 +774,90 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await stay.getByRole("button", { name: "Save", exact: true }).click();
 
     await expect(page.getByText(/Stays total \d+ nights, but the trip's travel window/)).not.toBeVisible();
+  });
+
+  await test.step("add accommodation options to the stay, watch the checks run, and compare", async () => {
+    const stay = stayRow(page, "Cardiff");
+
+    // A-e2e-1: quoted for 5 nights against the 11-night stay -- check 1
+    // fails. Dates-covered and the cancellation deadline stay "Unknown"
+    // (no applicable period on the new source, no deadline recorded);
+    // hostel eligibility passes outright (not a hostel).
+    await stay.getByRole("button", { name: "Add an accommodation option", exact: true }).click();
+    await stay.getByLabel("Label", { exact: true }).fill("A-e2e-1");
+    await stay.getByLabel("Property name", { exact: true }).fill("Hotel e2e");
+    await stay.getByLabel("Rate", { exact: true }).fill("100");
+    await stay.getByLabel("Nights", { exact: true }).fill("5");
+    await stay.getByLabel("Currency", { exact: true }).fill("USD");
+    await stay.getByLabel("Source", { exact: true }).selectOption("__new__");
+    await stay.getByLabel("Provider", { exact: true }).fill("Fictional hotel rate page");
+    await stay.getByLabel("Tier", { exact: true }).selectOption("2");
+    await stay.getByLabel("Observation date", { exact: true }).fill("2026-10-20");
+    await stay.getByLabel("Rate observed on", { exact: true }).fill("2026-10-20");
+    await stay.getByRole("button", { name: "Add accommodation option", exact: true }).click();
+
+    const optionA = accommodationOptionCard(page, "A-e2e-1");
+    await expect(optionA).toBeVisible();
+    await expect(optionA.getByTestId("constraint-badge").filter({ hasText: "Fail" })).toHaveCount(1);
+    await expect(optionA.getByTestId("constraint-badge").filter({ hasText: "Unknown" })).toHaveCount(2);
+    await expect(optionA.getByTestId("constraint-badge").filter({ hasText: "Pass" })).toHaveCount(1);
+    await expect(optionA.getByText(/quoted for 5 nights, but the stay is 11/)).toBeVisible();
+
+    await optionA.getByRole("button", { name: "Edit", exact: true }).click();
+    await optionA.getByLabel("New nights", { exact: true }).fill("11");
+    await optionA.getByLabel("Reason for this change", { exact: true }).fill("Counted wrong the first time");
+    await optionA.getByRole("button", { name: "Save", exact: true }).click();
+
+    await expect(optionA.getByTestId("constraint-badge").filter({ hasText: "Fail" })).toHaveCount(0);
+    await expect(optionA.getByTestId("constraint-badge").filter({ hasText: "Pass" })).toHaveCount(2);
+
+    // A-e2e-2: a conditional (discounted) rate -- the undiscounted
+    // figure shows alongside the effective cost, same formula, never
+    // computed twice by the caller.
+    await stay.getByRole("button", { name: "Add an accommodation option", exact: true }).click();
+    await stay.getByLabel("Label", { exact: true }).fill("A-e2e-2");
+    await stay.getByLabel("Property name", { exact: true }).fill("Hostel e2e");
+    await stay.getByLabel("Rate", { exact: true }).fill("70");
+    await stay.getByLabel("Nights", { exact: true }).fill("11");
+    await stay.getByLabel("Currency", { exact: true }).fill("USD");
+    await stay.getByLabel("Rate is conditional (a discount, a non-refundable prepayment, ...)", { exact: true }).check();
+    await stay.getByLabel("Undiscounted amount", { exact: true }).fill("90");
+    await stay.getByLabel("Source", { exact: true }).selectOption("__new__");
+    await stay.getByLabel("Provider", { exact: true }).fill("Another fictional hotel rate page");
+    await stay.getByLabel("Tier", { exact: true }).selectOption("3");
+    await stay.getByLabel("Observation date", { exact: true }).fill("2026-10-20");
+    await stay.getByLabel("Rate observed on", { exact: true }).fill("2026-10-20");
+    await stay.getByRole("button", { name: "Add accommodation option", exact: true }).click();
+
+    const optionB = accommodationOptionCard(page, "A-e2e-2");
+    await expect(optionB).toBeVisible();
+    await expect(optionB.getByText("Undiscounted: $990.00")).toBeVisible();
+
+    // At most one selected/booked option per stay (the partial unique
+    // index, same shape as flight_options').
+    await optionA.getByRole("button", { name: "Edit", exact: true }).click();
+    await optionA.getByLabel("New status", { exact: true }).selectOption("selected");
+    await optionA.getByLabel("Reason for this change", { exact: true }).fill("Picking this one");
+    await optionA.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(optionA.getByText("Selected", { exact: true })).toBeVisible();
+
+    await optionB.getByRole("button", { name: "Edit", exact: true }).click();
+    await optionB.getByLabel("New status", { exact: true }).selectOption("selected");
+    await optionB.getByLabel("Reason for this change", { exact: true }).fill("Trying to pick this one too");
+    await optionB.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(
+      optionB.getByText("This stay already has a selected or booked accommodation option -- change that one first."),
+    ).toBeVisible();
+    await optionB.getByRole("button", { name: "Cancel", exact: true }).click();
+
+    // G-014: every write path needs a control that calls it -- delete
+    // has no proposal-op counterpart (status: 'rejected' covers that),
+    // so this direct, in-app form is the only way to reach it, and must
+    // actually be reachable.
+    await optionB.getByRole("button", { name: "Delete", exact: true }).click();
+    await optionB.getByLabel("Reason for deleting this", { exact: true }).fill("Removing the unused candidate");
+    await optionB.getByRole("button", { name: "Delete", exact: true }).click();
+    await expect(accommodationOptionCard(page, "A-e2e-2")).not.toBeVisible();
   });
 
   await test.step("add flight options, watch the checks run, accept a risk, and compare -- never a sort control", async () => {

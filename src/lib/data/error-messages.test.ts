@@ -18,6 +18,25 @@ describe("translatePostgresError", () => {
     expect(message).toBe("There's already a rate for this currency, date and kind -- edit that one instead.");
   });
 
+  it("translates the accommodation one-selected-or-booked-per-stay unique-constraint violation", () => {
+    const message = translatePostgresError({
+      message:
+        'duplicate key value violates unique constraint "accommodation_options_one_selected_or_booked_per_stay"',
+    });
+    expect(message).toBe("This stay already has a selected or booked accommodation option -- change that one first.");
+  });
+
+  it("translates the accommodation conditional-rate check constraint", () => {
+    const message = translatePostgresError({
+      message:
+        'new row for relation "accommodation_options" violates check constraint ' +
+        '"accommodation_options_conditional_needs_undiscounted"',
+    });
+    expect(message).toBe(
+      'A conditional rate needs its undiscounted amount too -- add it, or turn off "conditional".',
+    );
+  });
+
   it("translates the payment acceptance safeguard's raised exception", () => {
     const message = translatePostgresError({
       message:
