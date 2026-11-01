@@ -1,4 +1,5 @@
 import type {
+  AccommodationRateUnit,
   BudgetCategory,
   Confidence,
   FlightBaggage,
@@ -319,6 +320,48 @@ export type Movement = {
   updatedAt: string;
 };
 
+// Phase 6.6: a candidate (or booked) place to stay, anchored to one
+// specific stay -- never to the scenario, since an option isn't a
+// resource several stays could share the way a flight option can be.
+// No competition_related/acceptance-safeguard field here, and none
+// planned for flight_options going forward: that rule (hard constraint
+// 3 / D-022) was a misattributed decision, not a real condition on this
+// trip's spending. refundability and cancellationDeadline are still
+// recorded and shown -- plain facts, not tied to acceptance.
+export type AccommodationOptionStatus = "candidate" | "selected" | "rejected" | "booked";
+
+export type AccommodationOption = {
+  id: string;
+  stayId: string;
+  label: string;
+  propertyName: string;
+  address: string | null;
+  rateAmount: number;
+  rateUnit: AccommodationRateUnit;
+  nights: number;
+  mandatoryFees: number;
+  currency: string;
+  status: AccommodationOptionStatus;
+  refundability: Refundability;
+  cancellationDeadline: string | null;
+  bookingReference: string | null;
+  /** True when the quoted price depends on something that isn't a
+   * property of the room (a loyalty discount, a non-refundable
+   * prepayment) -- undiscountedAmount is then the conservative-basis
+   * figure. */
+  conditionalRate: boolean;
+  undiscountedAmount: number | null;
+  /** Hostels aren't eligible during the festival (check 4) -- a plain
+   * fact, not a lodging taxonomy. */
+  isHostel: boolean;
+  sourceId: string;
+  observedOn: string;
+  informationState: InfoState;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
 // The append-only audit trail every tracked table writes to
 // (supabase/migrations/20261012131400_change_log.sql) -- read-only from
 // the app's side (there is no owner write policy on this table at all,
@@ -360,7 +403,9 @@ export type ProposalOp =
   | "create_flight_segment"
   | "update_flight_option"
   | "create_location"
-  | "update_location";
+  | "update_location"
+  | "create_accommodation_option"
+  | "update_accommodation_option";
 export type ProposalStatus = "pending" | "approved" | "rejected";
 
 export type ProposalBatch = {
@@ -611,6 +656,36 @@ export type UpdateFlightOptionWrite = FlightOptionFieldsWrite & {
 };
 export type DeleteFlightOptionWrite = { id: string; reason: string };
 
+type AccommodationOptionFieldsWrite = {
+  label: string;
+  propertyName: string;
+  address?: string;
+  rateAmount: number;
+  rateUnit: AccommodationRateUnit;
+  nights: number;
+  mandatoryFees: number;
+  currency: string;
+  refundability: Refundability;
+  cancellationDeadline?: string;
+  bookingReference?: string;
+  conditionalRate: boolean;
+  undiscountedAmount?: number;
+  isHostel: boolean;
+  sourceId: string;
+  observedOn: string;
+  informationState: InfoState;
+  notes?: string;
+};
+export type CreateAccommodationOptionWrite = AccommodationOptionFieldsWrite & { stayId: string };
+// status isn't part of creation -- every option starts life as a
+// candidate, same reasoning as CreateFlightOptionWrite.
+export type UpdateAccommodationOptionWrite = AccommodationOptionFieldsWrite & {
+  id: string;
+  status: AccommodationOptionStatus;
+  reason: string;
+};
+export type DeleteAccommodationOptionWrite = { id: string; reason: string };
+
 export type CreateFlightSegmentWrite = {
   flightOptionId: string;
   direction: FlightDirection;
@@ -711,6 +786,7 @@ export type DataSource = {
   getStays(): Promise<Stay[]>;
   getMovements(): Promise<Movement[]>;
   getLocations(): Promise<Location[]>;
+  getAccommodationOptions(): Promise<AccommodationOption[]>;
   getChangeLog(): Promise<ChangeLogEntry[]>;
   getProposalBatches(): Promise<ProposalBatch[]>;
   getProposalItems(): Promise<ProposalItem[]>;
@@ -749,6 +825,9 @@ export type DataSource = {
   createFlightOption(input: CreateFlightOptionWrite): Promise<FlightOption>;
   updateFlightOption(input: UpdateFlightOptionWrite): Promise<FlightOption>;
   deleteFlightOption(input: DeleteFlightOptionWrite): Promise<void>;
+  createAccommodationOption(input: CreateAccommodationOptionWrite): Promise<AccommodationOption>;
+  updateAccommodationOption(input: UpdateAccommodationOptionWrite): Promise<AccommodationOption>;
+  deleteAccommodationOption(input: DeleteAccommodationOptionWrite): Promise<void>;
   createFlightSegment(input: CreateFlightSegmentWrite): Promise<FlightSegment>;
   deleteFlightSegment(input: DeleteFlightSegmentWrite): Promise<void>;
   createFlightRiskDecision(input: CreateFlightRiskDecisionWrite): Promise<Decision>;

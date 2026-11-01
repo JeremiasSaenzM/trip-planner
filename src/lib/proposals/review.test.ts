@@ -21,6 +21,7 @@ const rows: ReviewRows = {
   locations: fixtures.locations,
   flightOptions: fixtures.flightOptions,
   flightSegments: fixtures.flightSegments,
+  accommodationOptions: fixtures.accommodationOptions,
 };
 
 // The demo batch: 0 creates a source; 1 updates Round-trip flight's

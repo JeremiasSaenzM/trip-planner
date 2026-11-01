@@ -164,6 +164,8 @@ function resultStillExists(item: ProposalItem, rows: ReviewRows): boolean {
       return rows.flightSegments.some((s) => s.id === item.resultId);
     case "create_location":
       return rows.locations.some((l) => l.id === item.resultId);
+    case "create_accommodation_option":
+      return rows.accommodationOptions.some((o) => o.id === item.resultId);
   }
 }
 
@@ -263,7 +265,11 @@ export function unknownReferences(
                 )
               : kind === "location"
                 ? rows.locations.some((l) => l.id === value.id)
-                : rows.budgetLines.some((l) => l.id === value.id && l.tripId === tripId);
+                : kind === "stay"
+                  ? rows.stays.some(
+                      (s) => s.id === value.id && rows.scenarios.some((sc) => sc.id === s.scenarioId && sc.tripId === tripId),
+                    )
+                  : rows.budgetLines.some((l) => l.id === value.id && l.tripId === tripId);
     return exists ? [] : [`${field}: no ${kind.replace("_", " ")} with id ${value.id} in this trip`];
   });
 }
@@ -284,6 +290,10 @@ function existingName(id: string, kind: ReferenceKind, rows: ReviewRows): string
       return rows.flightOptions.find((o) => o.id === id)?.label ?? null;
     case "location":
       return rows.locations.find((l) => l.id === id)?.name ?? null;
+    case "stay": {
+      const stay = rows.stays.find((s) => s.id === id);
+      return stay ? `${existingName(stay.locationId, "location", rows) ?? "?"}, ${stay.startDate}` : null;
+    }
   }
 }
 
@@ -323,6 +333,10 @@ function describeTarget(op: ProposalItem["op"], id: string, rows: ReviewRows): s
     }
     case "update_location":
       return rows.locations.find((l) => l.id === id)?.name ?? null;
+    case "update_accommodation_option": {
+      const option = rows.accommodationOptions.find((o) => o.id === id);
+      return option ? option.label : null;
+    }
     default:
       return null;
   }

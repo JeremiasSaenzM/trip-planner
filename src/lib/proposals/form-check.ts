@@ -1,6 +1,7 @@
 import type { z } from "zod";
 
 import type {
+  AccommodationOption,
   BudgetLine,
   Competition,
   FlightOption,
@@ -14,6 +15,7 @@ import type {
   Scenario,
   Stay,
 } from "@/lib/data/types";
+import { createAccommodationOptionInput, updateAccommodationOptionInput } from "@/lib/validation/accommodation-options";
 import { createBudgetLineInput, updateBudgetLineInput } from "@/lib/validation/budget-lines";
 import { createCompetitionInput, updateCompetitionInput } from "@/lib/validation/competitions";
 import { createFlightOptionInput, updateFlightOptionInput } from "@/lib/validation/flight-options";
@@ -50,6 +52,7 @@ export type CurrentRows = {
   flightOptions: FlightOption[];
   flightSegments: FlightSegment[];
   locations: Location[];
+  accommodationOptions: AccommodationOption[];
 };
 
 export type StoredPayload = { data: Record<string, unknown> } | { changes: Record<string, FieldChange> };
@@ -207,6 +210,32 @@ export function currentFields(op: UpdateOp, targetId: string, rows: CurrentRows)
       const row = rows.locations.find((l) => l.id === targetId);
       return row ? { name: row.name, timezone: row.timezone, notes: row.notes } : null;
     }
+    case "update_accommodation_option": {
+      const row = rows.accommodationOptions.find((o) => o.id === targetId);
+      return row
+        ? {
+            label: row.label,
+            propertyName: row.propertyName,
+            address: row.address,
+            rateAmount: row.rateAmount,
+            rateUnit: row.rateUnit,
+            nights: row.nights,
+            mandatoryFees: row.mandatoryFees,
+            currency: row.currency,
+            status: row.status,
+            refundability: row.refundability,
+            cancellationDeadline: row.cancellationDeadline,
+            bookingReference: row.bookingReference,
+            conditionalRate: row.conditionalRate,
+            undiscountedAmount: row.undiscountedAmount,
+            isHostel: row.isHostel,
+            source: row.sourceId,
+            observedOn: row.observedOn,
+            informationState: row.informationState,
+            notes: row.notes,
+          }
+        : null;
+    }
   }
 }
 
@@ -338,6 +367,12 @@ function checkCreate(
     }
     case "create_location":
       return result(createLocationInput.safeParse(data as CreateData<"create_location">));
+    case "create_accommodation_option": {
+      const { stay, source, ...rest } = data as CreateData<"create_accommodation_option">;
+      return result(
+        createAccommodationOptionInput.safeParse({ ...rest, stayId: ref(stay), sourceId: ref(source) }),
+      );
+    }
   }
 }
 
@@ -489,6 +524,32 @@ function checkUpdate(op: UpdateOp, id: string, merged: Record<string, unknown>, 
           id,
           name: merged.name,
           timezone: absent(merged.timezone),
+          notes: absent(merged.notes),
+          reason,
+        }),
+      );
+    case "update_accommodation_option":
+      return result(
+        updateAccommodationOptionInput.safeParse({
+          id,
+          label: merged.label,
+          propertyName: merged.propertyName,
+          address: absent(merged.address),
+          rateAmount: merged.rateAmount,
+          rateUnit: merged.rateUnit,
+          nights: merged.nights,
+          mandatoryFees: merged.mandatoryFees,
+          currency: merged.currency,
+          status: merged.status,
+          refundability: merged.refundability,
+          cancellationDeadline: absent(merged.cancellationDeadline),
+          bookingReference: absent(merged.bookingReference),
+          conditionalRate: merged.conditionalRate,
+          undiscountedAmount: absent(merged.undiscountedAmount),
+          isHostel: merged.isHostel,
+          sourceId: merged.source,
+          observedOn: merged.observedOn,
+          informationState: merged.informationState,
           notes: absent(merged.notes),
           reason,
         }),

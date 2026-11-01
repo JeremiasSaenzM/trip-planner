@@ -4,6 +4,7 @@ import { assertWritesAllowed } from "@/lib/demo-mode";
 import { createClient } from "@/lib/supabase/server";
 
 import type {
+  AccommodationOption,
   BudgetLine,
   ChangeLogEntry,
   Competition,
@@ -251,6 +252,34 @@ function mapFlightOptionRow(row: Record<string, unknown>): FlightOption {
   };
 }
 
+function mapAccommodationOptionRow(row: Record<string, unknown>): AccommodationOption {
+  return {
+    id: row.id as string,
+    stayId: row.stay_id as string,
+    label: row.label as string,
+    propertyName: row.property_name as string,
+    address: row.address as string | null,
+    rateAmount: row.rate_amount as number,
+    rateUnit: row.rate_unit as AccommodationOption["rateUnit"],
+    nights: row.nights as number,
+    mandatoryFees: row.mandatory_fees as number,
+    currency: row.currency as string,
+    status: row.status as AccommodationOption["status"],
+    refundability: row.refundability as AccommodationOption["refundability"],
+    cancellationDeadline: row.cancellation_deadline as string | null,
+    bookingReference: row.booking_reference as string | null,
+    conditionalRate: row.conditional_rate as boolean,
+    undiscountedAmount: row.undiscounted_amount as number | null,
+    isHostel: row.is_hostel as boolean,
+    sourceId: row.source_id as string,
+    observedOn: row.observed_on as string,
+    informationState: row.information_state as AccommodationOption["informationState"],
+    notes: row.notes as string | null,
+    createdAt: row.created_at as string,
+    updatedAt: row.updated_at as string,
+  };
+}
+
 function mapFlightSegmentRow(row: Record<string, unknown>): FlightSegment {
   return {
     id: row.id as string,
@@ -442,6 +471,13 @@ export const realDataSource: DataSource = {
     const { data, error } = await supabase.from("locations").select("*");
     if (error) throw error;
     return (data ?? []).map(mapLocationRow);
+  },
+
+  async getAccommodationOptions() {
+    const supabase = await createClient();
+    const { data, error } = await supabase.from("accommodation_options").select("*");
+    if (error) throw error;
+    return (data ?? []).map(mapAccommodationOptionRow);
   },
 
   // Read-only: change_log has no owner write policy at all (only the
@@ -1115,6 +1151,80 @@ export const realDataSource: DataSource = {
     assertWritesAllowed();
     const supabase = await createClient();
     const { error } = await supabase.rpc("delete_flight_option", {
+      p_id: input.id,
+      p_reason: input.reason,
+    });
+    if (error) throw error;
+  },
+
+  // Plain insert -- every option starts life as a candidate, same
+  // reasoning as createFlightOption.
+  async createAccommodationOption(input) {
+    assertWritesAllowed();
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("accommodation_options")
+      .insert({
+        stay_id: input.stayId,
+        label: input.label,
+        property_name: input.propertyName,
+        address: input.address ?? null,
+        rate_amount: input.rateAmount,
+        rate_unit: input.rateUnit,
+        nights: input.nights,
+        mandatory_fees: input.mandatoryFees,
+        currency: input.currency,
+        refundability: input.refundability,
+        cancellation_deadline: input.cancellationDeadline ?? null,
+        booking_reference: input.bookingReference ?? null,
+        conditional_rate: input.conditionalRate,
+        undiscounted_amount: input.undiscountedAmount ?? null,
+        is_hostel: input.isHostel,
+        source_id: input.sourceId,
+        observed_on: input.observedOn,
+        information_state: input.informationState,
+        notes: input.notes ?? null,
+      })
+      .select("*")
+      .single();
+    if (error) throw error;
+    return mapAccommodationOptionRow(data);
+  },
+
+  async updateAccommodationOption(input) {
+    assertWritesAllowed();
+    const supabase = await createClient();
+    const { data, error } = await supabase.rpc("update_accommodation_option", {
+      p_id: input.id,
+      p_label: input.label,
+      p_property_name: input.propertyName,
+      p_address: input.address ?? null,
+      p_rate_amount: input.rateAmount,
+      p_rate_unit: input.rateUnit,
+      p_nights: input.nights,
+      p_mandatory_fees: input.mandatoryFees,
+      p_currency: input.currency,
+      p_status: input.status,
+      p_refundability: input.refundability,
+      p_cancellation_deadline: input.cancellationDeadline ?? null,
+      p_booking_reference: input.bookingReference ?? null,
+      p_conditional_rate: input.conditionalRate,
+      p_undiscounted_amount: input.undiscountedAmount ?? null,
+      p_is_hostel: input.isHostel,
+      p_source_id: input.sourceId,
+      p_observed_on: input.observedOn,
+      p_information_state: input.informationState,
+      p_notes: input.notes ?? null,
+      p_reason: input.reason,
+    });
+    if (error) throw error;
+    return mapAccommodationOptionRow(data as Record<string, unknown>);
+  },
+
+  async deleteAccommodationOption(input) {
+    assertWritesAllowed();
+    const supabase = await createClient();
+    const { error } = await supabase.rpc("delete_accommodation_option", {
       p_id: input.id,
       p_reason: input.reason,
     });

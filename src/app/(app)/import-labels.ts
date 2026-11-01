@@ -2,6 +2,7 @@ import type { ProposalOp } from "@/lib/data/types";
 import type { BudgetCategory, Confidence, FlightBaggage, InfoState } from "@/lib/domain/types";
 import type { ReferenceLabel } from "@/lib/proposals/review";
 
+import { ACCOMMODATION_RATE_UNIT_LABELS } from "./accommodation-labels";
 import { CATEGORY_LABELS } from "./category-labels";
 import { CONFIDENCE_LABELS, CONFIDENCE_NOT_ASSESSED } from "./confidence-labels";
 import { FLIGHT_BAGGAGE_LABELS, FLIGHT_OPTION_STATUS_LABELS } from "./flight-labels";
@@ -36,6 +37,8 @@ export const OP_LABELS: Record<ProposalOp, string> = {
   update_flight_option: "Change flight option",
   create_location: "New location",
   update_location: "Change location",
+  create_accommodation_option: "New accommodation option",
+  update_accommodation_option: "Change accommodation option",
 };
 
 const FIELD_LABELS: Record<string, string> = {
@@ -112,6 +115,14 @@ const FIELD_LABELS: Record<string, string> = {
   departAt: "Departs",
   arriveAt: "Arrives",
   isTechnicalStop: "Technical stop",
+  stay: "Stay",
+  propertyName: "Property name",
+  address: "Address",
+  rateAmount: "Rate",
+  rateUnit: "Rate unit",
+  conditionalRate: "Rate is conditional",
+  undiscountedAmount: "Undiscounted amount",
+  isHostel: "Hostel",
 };
 
 const RATE_KIND_LABELS: Record<string, string> = {
@@ -167,6 +178,8 @@ export function formatProposalValue(field: string, value: unknown): string {
       return FLIGHT_BAGGAGE_LABELS[value as FlightBaggage] ?? value;
     case "status":
       return FLIGHT_OPTION_STATUS_LABELS[value as keyof typeof FLIGHT_OPTION_STATUS_LABELS] ?? value;
+    case "rateUnit":
+      return ACCOMMODATION_RATE_UNIT_LABELS[value as keyof typeof ACCOMMODATION_RATE_UNIT_LABELS] ?? value;
     default:
       return value;
   }
