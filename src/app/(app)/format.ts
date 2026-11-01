@@ -39,3 +39,15 @@ export function formatUnitAmount(amount: number, currency: string, quantity: num
 export function formatDate(date: string): string {
   return DateTime.fromISO(date, { zone: "utc" }).toFormat("MMM d, yyyy");
 }
+
+// Prose for observationAgeDays() (src/lib/domain/observation-age.ts) --
+// presentation text stays in this layer, consistent with every check
+// returning data and the write-ui rendering the prose. Whether a given
+// age counts as stale is each render site's own call (RATE_STALENESS_DAYS
+// vs. SOURCE_STALENESS_DAYS); this just says how old, not whether that's
+// a problem.
+export function formatObservationAge(ageDays: number): string {
+  if (ageDays <= 0) return "Observed today";
+  if (ageDays === 1) return "Observed 1 day ago";
+  return `Observed ${ageDays} days ago`;
+}

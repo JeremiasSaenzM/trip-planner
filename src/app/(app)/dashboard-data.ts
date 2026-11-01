@@ -2,6 +2,7 @@ import "server-only";
 
 import { dataSource } from "@/lib/data";
 import type {
+  AccommodationOption,
   BudgetLine,
   Competition,
   Decision,
@@ -49,6 +50,7 @@ import { resolveDepartureDate, type ResolvedDeparture } from "@/lib/domain/resol
 import { rollUpBudgetByScenario, type RollUpBudgetByScenarioResult } from "@/lib/domain/roll-up-budget-by-scenario";
 import type { Basis } from "@/lib/domain/types";
 
+import { evaluateAccommodationOption, type AccommodationOptionEvaluation } from "./accommodation-evaluation";
 import { parseBasis } from "./dashboard-query";
 import { evaluateFlightOption, type FlightOptionEvaluation } from "./flight-evaluation";
 import { sortScenarios } from "./scenario-order";
@@ -162,6 +164,13 @@ export type DashboardData =
        * option in this scenario, run once here so the Flight options
        * section and its comparison table read off the same results. */
       flightOptionEvaluations: FlightOptionEvaluation[];
+      /** Scenario-scoped via its stay (accommodation_options.stay_id),
+       * same rule as stays/movements. */
+      accommodationOptions: AccommodationOption[];
+      /** Phase 6.6: the four checks and the Effective Cost for every
+       * accommodation option in this scenario, run once here so each
+       * stay's own card reads off the same results. */
+      accommodationOptionEvaluations: AccommodationOptionEvaluation[];
     };
 
 // The one place every dashboard page (Overview, Payments, Deadlines)
@@ -189,6 +198,7 @@ export async function loadDashboardData(params: {
     flightOptions,
     flightSegments,
     decisions,
+    accommodationOptions,
   ] = await Promise.all([
     dataSource.getTrips(),
     dataSource.getScenarios(),
@@ -205,6 +215,7 @@ export async function loadDashboardData(params: {
     dataSource.getFlightOptions(),
     dataSource.getFlightSegments(),
     dataSource.getDecisions(),
+    dataSource.getAccommodationOptions(),
   ]);
 
   const trip = trips[0];
@@ -330,6 +341,21 @@ export async function loadDashboardData(params: {
     }),
   );
 
+  const scenarioAccommodationOptions = accommodationOptions.filter((option) =>
+    scenarioStays.some((stay) => stay.id === option.stayId),
+  );
+  const accommodationOptionEvaluations = scenarioAccommodationOptions.map((option) =>
+    evaluateAccommodationOption({
+      option,
+      // Non-null: every accommodation_options.stay_id is a foreign key
+      // into this scenario's own stays, so the filter above guarantees
+      // a match.
+      stay: scenarioStays.find((stay) => stay.id === option.stayId)!,
+      source: sources.find((candidate) => candidate.id === option.sourceId) ?? null,
+      asOfDate,
+    }),
+  );
+
   const tripOpenItems = openItems.filter((item) => item.tripId === trip.id);
   const tripSavingsEntries = savingsEntries.filter((entry) => entry.tripId === trip.id);
 
@@ -390,6 +416,8 @@ export async function loadDashboardData(params: {
       flightSegments: scenarioFlightSegments,
       decisions: tripDecisions,
       flightOptionEvaluations,
+      accommodationOptions: scenarioAccommodationOptions,
+      accommodationOptionEvaluations,
     };
   }
 
@@ -461,5 +489,7 @@ export async function loadDashboardData(params: {
     flightSegments: scenarioFlightSegments,
     decisions: tripDecisions,
     flightOptionEvaluations,
+    accommodationOptions: scenarioAccommodationOptions,
+    accommodationOptionEvaluations,
   };
 }

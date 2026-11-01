@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useId, useState } from "react";
 
 import type { FlightDirection, FlightOption, FlightSegment, Source } from "@/lib/data/types";
+import { observationAgeDays, RATE_STALENESS_DAYS } from "@/lib/domain/observation-age";
 import { checkCanAcceptFlightRisk } from "@/lib/validation/flight-risk-decisions";
 
 import type { FlightOptionEvaluation } from "./flight-evaluation";
@@ -16,7 +17,7 @@ import {
 } from "./flight-actions";
 import { AcceptanceSafeguardBadge, ConstraintBadge } from "./flight-constraint-badge";
 import { FLIGHT_BAGGAGE_LABELS, FLIGHT_OPTION_STATUS_LABELS } from "./flight-labels";
-import { formatAmount, formatDate } from "./format";
+import { formatAmount, formatDate, formatObservationAge } from "./format";
 import { initialFormActionState } from "./form-action-state";
 import { buttonClass, FormError, inputClass, labelClass, secondaryButtonClass } from "./form-styles";
 import { INFO_STATE_LABELS, INFO_STATE_ORDER } from "./info-state-labels";
@@ -192,11 +193,13 @@ export function FlightOptionList({
   sources,
   tripId,
   competitionId,
+  asOfDate,
 }: {
   evaluations: FlightOptionEvaluation[];
   sources: Source[];
   tripId: string;
   competitionId: string | null;
+  asOfDate: string;
 }) {
   if (evaluations.length === 0) {
     return <p className="text-sm text-zinc-500 dark:text-zinc-400">No flight options recorded yet.</p>;
@@ -211,6 +214,7 @@ export function FlightOptionList({
           sources={sources}
           tripId={tripId}
           competitionId={competitionId}
+          asOfDate={asOfDate}
         />
       ))}
     </div>
@@ -222,11 +226,13 @@ function FlightOptionCard({
   sources,
   tripId,
   competitionId,
+  asOfDate,
 }: {
   evaluation: FlightOptionEvaluation;
   sources: Source[];
   tripId: string;
   competitionId: string | null;
+  asOfDate: string;
 }) {
   const [mode, setMode] = useState<"view" | "edit" | "delete">("view");
   const [attempt, setAttempt] = useState(0);
@@ -238,6 +244,8 @@ function FlightOptionCard({
   }
 
   const source = sources.find((candidate) => candidate.id === option.sourceId) ?? null;
+  const ageDays = observationAgeDays(option.observedOn, asOfDate);
+  const isStale = ageDays > RATE_STALENESS_DAYS;
 
   return (
     <div className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800" data-testid="flight-option-card">
@@ -329,11 +337,15 @@ function FlightOptionCard({
           <p className="mt-3 text-xs text-zinc-500 dark:text-zinc-400">
             {source ? (
               <>
-                {source.provider} · Tier {source.tier} · observed {formatDate(option.observedOn)} ·{" "}
-                {INFO_STATE_LABELS[option.informationState]}
+                {source.provider} · Tier {source.tier} ·{" "}
               </>
             ) : (
-              <>No source on this option · {INFO_STATE_LABELS[option.informationState]}</>
+              "No source on this option · "
+            )}
+            observed {formatDate(option.observedOn)} ({formatObservationAge(ageDays)}) ·{" "}
+            {INFO_STATE_LABELS[option.informationState]}
+            {isStale && (
+              <span className="ml-1 text-amber-700 dark:text-amber-400">(may be out of date -- worth checking again)</span>
             )}
           </p>
           {option.notes && <p className="mt-1 text-sm whitespace-pre-line">{option.notes}</p>}
