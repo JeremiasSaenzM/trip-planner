@@ -95,7 +95,6 @@ describe("demoDataSource writes", () => {
         totalAmount: 100,
         refundability: "refundable",
         timingType: "due_on_date",
-        competitionRelated: false,
       }),
     ).rejects.toThrow(/disabled in demo mode/);
     await expect(
@@ -122,7 +121,6 @@ describe("demoDataSource writes", () => {
         timingType: "due_on_date",
         informationState: "estimate",
         refundability: "refundable",
-        competitionRelated: false,
         reason: "Test",
       }),
     ).rejects.toThrow(/disabled in demo mode/);
@@ -130,17 +128,6 @@ describe("demoDataSource writes", () => {
       demoDataSource.deletePayment({
         paymentId: "80000000-0000-0000-0000-000000000001",
         reason: "Test",
-      }),
-    ).rejects.toThrow(/disabled in demo mode/);
-    await expect(
-      demoDataSource.createPaymentRiskDecision({
-        tripId: "20000000-0000-0000-0000-000000000001",
-        competitionId: "40000000-0000-0000-0000-000000000001",
-        paymentId: "80000000-0000-0000-0000-000000000001",
-        paymentDescription: "Test",
-        rationale: "Test",
-        acceptedAmount: 100,
-        acceptedCurrency: "USD",
       }),
     ).rejects.toThrow(/disabled in demo mode/);
     await expect(

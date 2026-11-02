@@ -137,7 +137,6 @@ function mapDecisionRow(row: Record<string, unknown>): Decision {
     id: row.id as string,
     tripId: row.trip_id as string,
     competitionId: row.competition_id as string | null,
-    paymentId: row.payment_id as string | null,
     title: row.title as string,
     rationale: row.rationale as string | null,
     decidedOn: row.decided_on as string,
@@ -145,8 +144,6 @@ function mapDecisionRow(row: Record<string, unknown>): Decision {
     reversible: row.reversible as boolean,
     supersededBy: row.superseded_by as string | null,
     sourceId: row.source_id as string | null,
-    acceptedAmount: row.accepted_amount as number | null,
-    acceptedCurrency: row.accepted_currency as string | null,
     createdAt: row.created_at as string,
   };
 }
@@ -332,8 +329,6 @@ function mapPaymentRow(row: Record<string, unknown>): Payment {
     informationState: row.information_state as Payment["informationState"],
     sourceId: row.source_id as string | null,
     refundability: row.refundability as Payment["refundability"],
-    competitionRelated: row.competition_related as boolean,
-    riskAcceptedDecisionId: row.risk_accepted_decision_id as string | null,
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
   };
@@ -714,7 +709,6 @@ export const realDataSource: DataSource = {
       p_cancellation_deadline: input.cancellationDeadline ?? null,
       p_timing_type: input.timingType,
       p_due_date: input.dueDate ?? null,
-      p_competition_related: input.competitionRelated,
     });
     if (error) throw error;
     return mapPaymentRow(data as Record<string, unknown>);
@@ -739,7 +733,6 @@ export const realDataSource: DataSource = {
       p_payment_id: input.paymentId,
       p_status: input.status,
       p_reason: input.reason,
-      p_risk_accepted_decision_id: input.riskAcceptedDecisionId ?? null,
     });
     if (error) throw error;
     return mapPaymentRow(data as Record<string, unknown>);
@@ -761,9 +754,7 @@ export const realDataSource: DataSource = {
       p_information_state: input.informationState,
       p_source_id: input.sourceId ?? null,
       p_refundability: input.refundability,
-      p_competition_related: input.competitionRelated,
       p_reason: input.reason,
-      p_risk_accepted_decision_id: input.riskAcceptedDecisionId ?? null,
     });
     if (error) throw error;
     return mapPaymentRow(data as Record<string, unknown>);
@@ -777,33 +768,6 @@ export const realDataSource: DataSource = {
       p_reason: input.reason,
     });
     if (error) throw error;
-  },
-
-  // A plain insert (decisions' own change_log trigger needs no reason
-  // for one) -- paymentDescription/acceptedAmount/acceptedCurrency are
-  // the frozen snapshot the payment-risk migration added; the caller
-  // (payment-actions.ts) is the one that reads them off the live
-  // payment before calling this, so the title names what was actually
-  // agreed to even if the payment's own fields change later.
-  async createPaymentRiskDecision(input) {
-    assertWritesAllowed();
-    const supabase = await createClient();
-    const { data, error } = await supabase
-      .from("decisions")
-      .insert({
-        trip_id: input.tripId,
-        competition_id: input.competitionId,
-        payment_id: input.paymentId,
-        title: `Accepted risk: ${input.paymentDescription} (${input.acceptedAmount} ${input.acceptedCurrency})`,
-        rationale: input.rationale,
-        decided_by: "traveler",
-        accepted_amount: input.acceptedAmount,
-        accepted_currency: input.acceptedCurrency,
-      })
-      .select("*")
-      .single();
-    if (error) throw error;
-    return mapDecisionRow(data);
   },
 
   // A plain insert (sources' own change_log trigger needs no reason for

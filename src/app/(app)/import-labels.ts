@@ -79,7 +79,6 @@ const FIELD_LABELS: Record<string, string> = {
   cancellationDeadline: "Cancellation deadline",
   timingType: "Timing",
   dueDate: "Due date",
-  competitionRelated: "Tied to the competition",
   rateToUsd: "Rate to USD",
   rateDate: "Rate date",
   rateKind: "Rate kind",

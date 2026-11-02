@@ -4,8 +4,6 @@ import { useActionState, useEffect, useId, useState } from "react";
 
 import type { BudgetLine, Payment, Source } from "@/lib/data/types";
 import type { InfoState } from "@/lib/domain/types";
-import { checkCanAcceptPaymentRisk } from "@/lib/validation/decisions";
-import type { UpdatePaymentDetailsInput } from "@/lib/validation/payments";
 
 import { CATEGORY_LABELS, CATEGORY_ORDER } from "./category-labels";
 import { formatAmount } from "./format";
@@ -16,22 +14,10 @@ import {
   labelClass,
   secondaryButtonClass,
 } from "./form-styles";
-import {
-  initialFormActionState,
-  initialPaymentStatusActionState,
-  initialUpdatePaymentDetailsActionState,
-} from "./form-action-state";
+import { initialFormActionState } from "./form-action-state";
 import { INFO_STATE_LABELS, INFO_STATE_ORDER } from "./info-state-labels";
 import { REFUNDABILITY_LABELS, STATUS_LABELS, TIMING_LABELS } from "./payment-labels";
-import {
-  acceptPaymentRisk,
-  acceptPaymentRiskForDetails,
-  createPayment,
-  deletePayment,
-  recordPayment,
-  updatePaymentDetails,
-  updatePaymentStatus,
-} from "./payment-actions";
+import { createPayment, deletePayment, recordPayment, updatePaymentDetails, updatePaymentStatus } from "./payment-actions";
 import { SourcePicker } from "./source-picker";
 
 // No currency field hidden conditionally in JS: the category picker
@@ -171,11 +157,6 @@ export function AddPaymentForm({
         </div>
       </div>
 
-      <label className="flex items-center gap-2 text-sm">
-        <input type="checkbox" name="competitionRelated" className="size-4" />
-        This is tied to the competition itself (not a general trip expense)
-      </label>
-
       {state.status === "error" && <FormError message={state.message} />}
       <button type="submit" disabled={pending} className={buttonClass}>
         {pending ? "Adding…" : "Add payment"}
@@ -188,15 +169,11 @@ type RowMode = "view" | "record" | "status" | "edit" | "delete";
 
 export function PaymentRowActions({
   payment,
-  tripId,
-  competitionId,
   budgetLineAutoCreated,
   otherPaymentsOnBudgetLine,
   sources,
 }: {
   payment: Payment;
-  tripId: string;
-  competitionId: string | null;
   budgetLineAutoCreated: boolean;
   otherPaymentsOnBudgetLine: number;
   sources: Source[];
@@ -213,27 +190,10 @@ export function PaymentRowActions({
     return <RecordPaymentForm key={attempt} payment={payment} onDone={() => setMode("view")} />;
   }
   if (mode === "status") {
-    return (
-      <ChangeStatusForm
-        key={attempt}
-        payment={payment}
-        tripId={tripId}
-        competitionId={competitionId}
-        onDone={() => setMode("view")}
-      />
-    );
+    return <ChangeStatusForm key={attempt} payment={payment} onDone={() => setMode("view")} />;
   }
   if (mode === "edit") {
-    return (
-      <EditPaymentForm
-        key={attempt}
-        payment={payment}
-        tripId={tripId}
-        competitionId={competitionId}
-        sources={sources}
-        onDone={() => setMode("view")}
-      />
-    );
+    return <EditPaymentForm key={attempt} payment={payment} sources={sources} onDone={() => setMode("view")} />;
   }
   if (mode === "delete") {
     return (
@@ -319,47 +279,14 @@ function RecordPaymentForm({ payment, onDone }: { payment: Payment; onDone: () =
   );
 }
 
-function ChangeStatusForm({
-  payment,
-  tripId,
-  competitionId,
-  onDone,
-}: {
-  payment: Payment;
-  tripId: string;
-  competitionId: string | null;
-  onDone: () => void;
-}) {
-  const [state, formAction, pending] = useActionState(updatePaymentStatus, initialPaymentStatusActionState);
+function ChangeStatusForm({ payment, onDone }: { payment: Payment; onDone: () => void }) {
+  const [state, formAction, pending] = useActionState(updatePaymentStatus, initialFormActionState);
   const formId = useId();
   const [targetStatus, setTargetStatus] = useState(payment.status);
 
   useEffect(() => {
     if (state.status === "success") onDone();
   }, [state, onDone]);
-
-  if (state.status === "blocked") {
-    const risk = checkCanAcceptPaymentRisk(competitionId);
-    return (
-      <div className="mt-2 space-y-2.5">
-        <FormError message={state.message} />
-        {risk.ok ? (
-          <AcceptRiskForm
-            payment={payment}
-            tripId={tripId}
-            competitionId={competitionId}
-            targetStatus={targetStatus}
-            onDone={onDone}
-          />
-        ) : (
-          <FormError message={risk.message} />
-        )}
-        <button type="button" onClick={onDone} className={secondaryButtonClass}>
-          Cancel
-        </button>
-      </div>
-    );
-  }
 
   return (
     <form action={formAction} className="mt-2 space-y-2.5">
@@ -406,65 +333,16 @@ function ChangeStatusForm({
   );
 }
 
-function AcceptRiskForm({
-  payment,
-  tripId,
-  competitionId,
-  targetStatus,
-  onDone,
-}: {
-  payment: Payment;
-  tripId: string;
-  competitionId: string | null;
-  targetStatus: Payment["status"];
-  onDone: () => void;
-}) {
-  const [state, formAction, pending] = useActionState(acceptPaymentRisk, initialFormActionState);
-  const formId = useId();
-
-  useEffect(() => {
-    if (state.status === "success") onDone();
-  }, [state, onDone]);
-
-  return (
-    <form action={formAction} className="space-y-2.5 rounded-lg border border-amber-300 p-2.5 dark:border-amber-800">
-      <input type="hidden" name="paymentId" value={payment.id} />
-      <input type="hidden" name="tripId" value={tripId} />
-      <input type="hidden" name="competitionId" value={competitionId ?? ""} />
-      <input type="hidden" name="targetStatus" value={targetStatus} />
-      <div className="space-y-1.5">
-        <label htmlFor={`${formId}-rationale`} className={labelClass}>
-          Why you&apos;re accepting this risk
-        </label>
-        <input
-          id={`${formId}-rationale`}
-          name="rationale"
-          required
-          className={inputClass}
-        />
-      </div>
-      {state.status === "error" && <FormError message={state.message} />}
-      <button type="submit" disabled={pending} className={buttonClass}>
-        {pending ? "Accepting…" : "I accept this risk"}
-      </button>
-    </form>
-  );
-}
-
 function EditPaymentForm({
   payment,
-  tripId,
-  competitionId,
   sources,
   onDone,
 }: {
   payment: Payment;
-  tripId: string;
-  competitionId: string | null;
   sources: Source[];
   onDone: () => void;
 }) {
-  const [state, formAction, pending] = useActionState(updatePaymentDetails, initialUpdatePaymentDetailsActionState);
+  const [state, formAction, pending] = useActionState(updatePaymentDetails, initialFormActionState);
   const formId = useId();
 
   const [informationState, setInformationState] = useState<InfoState>(payment.informationState);
@@ -476,28 +354,6 @@ function EditPaymentForm({
   useEffect(() => {
     if (state.status === "success") onDone();
   }, [state, onDone]);
-
-  if (state.status === "blocked") {
-    const risk = checkCanAcceptPaymentRisk(competitionId);
-    return (
-      <div className="mt-2 space-y-2.5">
-        <FormError message={state.message} />
-        {risk.ok ? (
-          <AcceptRiskForDetailsForm
-            tripId={tripId}
-            competitionId={competitionId}
-            pending={state.pending}
-            onDone={onDone}
-          />
-        ) : (
-          <FormError message={risk.message} />
-        )}
-        <button type="button" onClick={onDone} className={secondaryButtonClass}>
-          Cancel
-        </button>
-      </div>
-    );
-  }
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     if (informationState === "confirmed" && sourceChoice === "") {
@@ -673,15 +529,6 @@ function EditPaymentForm({
         onChange={setDatesSourceChoice}
       />
 
-      <label className="flex items-center gap-2 text-sm">
-        <input
-          type="checkbox"
-          name="competitionRelated"
-          defaultChecked={payment.competitionRelated}
-          className="size-4"
-        />
-        Tied to the competition itself
-      </label>
       <div className="space-y-1.5">
         <label htmlFor={`${formId}-reason`} className={labelClass}>
           Reason for this change
@@ -703,66 +550,6 @@ function EditPaymentForm({
           Cancel
         </button>
       </div>
-    </form>
-  );
-}
-
-// Resubmits the blocked edit's already-validated fields (echoed back as
-// UpdatePaymentDetailsActionState's "pending") as hidden inputs, plus a
-// rationale -- the new amount being accepted only exists in this
-// not-yet-written pending data, not on the payment itself, so there's
-// nothing else to read it back from. See payment-actions.ts's
-// acceptPaymentRiskForDetails.
-function AcceptRiskForDetailsForm({
-  tripId,
-  competitionId,
-  pending,
-  onDone,
-}: {
-  tripId: string;
-  competitionId: string | null;
-  pending: UpdatePaymentDetailsInput;
-  onDone: () => void;
-}) {
-  const [state, formAction, submitting] = useActionState(acceptPaymentRiskForDetails, initialFormActionState);
-  const formId = useId();
-
-  useEffect(() => {
-    if (state.status === "success") onDone();
-  }, [state, onDone]);
-
-  return (
-    <form action={formAction} className="space-y-2.5 rounded-lg border border-amber-300 p-2.5 dark:border-amber-800">
-      <input type="hidden" name="paymentId" value={pending.paymentId} />
-      <input type="hidden" name="tripId" value={tripId} />
-      <input type="hidden" name="competitionId" value={competitionId ?? ""} />
-      <input type="hidden" name="description" value={pending.description} />
-      <input type="hidden" name="totalAmount" value={pending.totalAmount} />
-      <input type="hidden" name="currency" value={pending.currency} />
-      <input type="hidden" name="dueDate" value={pending.dueDate ?? ""} />
-      <input type="hidden" name="cancellationDeadline" value={pending.cancellationDeadline ?? ""} />
-      <input type="hidden" name="datesState" value={pending.datesState} />
-      <input type="hidden" name="datesSourceId" value={pending.datesSourceId ?? ""} />
-      <input type="hidden" name="timingType" value={pending.timingType} />
-      <input type="hidden" name="informationState" value={pending.informationState} />
-      <input type="hidden" name="sourceId" value={pending.sourceId ?? ""} />
-      <input type="hidden" name="refundability" value={pending.refundability} />
-      <input type="hidden" name="competitionRelated" value={pending.competitionRelated ? "on" : ""} />
-      <div className="space-y-1.5">
-        <label htmlFor={`${formId}-rationale`} className={labelClass}>
-          Why you&apos;re accepting this risk
-        </label>
-        <input
-          id={`${formId}-rationale`}
-          name="rationale"
-          required
-          className={inputClass}
-        />
-      </div>
-      {state.status === "error" && <FormError message={state.message} />}
-      <button type="submit" disabled={submitting} className={buttonClass}>
-        {submitting ? "Accepting…" : "I accept this risk"}
-      </button>
     </form>
   );
 }

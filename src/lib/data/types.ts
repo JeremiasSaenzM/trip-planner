@@ -98,10 +98,6 @@ export type Decision = {
   id: string;
   tripId: string;
   competitionId: string | null;
-  /** The one payment this decision unblocks, if any -- see
-   * enforce_payment_acceptance_safeguard()'s d.payment_id = new.id
-   * check. null for every decision that isn't a payment risk acceptance. */
-  paymentId: string | null;
   title: string;
   rationale: string | null;
   decidedOn: string;
@@ -109,11 +105,6 @@ export type Decision = {
   reversible: boolean;
   supersededBy: string | null;
   sourceId: string | null;
-  /** Frozen snapshot of what was actually agreed to when paymentId was
-   * set -- independent of the payment's own amount/currency, which can
-   * change later. null when paymentId is null. */
-  acceptedAmount: number | null;
-  acceptedCurrency: string | null;
   createdAt: string;
 };
 
@@ -161,8 +152,6 @@ export type Payment = {
   informationState: InfoState;
   sourceId: string | null;
   refundability: Refundability;
-  competitionRelated: boolean;
-  riskAcceptedDecisionId: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -501,7 +490,6 @@ export type CreatePaymentWrite = {
   cancellationDeadline?: string;
   timingType: PaymentTiming;
   dueDate?: string;
-  competitionRelated: boolean;
 };
 export type DeletePaymentWrite = { paymentId: string; reason: string };
 export type RecordPaymentWrite = { paymentId: string; amount: number; reason: string };
@@ -509,7 +497,6 @@ export type UpdatePaymentStatusWrite = {
   paymentId: string;
   status: PaymentStatus;
   reason: string;
-  riskAcceptedDecisionId?: string;
 };
 export type UpdatePaymentDetailsWrite = {
   paymentId: string;
@@ -524,13 +511,7 @@ export type UpdatePaymentDetailsWrite = {
   informationState: InfoState;
   sourceId?: string;
   refundability: Refundability;
-  competitionRelated: boolean;
   reason: string;
-  // Only ever set by the "I accept this risk" retry after a details
-  // edit was blocked for raising total_amount past what a decision
-  // covers (src/app/(app)/payment-actions.ts) -- never a plain form
-  // field. Mirrors UpdatePaymentStatusWrite's own field of the same name.
-  riskAcceptedDecisionId?: string;
 };
 
 export type CreateSourceWrite = {
@@ -705,21 +686,6 @@ export type CreateFxRateWrite = {
 };
 export type UpdateFxRateWrite = CreateFxRateWrite & { id: string; reason: string };
 
-// Not a Zod-validated shape passed straight through like the others --
-// paymentDescription/acceptedAmount/acceptedCurrency are derived
-// server-side from the payment being risk-accepted
-// (src/app/(app)/payment-actions.ts), never typed in by the person, so
-// this is assembled by hand there.
-export type CreatePaymentRiskDecisionWrite = {
-  tripId: string;
-  competitionId: string;
-  paymentId: string;
-  paymentDescription: string;
-  rationale: string;
-  acceptedAmount: number;
-  acceptedCurrency: string;
-};
-
 // What src/lib/proposals/parse.ts hands create_proposal_batch() for each
 // item -- already validated and linked.
 export type ProposalItemWrite = {
@@ -788,7 +754,6 @@ export type DataSource = {
   updatePaymentStatus(input: UpdatePaymentStatusWrite): Promise<Payment>;
   updatePaymentDetails(input: UpdatePaymentDetailsWrite): Promise<Payment>;
   deletePayment(input: DeletePaymentWrite): Promise<void>;
-  createPaymentRiskDecision(input: CreatePaymentRiskDecisionWrite): Promise<Decision>;
   createSource(input: CreateSourceWrite): Promise<Source>;
   createBudgetLine(input: CreateBudgetLineWrite): Promise<BudgetLine>;
   updateBudgetLine(input: UpdateBudgetLineWrite): Promise<BudgetLine>;

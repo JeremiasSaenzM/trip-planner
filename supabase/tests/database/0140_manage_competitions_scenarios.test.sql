@@ -3,7 +3,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
-select plan(41);
+select plan(40);
 
 -- Optional columns
 
@@ -152,20 +152,11 @@ insert into budget_lines (
   ('a1000000-0000-0000-0000-000000000022', 'a1000000-0000-0000-0000-000000000001',
    null, 'C', 'Shared lodging', 50, 50, 50, 'USD', 'estimate');
 
--- Committed, non-refundable and competition-related: allowed because
--- scenario 12's competition is accepted.
 insert into payments (
-  id, budget_line_id, description, total_amount, currency, refundability, competition_related, status
-) values (
-  'a1000000-0000-0000-0000-000000000031', 'a1000000-0000-0000-0000-000000000021',
-  'Registration fee', 100, 'USD', 'non_refundable', true, 'committed'
-);
-
-insert into payments (
-  id, budget_line_id, scenario_id, description, total_amount, currency, refundability, competition_related
+  id, budget_line_id, scenario_id, description, total_amount, currency, refundability
 ) values (
   'a1000000-0000-0000-0000-000000000032', 'a1000000-0000-0000-0000-000000000022',
-  'a1000000-0000-0000-0000-000000000013', 'Lodging deposit', 50, 'USD', 'refundable', false
+  'a1000000-0000-0000-0000-000000000013', 'Lodging deposit', 50, 'USD', 'refundable'
 );
 
 insert into flight_options (
@@ -200,15 +191,6 @@ select results_eq(
 select lives_ok(
   $$ select update_scenario('a1000000-0000-0000-0000-000000000011', 'Host TBA', null, 'pgTAP: unlinking') $$,
   'update_scenario can unlink the competition again'
-);
-
-select throws_like(
-  $$ select update_scenario(
-       'a1000000-0000-0000-0000-000000000012', 'Has a line', 'a1000000-0000-0000-0000-000000000003',
-       'pgTAP: moving a committed payment under a pending competition'
-     ) $$,
-  '%committed non-refundable competition payments%',
-  'update_scenario refuses to change the competition under a committed non-refundable payment'
 );
 
 select lives_ok(

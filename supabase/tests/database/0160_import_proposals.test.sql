@@ -51,14 +51,12 @@ insert into budget_lines (
   'b2000000-0000-0000-0000-000000000005', 'b2000000-0000-0000-0000-000000000001', 'b2000000-0000-0000-0000-000000000004',
   'B', 'pgTAP flights line', 1500, 2100, 2500, 'EUR', 'estimate'
 );
--- Committed is allowed here only because it's refundable -- making it
--- non-refundable is exactly what the acceptance safeguard refuses.
 insert into payments (
   id, budget_line_id, scenario_id, description, total_amount, currency,
-  status, refundability, competition_related
+  status, refundability
 ) values (
   'b2000000-0000-0000-0000-000000000006', 'b2000000-0000-0000-0000-000000000005',
-  'b2000000-0000-0000-0000-000000000004', 'pgTAP deposit', 200, 'EUR', 'committed', 'refundable', true
+  'b2000000-0000-0000-0000-000000000004', 'pgTAP deposit', 200, 'EUR', 'committed', 'refundable'
 );
 insert into locations (id, owner_id, name) values
   ('b2000000-0000-0000-0000-00000000000a', '10000000-0000-0000-0000-000000000001', 'Home'),
@@ -97,7 +95,7 @@ select lives_ok(
          {"position": 5, "ref": "b1-field", "op": "update_budget_line", "reason": "pgTAP: not a field",
           "targetId": "b2000000-0000-0000-0000-000000000005",
           "payload": {"changes": {"tripId": {"from": null, "to": "b2000000-0000-0000-0000-000000000001"}}}},
-         {"position": 6, "ref": "b1-safeguard", "op": "update_payment", "reason": "pgTAP: turns out non-refundable",
+         {"position": 6, "ref": "b1-refund", "op": "update_payment", "reason": "pgTAP: turns out non-refundable",
           "targetId": "b2000000-0000-0000-0000-000000000006",
           "payload": {"changes": {"refundability": {"from": "refundable", "to": "non_refundable"}}}},
          {"position": 7, "ref": "b1-order", "op": "create_budget_line", "reason": "pgTAP: amounts out of order",
@@ -360,18 +358,17 @@ select is(
 
 -- The same rules as manual entry
 
-select throws_like(
-  $$ select approve_proposal((select id from proposal_items where ref = 'b1-safeguard')) $$,
-  '%non-refundable/unknown, competition-related commitment%',
-  'the acceptance safeguard blocks an approval exactly as it blocks the form'
+select lives_ok(
+  $$ select approve_proposal((select id from proposal_items where ref = 'b1-refund')) $$,
+  'approving a refundability change on a payment succeeds'
 );
 
 select results_eq(
   $$ select i.status::text, p.refundability::text
      from proposal_items i, payments p
-     where i.ref = 'b1-safeguard' and p.id = 'b2000000-0000-0000-0000-000000000006' $$,
-  $$ values ('pending'::text, 'refundable'::text) $$,
-  'the blocked item stays pending and the payment is unchanged'
+     where i.ref = 'b1-refund' and p.id = 'b2000000-0000-0000-0000-000000000006' $$,
+  $$ values ('approved'::text, 'non_refundable'::text) $$,
+  'the item is approved and the payment''s refundability actually changed'
 );
 
 select throws_like(
@@ -456,7 +453,7 @@ select lives_ok(
             "amountMin": 1, "amountTarget": 1, "amountConservative": 1, "currency": "EUR", "informationState": "estimate"}}},
          {"position": 2, "ref": "b2-pay", "op": "create_payment", "reason": "pgTAP", "dependsOn": [1],
           "payload": {"data": {"budgetLine": {"item": 1}, "description": "Doomed payment", "currency": "EUR",
-            "totalAmount": 1, "refundability": "refundable", "timingType": "unknown", "competitionRelated": false}}}
+            "totalAmount": 1, "refundability": "refundable", "timingType": "unknown"}}}
        ]'::jsonb) $$,
   'a second batch with a dependency chain is saved'
 );

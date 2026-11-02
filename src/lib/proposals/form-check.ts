@@ -126,7 +126,6 @@ export function currentFields(op: UpdateOp, targetId: string, rows: CurrentRows)
             informationState: row.informationState,
             source: row.sourceId,
             refundability: row.refundability,
-            competitionRelated: row.competitionRelated,
           }
         : null;
     }
@@ -431,7 +430,6 @@ function checkUpdate(op: UpdateOp, id: string, merged: Record<string, unknown>, 
           informationState: merged.informationState,
           sourceId: absent(merged.source),
           refundability: merged.refundability,
-          competitionRelated: merged.competitionRelated,
           reason,
         }),
       );

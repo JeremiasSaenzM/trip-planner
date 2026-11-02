@@ -51,7 +51,6 @@ export const demoDataSource: DataSource = {
   updatePaymentStatus: async () => writesDisabledInDemoMode(),
   updatePaymentDetails: async () => writesDisabledInDemoMode(),
   deletePayment: async () => writesDisabledInDemoMode(),
-  createPaymentRiskDecision: async () => writesDisabledInDemoMode(),
   createSource: async () => writesDisabledInDemoMode(),
   createBudgetLine: async () => writesDisabledInDemoMode(),
   updateBudgetLine: async () => writesDisabledInDemoMode(),

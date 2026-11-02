@@ -16,7 +16,6 @@ describe("createPaymentInput", () => {
     totalAmount: 200,
     refundability: "refundable" as const,
     timingType: "due_on_date" as const,
-    competitionRelated: false,
   };
 
   it("accepts a category, with no budget line chosen", () => {
@@ -105,7 +104,6 @@ describe("updatePaymentDetailsInput", () => {
     timingType: "due_on_date" as const,
     informationState: "estimate" as const,
     refundability: "unknown" as const,
-    competitionRelated: true,
     reason: "Hotel confirmed the final balance",
   };
 

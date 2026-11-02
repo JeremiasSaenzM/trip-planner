@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { isAcceptanceSafeguardError, translatePostgresError } from "./error-messages";
+import { translatePostgresError } from "./error-messages";
 
 describe("translatePostgresError", () => {
   it("translates a known check-constraint violation", () => {
@@ -37,15 +37,6 @@ describe("translatePostgresError", () => {
     );
   });
 
-  it("translates the payment acceptance safeguard's raised exception", () => {
-    const message = translatePostgresError({
-      message:
-        "Payment is a non-refundable/unknown, competition-related commitment (status committed) but the " +
-        "competition is not accepted and risk_accepted_decision_id does not point to a traveler decision for it.",
-    });
-    expect(message).toMatch(/I accept this risk/);
-  });
-
   it("translates the competition both-or-neither dates check", () => {
     const message = translatePostgresError({
       message: 'new row for relation "competitions" violates check constraint "competitions_dates_together"',
@@ -69,16 +60,6 @@ describe("translatePostgresError", () => {
         message: "Scenario a1000000-0000-0000-0000-000000000014 still has flight options -- delete them first.",
       }),
     ).toMatch(/^This scenario still has flight options/);
-  });
-
-  it("translates update_scenario's committed-payments refusal", () => {
-    const message = translatePostgresError({
-      message:
-        "Scenario a1000000-0000-0000-0000-000000000012 has committed non-refundable competition payments -- " +
-        "its competition can't be changed.",
-    });
-    expect(message).toMatch(/can't be changed/);
-    expect(message).toMatch(/still rename it/);
   });
 
   it("translates the change-reason trigger's raised exception", () => {
@@ -114,61 +95,9 @@ describe("translatePostgresError", () => {
     ).toBe("That date can't be in the future.");
   });
 
-  it("translates the payment-risk-acceptance constraints", () => {
-    expect(
-      translatePostgresError({
-        message: 'new row for relation "decisions" violates check constraint "decisions_payment_risk_needs_rationale"',
-      }),
-    ).toBe("Say why you're accepting this risk.");
-    expect(
-      translatePostgresError({
-        message: 'new row for relation "decisions" violates check constraint "decisions_accepted_currency_format"',
-      }),
-    ).toBe("Currency must be a 3-letter code (e.g. USD).");
-    expect(
-      translatePostgresError({
-        message: 'duplicate key value violates unique constraint "payments_risk_accepted_decision_id_unique"',
-      }),
-    ).toBe("That decision already covers a different payment.");
-  });
-
-  it("translates the amount-exceeded variant of the acceptance safeguard's raised exception", () => {
-    const message = translatePostgresError({
-      message:
-        "Payment's amount exceeds what was risk-accepted for it (accepted 100 EUR, now 150 EUR) -- accept the " +
-        "risk again at the new amount.",
-    });
-    expect(message).toMatch(/I accept this risk/);
-  });
-
   it("falls back to the raw message for anything unmapped, instead of going blank", () => {
     const message = translatePostgresError({ message: "some brand-new constraint failed" });
     expect(message).toBe("some brand-new constraint failed");
-  });
-});
-
-describe("isAcceptanceSafeguardError", () => {
-  it("recognizes the acceptance safeguard's own raised exception", () => {
-    expect(
-      isAcceptanceSafeguardError({
-        message:
-          "Payment is a non-refundable/unknown, competition-related commitment (status committed) but the " +
-          "competition is not accepted and risk_accepted_decision_id does not point to a traveler decision for it.",
-      }),
-    ).toBe(true);
-  });
-
-  it("also recognizes the amount-exceeded variant", () => {
-    expect(
-      isAcceptanceSafeguardError({
-        message: "Payment's amount exceeds what was risk-accepted for it (accepted 100 EUR, now 150 EUR) -- accept the risk again at the new amount.",
-      }),
-    ).toBe(true);
-  });
-
-  it("returns false for every other error", () => {
-    expect(isAcceptanceSafeguardError({ message: "Payment f0000000 not found (or not yours)" })).toBe(false);
-    expect(isAcceptanceSafeguardError({ message: "A reason is required for this change." })).toBe(false);
   });
 });
 
@@ -206,15 +135,5 @@ describe("translatePostgresError: import proposals", () => {
         message: "A reason is required for every Claude-originated write (INSERT on public.sources)",
       }),
     ).toBe("Say why you're making this change -- a reason is required for edits and deletes.");
-  });
-
-  it("gives the same safeguard message an approval would get from the payment form", () => {
-    expect(
-      translatePostgresError({
-        message:
-          "Payment is a non-refundable/unknown, competition-related commitment (status committed) but the " +
-          "competition is not accepted and risk_accepted_decision_id does not point to a traveler decision for it.",
-      }),
-    ).toMatch(/^This is a non-refundable/);
   });
 });

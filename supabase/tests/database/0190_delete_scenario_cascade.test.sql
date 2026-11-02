@@ -4,7 +4,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
-select plan(28);
+select plan(26);
 
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '10000000-0000-0000-0000-000000000001', true);
@@ -85,12 +85,12 @@ insert into flight_segments (
   '2027-01-01T06:00:00Z', '2027-01-01T08:00:00Z'
 );
 
--- A decision that unblocks payment 08. It has to survive the cascade
--- that destroys that payment -- only the live pointer should clear.
-insert into decisions (id, owner_id, trip_id, title, rationale, payment_id) values (
+-- A general decision for the trip -- it has nothing pointing at payment
+-- 08 and must simply survive the cascade untouched.
+insert into decisions (id, owner_id, trip_id, title, rationale) values (
   'c2000000-0000-0000-0000-000000000015', '10000000-0000-0000-0000-000000000001',
-  'c2000000-0000-0000-0000-000000000001', 'pgTAP accept the risk',
-  'pgTAP: accepting non-refundable deposit', 'c2000000-0000-0000-0000-000000000008'
+  'c2000000-0000-0000-0000-000000000001', 'pgTAP decision',
+  'pgTAP: a decision unrelated to the cascade'
 );
 
 -- Scenario B: exists only to prove an approved proposal item survives
@@ -206,14 +206,6 @@ select is((select count(*) from flight_segments where id = 'c2000000-0000-0000-0
 
 select is((select count(*) from decisions where id = 'c2000000-0000-0000-0000-000000000015')::int, 1,
   'the decision survives the cascade');
-select is((select payment_id from decisions where id = 'c2000000-0000-0000-0000-000000000015'), null,
-  'the decision''s live payment pointer is cleared');
-select is(
-  (select reason from change_log
-   where table_name = 'decisions' and row_id = 'c2000000-0000-0000-0000-000000000015' and action = 'update'),
-  'pgTAP: cascade delete A',
-  'the decision update in change_log carries the cascade''s own reason'
-);
 
 -- One change_log row per destroyed row, not one for the scenario: 1
 -- scenario + 2 budget lines + 2 payments + 1 stay + 1 movement +
