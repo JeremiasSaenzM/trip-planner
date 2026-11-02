@@ -214,7 +214,6 @@ export const CREATE_DATA = {
     cancellationDeadline: isoDate.optional(),
     timingType: paymentTiming,
     dueDate: isoDate.optional(),
-    competitionRelated: z.boolean(),
   }),
   create_fx_rate: z.strictObject({
     currency: currencyCode,
@@ -360,7 +359,6 @@ export const UPDATE_CHANGES = {
       informationState: change(infoState).optional(),
       source: referenceChange.optional(),
       refundability: change(refundability).optional(),
-      competitionRelated: change(z.boolean()).optional(),
     })
     .refine(atLeastOneChange, "An update needs at least one change"),
   update_fx_rate: z

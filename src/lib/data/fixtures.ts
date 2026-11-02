@@ -206,20 +206,13 @@ export const decisions: Decision[] = [
     id: "60000000-0000-0000-0000-000000000001",
     tripId: "20000000-0000-0000-0000-000000000001",
     competitionId: "40000000-0000-0000-0000-000000000001",
-    // None of the demo payments below are actually non-refundable under
-    // a still-pending competition (see the payments comment), so this
-    // stays a general, unlinked decision -- paymentId/accepted* null,
-    // same as every decision that isn't a payment risk acceptance.
-    paymentId: null,
-    title: "Accepted risk: deposit paid for Candidate B before acceptance",
+    title: "Decided to hold a rehearsal-space deposit for Candidate B",
     rationale: "Fictional example: holding a rehearsal-space deposit for the still-pending candidate.",
     decidedOn: "2026-10-01",
     decidedBy: "traveler",
     reversible: false,
     supersededBy: null,
     sourceId: null,
-    acceptedAmount: null,
-    acceptedCurrency: null,
     createdAt: "2026-10-01T00:00:00Z",
   },
 ];
@@ -437,9 +430,7 @@ export const budgetLines: BudgetLine[] = [
   },
 ];
 
-// Payments only ever attach to Candidate A (the accepted competition), so
-// none of these can trip the acceptance safeguard. Currency matches each
-// payment's own budget line.
+// Currency matches each payment's own budget line.
 export const payments: Payment[] = [
   {
     id: "80000000-0000-0000-0000-000000000001",
@@ -458,8 +449,6 @@ export const payments: Payment[] = [
     informationState: "confirmed",
     sourceId: "30000000-0000-0000-0000-000000000001",
     refundability: "non_refundable",
-    competitionRelated: true,
-    riskAcceptedDecisionId: null,
     createdAt: "2026-09-20T00:00:00Z",
     updatedAt: "2026-09-20T00:00:00Z",
   },
@@ -480,8 +469,6 @@ export const payments: Payment[] = [
     informationState: "estimate",
     sourceId: null,
     refundability: "partially_refundable",
-    competitionRelated: true,
-    riskAcceptedDecisionId: null,
     createdAt: "2026-10-05T00:00:00Z",
     updatedAt: "2026-10-05T00:00:00Z",
   },
@@ -502,8 +489,6 @@ export const payments: Payment[] = [
     informationState: "confirmed",
     sourceId: "30000000-0000-0000-0000-000000000002",
     refundability: "refundable",
-    competitionRelated: false,
-    riskAcceptedDecisionId: null,
     createdAt: "2026-10-01T00:00:00Z",
     updatedAt: "2026-10-01T00:00:00Z",
   },
@@ -524,8 +509,6 @@ export const payments: Payment[] = [
     informationState: "estimate",
     sourceId: null,
     refundability: "unknown",
-    competitionRelated: false,
-    riskAcceptedDecisionId: null,
     createdAt: "2026-10-02T00:00:00Z",
     updatedAt: "2026-10-02T00:00:00Z",
   },

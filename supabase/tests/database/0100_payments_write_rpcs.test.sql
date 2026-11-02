@@ -45,7 +45,7 @@ select is(
   (select budget_line_id from create_payment(
     'f0000000-0000-0000-0000-000000000001', 'f0000000-0000-0000-0000-000000000002',
     'f0000000-0000-0000-0000-000000000003', null,
-    'pgTAP existing-line payment', 'USD', 50, 'refundable', null, 'due_on_date', '2029-01-01', false
+    'pgTAP existing-line payment', 'USD', 50, 'refundable', null, 'due_on_date', '2029-01-01'
   )),
   'f0000000-0000-0000-0000-000000000003',
   'create_payment attaches to the given budget line instead of making a new one'
@@ -60,7 +60,7 @@ select is(
 select throws_like(
   $$ select create_payment(
        'f0000000-0000-0000-0000-000000000001', 'f0000000-0000-0000-0000-000000000002', null, null,
-       'pgTAP missing category', 'USD', 10, 'refundable', null, 'due_on_date', '2029-01-01', false
+       'pgTAP missing category', 'USD', 10, 'refundable', null, 'due_on_date', '2029-01-01'
      ) $$,
   '%budget category is required%',
   'create_payment requires a category when not attaching to an existing line'
@@ -74,7 +74,7 @@ select set_config(
   'pgtap.target_payment',
   (create_payment(
     'f0000000-0000-0000-0000-000000000001', 'f0000000-0000-0000-0000-000000000002', null, 'A',
-    'pgTAP record/update/delete target', 'USD', 500, 'refundable', null, 'due_on_date', '2029-02-01', false
+    'pgTAP record/update/delete target', 'USD', 500, 'refundable', null, 'due_on_date', '2029-02-01'
   )).id::text,
   true
 );
@@ -143,7 +143,7 @@ select is(
 select throws_like(
   $$ select update_payment_details(
        current_setting('pgtap.target_payment')::uuid, 'renamed', 500, 'USD', '2029-02-01', null,
-       'estimate', null, 'due_on_date', 'estimate', null, 'refundable', false, ''
+       'estimate', null, 'due_on_date', 'estimate', null, 'refundable', ''
      ) $$,
   '%reason is required%',
   'update_payment_details rejects a blank reason'
@@ -152,7 +152,7 @@ select throws_like(
 select lives_ok(
   $$ select update_payment_details(
        current_setting('pgtap.target_payment')::uuid, 'renamed', 500, 'USD', '2029-02-01', null,
-       'estimate', null, 'due_on_date', 'estimate', null, 'refundable', false, 'pgTAP: renaming it'
+       'estimate', null, 'due_on_date', 'estimate', null, 'refundable', 'pgTAP: renaming it'
      ) $$,
   'update_payment_details succeeds with a real reason'
 );
@@ -208,24 +208,24 @@ select is(
 
 -- Grants: authenticated can call every write RPC, anon can't.
 select ok(has_function_privilege('authenticated',
-  'create_payment(uuid, uuid, uuid, budget_category, text, text, numeric, refundability, date, payment_timing, date, boolean)', 'EXECUTE'),
+  'create_payment(uuid, uuid, uuid, budget_category, text, text, numeric, refundability, date, payment_timing, date)', 'EXECUTE'),
   'authenticated can execute create_payment');
 select ok(not has_function_privilege('anon',
-  'create_payment(uuid, uuid, uuid, budget_category, text, text, numeric, refundability, date, payment_timing, date, boolean)', 'EXECUTE'),
+  'create_payment(uuid, uuid, uuid, budget_category, text, text, numeric, refundability, date, payment_timing, date)', 'EXECUTE'),
   'anon cannot execute create_payment');
 select ok(has_function_privilege('authenticated', 'record_payment(uuid, numeric, text)', 'EXECUTE'),
   'authenticated can execute record_payment');
 select ok(not has_function_privilege('anon', 'record_payment(uuid, numeric, text)', 'EXECUTE'),
   'anon cannot execute record_payment');
-select ok(has_function_privilege('authenticated', 'update_payment_status(uuid, payment_status, text, uuid)', 'EXECUTE'),
+select ok(has_function_privilege('authenticated', 'update_payment_status(uuid, payment_status, text)', 'EXECUTE'),
   'authenticated can execute update_payment_status');
-select ok(not has_function_privilege('anon', 'update_payment_status(uuid, payment_status, text, uuid)', 'EXECUTE'),
+select ok(not has_function_privilege('anon', 'update_payment_status(uuid, payment_status, text)', 'EXECUTE'),
   'anon cannot execute update_payment_status');
 select ok(has_function_privilege('authenticated',
-  'update_payment_details(uuid, text, numeric, text, date, date, info_state, uuid, payment_timing, info_state, uuid, refundability, boolean, text, uuid)', 'EXECUTE'),
+  'update_payment_details(uuid, text, numeric, text, date, date, info_state, uuid, payment_timing, info_state, uuid, refundability, text)', 'EXECUTE'),
   'authenticated can execute update_payment_details');
 select ok(not has_function_privilege('anon',
-  'update_payment_details(uuid, text, numeric, text, date, date, info_state, uuid, payment_timing, info_state, uuid, refundability, boolean, text, uuid)', 'EXECUTE'),
+  'update_payment_details(uuid, text, numeric, text, date, date, info_state, uuid, payment_timing, info_state, uuid, refundability, text)', 'EXECUTE'),
   'anon cannot execute update_payment_details');
 select ok(has_function_privilege('authenticated', 'delete_payment(uuid, text)', 'EXECUTE'),
   'authenticated can execute delete_payment');

@@ -233,7 +233,7 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await expect(availableBalance).toHaveText("$0");
   });
 
-  await test.step("add a non-refundable, competition-related payment", async () => {
+  await test.step("add a non-refundable payment and commit it directly", async () => {
     await page.goto("/payments");
     await page.getByLabel("Description").fill("Accommodation deposit");
     await page.getByLabel("Budget category").selectOption("C");
@@ -241,46 +241,19 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await page.getByLabel("Refundability").selectOption("non_refundable");
     await page.getByLabel("Timing").selectOption("due_on_date");
     await page.getByLabel("Due date (optional)").fill("2027-03-01");
-    await page.getByLabel(/tied to the competition itself/i).check();
     await page.getByRole("button", { name: "Add payment", exact: true }).click();
     // exact: true -- same reason as "Registration fee" above: a
     // substring match would also hit this line's own new option in
     // the budget-line picker.
     await expect(page.getByText("Accommodation deposit", { exact: true })).toBeVisible();
-  });
 
-  await test.step("hit the acceptance safeguard, then accept the risk", async () => {
     const row = paymentRow(page, "Accommodation deposit");
-
     await row.getByRole("button", { name: "Change status", exact: true }).click();
     await row.getByLabel("New status").selectOption("committed");
-    await row.getByLabel("Reason for this change").fill("Trying to commit before acceptance");
+    await row.getByLabel("Reason for this change").fill("Committing the deposit");
     await row.getByRole("button", { name: "Save", exact: true }).click();
-
-    await expect(row.getByRole("button", { name: "I accept this risk", exact: true })).toBeVisible();
-
-    await row.getByLabel("Why you're accepting this risk").fill("Deposit is small enough to risk");
-    await row.getByRole("button", { name: "I accept this risk", exact: true }).click();
 
     await expect(row.getByText("Committed")).toBeVisible();
-  });
-
-  await test.step("raise the committed payment's amount past what was accepted, then accept the new amount", async () => {
-    const row = paymentRow(page, "Accommodation deposit");
-
-    await row.getByRole("button", { name: "Edit", exact: true }).click();
-    await row.getByLabel("New total amount").fill("500");
-    await row.getByLabel("Reason for this change").fill("Deposit turned out to be higher");
-    await row.getByRole("button", { name: "Save", exact: true }).click();
-
-    await expect(row.getByRole("button", { name: "I accept this risk", exact: true })).toBeVisible();
-
-    await row.getByLabel("Why you're accepting this risk").fill("Still worth it at the new amount");
-    await row.getByRole("button", { name: "I accept this risk", exact: true }).click();
-
-    // exact: true -- a substring match would also hit the "$500.00 due
-    // later" line (paidAmount is still 0, so dueLater equals the new total).
-    await expect(row.getByText("$500.00", { exact: true })).toBeVisible();
   });
 
   const tripCostRangeTarget = page.getByTestId("trip-cost-range-target");

@@ -44,7 +44,6 @@ export const createPaymentInput = z
     cancellationDeadline: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use a YYYY-MM-DD date").optional(),
     timingType: paymentTiming,
     dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use a YYYY-MM-DD date").optional(),
-    competitionRelated: z.boolean(),
   })
   .superRefine((value, ctx) => {
     if (!value.budgetLineId && !value.category) {
@@ -73,14 +72,11 @@ export const recordPaymentInput = z.object({
 
 // Status changes (including "cancelled") always go through the RPC that
 // sets app.change_reason, so a reason is always required here -- there's
-// no insert-exempt case for a status update. riskAcceptedDecisionId is
-// only ever set by the "I accept this risk" retry path below, never
-// typed in directly.
+// no insert-exempt case for a status update.
 export const updatePaymentStatusInput = z.object({
   paymentId: id,
   status: paymentStatus,
   reason: changeReason,
-  riskAcceptedDecisionId: id.optional(),
 });
 
 // Mirrors payments_confirmed_needs_source and
@@ -100,7 +96,6 @@ export const updatePaymentDetailsInput = z
     informationState: infoState,
     sourceId: id.optional(),
     refundability,
-    competitionRelated: z.boolean(),
     reason: changeReason,
   })
   .superRefine((value, ctx) => {

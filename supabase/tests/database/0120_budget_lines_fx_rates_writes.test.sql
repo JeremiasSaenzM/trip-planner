@@ -44,10 +44,10 @@ insert into budget_lines (
 );
 
 insert into payments (
-  id, owner_id, budget_line_id, description, total_amount, currency, refundability, competition_related
+  id, owner_id, budget_line_id, description, total_amount, currency, refundability
 ) values (
   'e0000000-0000-0000-0000-000000000006', '10000000-0000-0000-0000-000000000001',
-  'e0000000-0000-0000-0000-000000000005', 'pgTAP fixture payment', 50, 'USD', 'refundable', false
+  'e0000000-0000-0000-0000-000000000005', 'pgTAP fixture payment', 50, 'USD', 'refundable'
 );
 
 insert into fx_rates (id, owner_id, currency, rate_to_usd, rate_date, rate_kind, source_id) values (

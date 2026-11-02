@@ -82,7 +82,7 @@ describe("checkAgainstForm: creates go through the form's own schema", () => {
 
   it("refuses a payment with neither a budget line nor a category", () => {
     const result = check("create_payment", {
-      data: { description: "Deposit", currency: "EUR", totalAmount: 50, refundability: "refundable", timingType: "unknown", competitionRelated: false },
+      data: { description: "Deposit", currency: "EUR", totalAmount: 50, refundability: "refundable", timingType: "unknown" },
     });
     expect(result).toEqual({ ok: false, message: "Pick a budget category, or choose an existing budget line instead." });
   });

@@ -36,7 +36,6 @@ async function PaymentsScreen({ searchParams }: { searchParams: PageProps<"/paym
   if (data.status === "no_scenario") return <EmptyState>No scenario yet for this trip.</EmptyState>;
 
   const { payments, competition, departure, asOfDate, trip, scenario, budgetLines, tripPayments, sources } = data;
-  const competitionId = competition?.id ?? null;
 
   const addForm = <AddPaymentForm tripId={trip.id} scenarioId={scenario.id} budgetLines={budgetLines} />;
 
@@ -66,7 +65,7 @@ async function PaymentsScreen({ searchParams }: { searchParams: PageProps<"/paym
   const duringTrip =
     departureDate === null ? [] : payments.filter((p) => p.dueDate !== null && p.dueDate >= departureDate);
 
-  const groupProps = { asOfDate, tripId: trip.id, competitionId, budgetLines, tripPayments, sources };
+  const groupProps = { asOfDate, budgetLines, tripPayments, sources };
 
   return (
     <div className="space-y-6">
@@ -101,8 +100,6 @@ function PaymentGroup({
   title,
   payments,
   asOfDate,
-  tripId,
-  competitionId,
   budgetLines,
   tripPayments,
   sources,
@@ -110,8 +107,6 @@ function PaymentGroup({
   title: string;
   payments: Payment[];
   asOfDate: string;
-  tripId: string;
-  competitionId: string | null;
   budgetLines: BudgetLine[];
   tripPayments: Payment[];
   sources: Source[];
@@ -129,8 +124,6 @@ function PaymentGroup({
             key={payment.id}
             payment={payment}
             asOfDate={asOfDate}
-            tripId={tripId}
-            competitionId={competitionId}
             budgetLines={budgetLines}
             tripPayments={tripPayments}
             sources={sources}
@@ -144,16 +137,12 @@ function PaymentGroup({
 function PaymentRow({
   payment,
   asOfDate,
-  tripId,
-  competitionId,
   budgetLines,
   tripPayments,
   sources,
 }: {
   payment: Payment;
   asOfDate: string;
-  tripId: string;
-  competitionId: string | null;
   budgetLines: BudgetLine[];
   tripPayments: Payment[];
   sources: Source[];
@@ -207,8 +196,6 @@ function PaymentRow({
       </div>
       <PaymentRowActions
         payment={payment}
-        tripId={tripId}
-        competitionId={competitionId}
         budgetLineAutoCreated={budgetLine?.autoCreated ?? false}
         otherPaymentsOnBudgetLine={otherPaymentsOnBudgetLine}
         sources={sources}
