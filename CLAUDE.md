@@ -65,8 +65,7 @@ These come from the planning system. Encode them in the schema and in tested fun
 **Hard constraints (apply before cost):**
 1. No itinerary may stop in the United States or Canada (connections, technical/refueling stops, same-flight-number stops; US territories such as Puerto Rico count as US). Overflight is fine. Every other country is acceptable; their transit requirements are not evaluated.
 2. Be at the destination (landing plus onward travel) before the first official festival day begins, and depart only after the final official festival day has ended. Activities inside the festival are irrelevant to this check.
-3. No non-refundable competition-related commitment before the choir is officially accepted, unless I explicitly accept the risk.
-4. The fare must allow my baggage: one checked suitcase, ~23 kg.
+3. The fare must allow my baggage: one checked suitcase, ~23 kg.
 
 **Descriptive only, never ranking or scoring criteria:** flight duration, number of connections, which cities/airports a route connects through, other countries' transit requirements.
 
@@ -127,7 +126,6 @@ Each phase ends with something working, committed, and pushed.
    - Never rank on descriptive attributes. The hard constraints and cost rules (planning-system files 04 and 07, restated under Domain rules above) apply as they do elsewhere.
 7. **Reports and polish** — Printable budget summary, payment calendar, README with screenshots and the story of the project.
    - Printable trip sheet, readable on a phone: where I sleep each night, how I get between places, flight and booking references, emergency contacts.
-   - Mark a competition accepted: today there is no way to do it anywhere in the app (it's deliberately not in the competition edit form). It lifts the safeguard on non-refundable payments (hard constraint 3), so it gets its own small flow: a deliberate confirmation step, a required reason, and ideally a source — never a dropdown among other fields.
    - Saving-method selector: choose flat / one phase at a time / one pot per payment; show only that chart, and make the headline number follow the choice (e.g. "Amount to save during current phase = X").
 
 ## Current phase
