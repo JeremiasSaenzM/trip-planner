@@ -79,7 +79,7 @@ insert into decisions (
 ) values
   ('60000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001',
    '20000000-0000-0000-0000-000000000001', '40000000-0000-0000-0000-000000000001',
-   'Accepted risk: deposit paid for Candidate B before acceptance',
+   'Decided to hold a rehearsal-space deposit for Candidate B',
    'Fictional example: holding a rehearsal-space deposit for the still-pending candidate.',
    '2026-10-01', 'traveler', false, null);
 
@@ -131,35 +131,32 @@ insert into budget_lines (
    'J', 'Contingency buffer', 100, 150, 250, 'EUR',
    'assumption', null);
 
--- Payments only ever attach to Candidate A (the accepted competition),
--- so none of these can trip the acceptance safeguard regardless of
--- status or refundability.
 insert into payments (
   id, owner_id, budget_line_id, scenario_id, description,
   total_amount, paid_amount, currency, due_date, cancellation_deadline,
   dates_state, dates_source_id, timing_type, status, information_state,
-  source_id, refundability, competition_related
+  source_id, refundability
 ) values
   ('80000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001',
    '70000000-0000-0000-0000-000000000001', '50000000-0000-0000-0000-000000000001',
    'Registration fee payment', 220, 220, 'EUR', null, null,
    'pending', null, 'paid_now', 'paid', 'confirmed',
-   '30000000-0000-0000-0000-000000000001', 'non_refundable', true),
+   '30000000-0000-0000-0000-000000000001', 'non_refundable'),
   ('80000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000001',
    '70000000-0000-0000-0000-000000000002', '50000000-0000-0000-0000-000000000001',
    'Flight booking', 750, 0, 'EUR', '2031-01-01', null,
    'estimate', null, 'due_on_date', 'committed', 'estimate',
-   null, 'partially_refundable', true),
+   null, 'partially_refundable'),
   ('80000000-0000-0000-0000-000000000003', '10000000-0000-0000-0000-000000000001',
    '70000000-0000-0000-0000-000000000003', '50000000-0000-0000-0000-000000000001',
    'Hotel deposit', 500, 100, 'EUR', '2031-02-01', '2031-01-15',
    'confirmed', '30000000-0000-0000-0000-000000000002', 'pay_before_arrival', 'committed', 'confirmed',
-   '30000000-0000-0000-0000-000000000002', 'refundable', false),
+   '30000000-0000-0000-0000-000000000002', 'refundable'),
   ('80000000-0000-0000-0000-000000000004', '10000000-0000-0000-0000-000000000001',
    '70000000-0000-0000-0000-000000000008', '50000000-0000-0000-0000-000000000001',
    'Insurance premium', 45, 0, 'EUR', null, null,
    'pending', null, 'optional', 'planned', 'estimate',
-   null, 'unknown', false);
+   null, 'unknown');
 
 insert into savings_entries (id, owner_id, trip_id, amount, currency, recorded_on, note) values
   ('90000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001',
@@ -203,28 +200,28 @@ insert into open_items (
 -- and a fare with no checked bag allowed at all.
 insert into flight_options (
   id, owner_id, scenario_id, label, fare, bag_fee, mandatory_fees, currency,
-  information_state, source_id, observed_on, baggage, separate_tickets, refundability, competition_related
+  information_state, source_id, observed_on, baggage, separate_tickets, refundability
 ) values
   ('c0000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001',
    '50000000-0000-0000-0000-000000000001', 'Clean route via Doha', 480, 0, 35, 'EUR',
    'estimate', '30000000-0000-0000-0000-000000000003', '2026-10-05', 'included', false,
-   'non_refundable', true),
+   'non_refundable'),
   ('c0000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000001',
    '50000000-0000-0000-0000-000000000001', 'Via JFK (fails check 1)', 420, 60, 40, 'EUR',
    'estimate', '30000000-0000-0000-0000-000000000003', '2026-10-05', 'paid_addon', false,
-   'unknown', true),
+   'unknown'),
   ('c0000000-0000-0000-0000-000000000003', '10000000-0000-0000-0000-000000000001',
    '50000000-0000-0000-0000-000000000001', 'Via San Juan (fails check 1, US territory)', 410, 0, 38, 'EUR',
    'estimate', '30000000-0000-0000-0000-000000000003', '2026-10-06', 'included', false,
-   'unknown', true),
+   'unknown'),
   ('c0000000-0000-0000-0000-000000000004', '10000000-0000-0000-0000-000000000001',
    '50000000-0000-0000-0000-000000000001', 'Direct, lands during day 1 of the festival', 500, 0, 35, 'EUR',
    'estimate', '30000000-0000-0000-0000-000000000002', '2026-10-07', 'included', false,
-   'refundable', true),
+   'refundable'),
   ('c0000000-0000-0000-0000-000000000005', '10000000-0000-0000-0000-000000000001',
    '50000000-0000-0000-0000-000000000001', 'Direct, no checked bag allowed', 300, 0, 25, 'EUR',
    'estimate', '30000000-0000-0000-0000-000000000003', '2026-10-08', 'not_allowed', false,
-   'non_refundable', true);
+   'non_refundable');
 
 -- fo1: clean route, no US stop
 insert into flight_segments (owner_id, flight_option_id, direction, segment_order, from_airport, to_airport, from_country, to_country, flight_number, depart_at, arrive_at, is_technical_stop) values
