@@ -860,12 +860,11 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await expect(accommodationOptionCard(page, "A-e2e-2")).not.toBeVisible();
   });
 
-  await test.step("add flight options, watch the checks run, accept a risk, and compare -- never a sort control", async () => {
+  await test.step("add flight options, watch the checks run, and compare -- never a sort control", async () => {
     // F-e2e-A: a round trip linked to the existing movements, with
     // segments that land well before the festival and leave well
-    // after it, refundable and with baggage included -- every check
-    // should read "Pass", check 4 included (never "Fail": it's a
-    // statement about what buying it would mean).
+    // after it, refundable and with baggage included -- every hard
+    // constraint should read "Pass".
     await page.getByLabel("Label", { exact: true }).fill("F-e2e-A");
     await page.getByLabel("Fare", { exact: true }).fill("650");
     await page.getByLabel("Currency", { exact: true }).fill("USD");
@@ -910,7 +909,6 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     // not a guessed "Pass".
     await expect(optionA.getByTestId("constraint-badge").filter({ hasText: "Pass" })).toHaveCount(2);
     await expect(optionA.getByTestId("constraint-badge").filter({ hasText: "Unknown" })).toHaveCount(1);
-    await expect(optionA.getByTestId("acceptance-safeguard-badge")).toContainText("Safe to buy");
 
     // Linking the existing Home -> Cardiff / Cardiff -> Home movements
     // to this option gives the festival check a chain to walk. The
@@ -974,10 +972,8 @@ test("the full first-run journey, starting from a signed-out, empty account", as
   });
 
   await test.step("continue the flight options flow", async () => {
-    // F-e2e-B: no segments, baggage and refundability unrecorded,
-    // competition-related and not yet accepted -- unknown must not
-    // look like pass anywhere, and check 4 reads as "needs a decision",
-    // never "Fail".
+    // F-e2e-B: no segments, baggage and refundability unrecorded --
+    // unknown must not look like pass anywhere.
     await page.getByLabel("Label", { exact: true }).fill("F-e2e-B");
     await page.getByLabel("Fare", { exact: true }).fill("480");
     await page.getByLabel("Currency", { exact: true }).fill("USD");
@@ -997,12 +993,6 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await expect(optionB.getByTestId("constraint-badge").filter({ hasText: "Pass" })).toHaveCount(1);
     await expect(optionB.getByTestId("constraint-badge").filter({ hasText: "Unknown" })).toHaveCount(2);
     await expect(optionB.getByTestId("constraint-badge").filter({ hasText: "Fail" })).toHaveCount(0);
-    await expect(optionB.getByTestId("acceptance-safeguard-badge")).toContainText("Needs a decision first");
-
-    await optionB.getByRole("button", { name: "Accept this risk", exact: true }).click();
-    await optionB.getByLabel("Why you're accepting this risk").fill("Booking before acceptance to hold the fare");
-    await optionB.getByRole("button", { name: "Accept the risk", exact: true }).click();
-    await expect(optionB.getByTestId("acceptance-safeguard-badge")).toContainText("Safe to buy");
 
     // Both options at once, same level of detail.
     const comparison = page.getByTestId("flight-comparison-table");

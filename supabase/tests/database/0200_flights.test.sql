@@ -1,12 +1,14 @@
 -- Phase 6.5: flights (20261028090000_flight_option_status_and_links.sql,
 -- 20261028090100_proposal_ops_flights_apply.sql). Covers the
 -- at-most-one-selected-or-booked partial unique index, the new/changed
--- RPCs, decisions.flight_option_id's rationale constraint, and the
--- three new proposal ops round-tripping through approve_proposal().
+-- RPCs, and the three new proposal ops round-tripping through
+-- approve_proposal(). (decisions.flight_option_id and its rationale
+-- constraint were removed by 20261102090000 -- the acceptance
+-- safeguard they supported no longer exists, see CLAUDE.md.)
 begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
-select plan(45);
+select plan(42);
 
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '10000000-0000-0000-0000-000000000001', true);
@@ -88,7 +90,7 @@ select lives_ok(
 select throws_like(
   $$ select update_flight_option(
        '12000000-0000-0000-0000-000000000007', 'Renamed', 500, 0, 0, 'USD', 'estimate',
-       '12000000-0000-0000-0000-000000000004', '2026-10-01', 'included', false, 'unknown', true,
+       '12000000-0000-0000-0000-000000000004', '2026-10-01', 'included', false, 'unknown',
        'candidate', null, null, ''
      ) $$,
   '%reason is required%',
@@ -98,7 +100,7 @@ select throws_like(
 select lives_ok(
   $$ select update_flight_option(
        '12000000-0000-0000-0000-000000000007', 'Renamed via Doha', 520, 0, 30, 'USD', 'estimate',
-       '12000000-0000-0000-0000-000000000004', '2026-10-01', 'included', false, 'non_refundable', true,
+       '12000000-0000-0000-0000-000000000004', '2026-10-01', 'included', false, 'non_refundable',
        'selected', 'ABC123', null, 'pgTAP: updating it'
      ) $$,
   'update_flight_option succeeds with a real reason'
@@ -170,25 +172,6 @@ select results_eq(
   'the movement is actually linked to the option'
 );
 
--- decisions.flight_option_id needs a rationale
-
-select throws_like(
-  $$ insert into decisions (id, owner_id, trip_id, competition_id, flight_option_id, title, decided_by)
-     values ('12000000-0000-0000-0000-000000000010', '10000000-0000-0000-0000-000000000001',
-             '12000000-0000-0000-0000-000000000001', '12000000-0000-0000-0000-000000000002',
-             '12000000-0000-0000-0000-000000000007', 'pgTAP: missing rationale', 'traveler') $$,
-  '%decisions_flight_risk_needs_rationale%',
-  'a decision naming a flight option needs a rationale'
-);
-select lives_ok(
-  $$ insert into decisions (id, owner_id, trip_id, competition_id, flight_option_id, title, rationale, decided_by)
-     values ('12000000-0000-0000-0000-000000000011', '10000000-0000-0000-0000-000000000001',
-             '12000000-0000-0000-0000-000000000001', '12000000-0000-0000-0000-000000000002',
-             '12000000-0000-0000-0000-000000000007', 'pgTAP accept the risk', 'pgTAP: non-refundable before acceptance',
-             'traveler') $$,
-  'a decision naming a flight option with a rationale is accepted'
-);
-
 -- A second account can't touch any of these RPCs. Checked while option
 -- ...0007 still exists -- otherwise "not found" would be true merely
 -- because the row is gone, not because RLS excluded it.
@@ -197,7 +180,7 @@ select set_config('request.jwt.claim.sub', '10000000-0000-0000-0000-000000000002
 select throws_like(
   $$ select update_flight_option(
        '12000000-0000-0000-0000-000000000007', 'x', 1, 0, 0, 'USD', 'estimate', null, '2026-10-01',
-       'included', false, 'unknown', true, 'candidate', null, null, 'not mine'
+       'included', false, 'unknown', 'candidate', null, null, 'not mine'
      ) $$,
   '%not found%',
   'a second account updating my flight option gets "not found"'
@@ -210,23 +193,20 @@ select throws_like(
 
 select set_config('request.jwt.claim.sub', '10000000-0000-0000-0000-000000000001', true);
 
--- Deleting the option it names only clears the pointer, same as payment_id.
+-- Deleting the option only clears the stay/movement links to it (set
+-- null, not cascaded) -- exercised again below once a proposal links
+-- them to a different option.
 select lives_ok(
   $$ select delete_flight_option('12000000-0000-0000-0000-000000000007', 'pgTAP: removing the booked option') $$,
-  'delete_flight_option succeeds even while a decision names it'
-);
-select results_eq(
-  $$ select flight_option_id from decisions where id = '12000000-0000-0000-0000-000000000011' $$,
-  $$ values (null::uuid) $$,
-  'the decision survives, with its pointer cleared'
+  'delete_flight_option succeeds even while a stay/movement link it'
 );
 
 -- Grants: authenticated can execute every new/changed RPC here, anon can't.
 select ok(has_function_privilege('authenticated',
-  'update_flight_option(uuid, text, numeric, numeric, numeric, text, info_state, uuid, date, flight_baggage, boolean, refundability, boolean, flight_option_status, text, text, text)',
+  'update_flight_option(uuid, text, numeric, numeric, numeric, text, info_state, uuid, date, flight_baggage, boolean, refundability, flight_option_status, text, text, text)',
   'EXECUTE'), 'authenticated can execute update_flight_option');
 select ok(not has_function_privilege('anon',
-  'update_flight_option(uuid, text, numeric, numeric, numeric, text, info_state, uuid, date, flight_baggage, boolean, refundability, boolean, flight_option_status, text, text, text)',
+  'update_flight_option(uuid, text, numeric, numeric, numeric, text, info_state, uuid, date, flight_baggage, boolean, refundability, flight_option_status, text, text, text)',
   'EXECUTE'), 'anon cannot execute update_flight_option');
 select ok(has_function_privilege('authenticated', 'delete_flight_option(uuid, text)', 'EXECUTE'),
   'authenticated can execute delete_flight_option');
@@ -255,7 +235,7 @@ select lives_ok(
             "informationState": "estimate",
             "source": {"id": "12000000-0000-0000-0000-000000000004"},
             "observedOn": "2026-10-20", "baggage": "included", "separateTickets": false,
-            "refundability": "non_refundable", "competitionRelated": true
+            "refundability": "non_refundable"
           }}, "dependsOn": []},
          {"position": 1, "ref": "fs1", "op": "create_flight_segment", "reason": "pgTAP: its only segment",
           "payload": {"data": {

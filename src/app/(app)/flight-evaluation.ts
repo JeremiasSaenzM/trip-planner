@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { Competition, Decision, FlightOption, FlightSegment, FxRate, Location, Movement, Stay } from "@/lib/data/types";
+import type { Competition, FlightOption, FlightSegment, FxRate, Location, Movement, Stay } from "@/lib/data/types";
 import { calculateEffectiveFlightCost, type EffectiveFlightCostResult } from "@/lib/domain/calculate-effective-flight-cost";
 import { calculateOnwardTravelMinutes, type OnwardTravelResult } from "@/lib/domain/calculate-onward-travel-minutes";
 import {
@@ -8,7 +8,6 @@ import {
   type TotalItineraryCostBudgetLine,
   type TotalItineraryCostResult,
 } from "@/lib/domain/calculate-total-itinerary-cost";
-import { checkAcceptanceSafeguard, type AcceptanceSafeguardResult } from "@/lib/domain/check-acceptance-safeguard";
 import { checkBaggageAllowance, type BaggageAllowanceResult } from "@/lib/domain/check-baggage-allowance";
 import {
   checkFestivalArrivalDeparture,
@@ -30,14 +29,13 @@ export type FlightOptionEvaluation = {
   festivalArrivalDeparture: FestivalArrivalDepartureResult;
   festivalLocationTimezone: FestivalLocationTimezoneResult;
   baggage: BaggageAllowanceResult;
-  acceptanceSafeguard: AcceptanceSafeguardResult;
   effectiveFlightCost: EffectiveFlightCostResult;
   totalItineraryCost: TotalItineraryCostResult;
   onwardTravel: OnwardTravelResult;
   festivalDeparture: FestivalDepartureResult;
 };
 
-// The four checks and two costs the Flight options section renders,
+// The three checks and two costs the Flight options section renders,
 // run once per option here rather than in the page itself, so the
 // section and any future comparison view read off the exact same
 // results. festivalStayLocationId and the movement chain come from
@@ -49,7 +47,6 @@ export function evaluateFlightOption(input: {
   option: FlightOption;
   segments: FlightSegment[];
   competition: Competition | null;
-  decisions: Decision[];
   movements: Movement[];
   stays: Stay[];
   locations: Location[];
@@ -58,8 +55,7 @@ export function evaluateFlightOption(input: {
   basis: Basis;
   asOfDate: string;
 }): FlightOptionEvaluation {
-  const { option, segments, competition, decisions, movements, stays, locations, budgetLines, rates, basis, asOfDate } =
-    input;
+  const { option, segments, competition, movements, stays, locations, budgetLines, rates, basis, asOfDate } = input;
 
   const usCanadaStop = checkUsCanadaStop(
     segments.map((segment) => ({
@@ -118,14 +114,6 @@ export function evaluateFlightOption(input: {
 
   const baggage = checkBaggageAllowance({ baggage: option.baggage });
 
-  const riskAccepted = decisions.some((decision) => decision.flightOptionId === option.id);
-  const acceptanceSafeguard = checkAcceptanceSafeguard({
-    refundability: option.refundability,
-    competitionRelated: option.competitionRelated,
-    competitionAccepted: competition?.acceptanceStatus === "accepted",
-    riskAccepted,
-  });
-
   const effectiveFlightCost = calculateEffectiveFlightCost({
     fare: option.fare,
     bagFee: option.bagFee,
@@ -156,7 +144,6 @@ export function evaluateFlightOption(input: {
     festivalArrivalDeparture,
     festivalLocationTimezone,
     baggage,
-    acceptanceSafeguard,
     effectiveFlightCost,
     totalItineraryCost,
     onwardTravel,

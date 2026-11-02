@@ -264,7 +264,6 @@ export const CREATE_DATA = {
     baggage: flightBaggage,
     separateTickets: z.boolean(),
     refundability,
-    competitionRelated: z.boolean(),
     notes: freeText.optional(),
   }),
   create_flight_segment: z.strictObject({
@@ -425,7 +424,6 @@ export const UPDATE_CHANGES = {
       baggage: change(flightBaggage).optional(),
       separateTickets: change(z.boolean()).optional(),
       refundability: change(refundability).optional(),
-      competitionRelated: change(z.boolean()).optional(),
       status: change(flightOptionStatus).optional(),
       bookingReference: change(freeText.nullable()).optional(),
       notes: change(freeText.nullable()).optional(),

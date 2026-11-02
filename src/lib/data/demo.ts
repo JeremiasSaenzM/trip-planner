@@ -75,7 +75,6 @@ export const demoDataSource: DataSource = {
   deleteAccommodationOption: async () => writesDisabledInDemoMode(),
   createFlightSegment: async () => writesDisabledInDemoMode(),
   deleteFlightSegment: async () => writesDisabledInDemoMode(),
-  createFlightRiskDecision: async () => writesDisabledInDemoMode(),
   createProposalBatch: async () => writesDisabledInDemoMode(),
   approveProposal: async () => writesDisabledInDemoMode(),
   rejectProposal: async () => writesDisabledInDemoMode(),

@@ -38,7 +38,6 @@ const flightOptionFields = z.object({
   baggage: flightBaggage,
   separateTickets: z.boolean(),
   refundability,
-  competitionRelated: z.boolean(),
   notes: z.string().trim().optional(),
 });
 

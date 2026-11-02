@@ -102,10 +102,6 @@ export type Decision = {
    * enforce_payment_acceptance_safeguard()'s d.payment_id = new.id
    * check. null for every decision that isn't a payment risk acceptance. */
   paymentId: string | null;
-  /** The one flight option this decision names, if any -- check 4's
-   * explicit risk acceptance (decisions_flight_risk_needs_rationale,
-   * 20261028090000). null for every decision that isn't one. */
-  flightOptionId: string | null;
   title: string;
   rationale: string | null;
   decidedOn: string;
@@ -229,7 +225,6 @@ export type FlightOption = {
   baggage: FlightBaggage;
   separateTickets: boolean;
   refundability: Refundability;
-  competitionRelated: boolean;
   bookingReference: string | null;
   notes: string | null;
   createdAt: string;
@@ -641,7 +636,6 @@ type FlightOptionFieldsWrite = {
   baggage: FlightBaggage;
   separateTickets: boolean;
   refundability: Refundability;
-  competitionRelated: boolean;
   notes?: string;
 };
 export type CreateFlightOptionWrite = FlightOptionFieldsWrite & { scenarioId: string };
@@ -700,18 +694,6 @@ export type CreateFlightSegmentWrite = {
   isTechnicalStop: boolean;
 };
 export type DeleteFlightSegmentWrite = { id: string; reason: string };
-
-// Mirrors CreatePaymentRiskDecisionWrite's own shape and reasoning:
-// assembled server-side (src/app/(app)/flight-actions.ts) from the
-// option being risk-accepted, never typed in by the person beyond the
-// rationale itself.
-export type CreateFlightRiskDecisionWrite = {
-  tripId: string;
-  competitionId: string;
-  flightOptionId: string;
-  optionLabel: string;
-  rationale: string;
-};
 
 export type CreateFxRateWrite = {
   currency: string;
@@ -830,7 +812,6 @@ export type DataSource = {
   deleteAccommodationOption(input: DeleteAccommodationOptionWrite): Promise<void>;
   createFlightSegment(input: CreateFlightSegmentWrite): Promise<FlightSegment>;
   deleteFlightSegment(input: DeleteFlightSegmentWrite): Promise<void>;
-  createFlightRiskDecision(input: CreateFlightRiskDecisionWrite): Promise<Decision>;
   /** Returns the new batch's id. */
   createProposalBatch(input: CreateProposalBatchWrite): Promise<string>;
   approveProposal(itemId: string): Promise<ProposalItem>;

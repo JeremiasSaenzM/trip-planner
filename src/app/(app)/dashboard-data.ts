@@ -5,7 +5,6 @@ import type {
   AccommodationOption,
   BudgetLine,
   Competition,
-  Decision,
   FlightOption,
   FlightSegment,
   FxRate,
@@ -156,13 +155,10 @@ export type DashboardData =
       flightOptions: FlightOption[];
       /** Every segment belonging to one of flightOptions above. */
       flightSegments: FlightSegment[];
-      /** Trip-scoped -- a flight-risk decision names a competition, not
-       * a scenario (CreateFlightRiskDecisionWrite), same as every other
-       * decision. */
-      decisions: Decision[];
-      /** Phase 6.5: the four checks and two costs for every flight
-       * option in this scenario, run once here so the Flight options
-       * section and its comparison table read off the same results. */
+      /** Phase 6.5: the three hard-constraint checks and two costs for
+       * every flight option in this scenario, run once here so the
+       * Flight options section and its comparison table read off the
+       * same results. */
       flightOptionEvaluations: FlightOptionEvaluation[];
       /** Scenario-scoped via its stay (accommodation_options.stay_id),
        * same rule as stays/movements. */
@@ -197,7 +193,6 @@ export async function loadDashboardData(params: {
     locations,
     flightOptions,
     flightSegments,
-    decisions,
     accommodationOptions,
   ] = await Promise.all([
     dataSource.getTrips(),
@@ -214,7 +209,6 @@ export async function loadDashboardData(params: {
     dataSource.getLocations(),
     dataSource.getFlightOptions(),
     dataSource.getFlightSegments(),
-    dataSource.getDecisions(),
     dataSource.getAccommodationOptions(),
   ]);
 
@@ -324,13 +318,11 @@ export async function loadDashboardData(params: {
   const scenarioFlightSegments = flightSegments.filter((segment) =>
     scenarioFlightOptions.some((option) => option.id === segment.flightOptionId),
   );
-  const tripDecisions = decisions.filter((decision) => decision.tripId === trip.id);
   const flightOptionEvaluations = scenarioFlightOptions.map((option) =>
     evaluateFlightOption({
       option,
       segments: scenarioFlightSegments.filter((segment) => segment.flightOptionId === option.id),
       competition,
-      decisions: tripDecisions,
       movements: scenarioMovements,
       stays: scenarioStays,
       locations,
@@ -414,7 +406,6 @@ export async function loadDashboardData(params: {
       budgetLineDaysAddUp,
       flightOptions: scenarioFlightOptions,
       flightSegments: scenarioFlightSegments,
-      decisions: tripDecisions,
       flightOptionEvaluations,
       accommodationOptions: scenarioAccommodationOptions,
       accommodationOptionEvaluations,
@@ -487,7 +478,6 @@ export async function loadDashboardData(params: {
     budgetLineDaysAddUp,
     flightOptions: scenarioFlightOptions,
     flightSegments: scenarioFlightSegments,
-    decisions: tripDecisions,
     flightOptionEvaluations,
     accommodationOptions: scenarioAccommodationOptions,
     accommodationOptionEvaluations,
