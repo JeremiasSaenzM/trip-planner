@@ -4,7 +4,6 @@ import { revalidatePath } from "next/cache";
 
 import { dataSource } from "@/lib/data";
 import { translatePostgresError } from "@/lib/data/error-messages";
-import { createFlightRiskDecisionInput } from "@/lib/validation/flight-risk-decisions";
 import {
   createFlightOptionInput,
   deleteFlightOptionInput,
@@ -46,7 +45,6 @@ export async function createFlightOption(_previous: FormActionState, formData: F
     baggage: formData.get("baggage"),
     separateTickets: formData.get("separateTickets") === "on",
     refundability: formData.get("refundability"),
-    competitionRelated: formData.get("competitionRelated") === "on",
     notes: optionalText(formData.get("notes")),
   });
   if (!parsed.success) return { status: "error", message: firstIssueMessage(parsed.error) };
@@ -82,7 +80,6 @@ export async function updateFlightOption(_previous: FormActionState, formData: F
     baggage: formData.get("baggage"),
     separateTickets: formData.get("separateTickets") === "on",
     refundability: formData.get("refundability"),
-    competitionRelated: formData.get("competitionRelated") === "on",
     status: formData.get("status"),
     bookingReference: optionalText(formData.get("bookingReference")),
     notes: optionalText(formData.get("notes")),
@@ -158,30 +155,4 @@ export async function deleteFlightSegment(_previous: FormActionState, formData: 
 
   revalidateAll();
   return initialFormActionState;
-}
-
-// The "I accept this risk" form (check 4): a plain, one-shot write,
-// never a retry of something a trigger blocked -- see
-// createFlightRiskDecisionInput's own comment.
-export async function createFlightRiskDecision(
-  _previous: FormActionState,
-  formData: FormData,
-): Promise<FormActionState> {
-  const parsed = createFlightRiskDecisionInput.safeParse({
-    tripId: formData.get("tripId"),
-    competitionId: formData.get("competitionId"),
-    flightOptionId: formData.get("flightOptionId"),
-    optionLabel: formData.get("optionLabel"),
-    rationale: formData.get("rationale"),
-  });
-  if (!parsed.success) return { status: "error", message: firstIssueMessage(parsed.error) };
-
-  try {
-    await dataSource.createFlightRiskDecision(parsed.data);
-  } catch (error) {
-    return { status: "error", message: translatePostgresError(error as { message: string }) };
-  }
-
-  revalidateAll();
-  return { status: "success" };
 }

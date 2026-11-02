@@ -4,18 +4,16 @@ import { useActionState, useEffect, useId, useState } from "react";
 
 import type { FlightDirection, FlightOption, FlightSegment, Source } from "@/lib/data/types";
 import { observationAgeDays, RATE_STALENESS_DAYS } from "@/lib/domain/observation-age";
-import { checkCanAcceptFlightRisk } from "@/lib/validation/flight-risk-decisions";
 
 import type { FlightOptionEvaluation } from "./flight-evaluation";
 import {
   createFlightOption,
-  createFlightRiskDecision,
   createFlightSegment,
   deleteFlightOption,
   deleteFlightSegment,
   updateFlightOption,
 } from "./flight-actions";
-import { AcceptanceSafeguardBadge, ConstraintBadge } from "./flight-constraint-badge";
+import { ConstraintBadge } from "./flight-constraint-badge";
 import { FLIGHT_BAGGAGE_LABELS, FLIGHT_OPTION_STATUS_LABELS } from "./flight-labels";
 import { formatAmount, formatDate, formatObservationAge } from "./format";
 import { initialFormActionState } from "./form-action-state";
@@ -51,12 +49,10 @@ function segmentChainText(segments: FlightSegment[], direction: FlightDirection)
 
 // Entry forms for flight options and segments, per-option check/cost
 // rendering, and a comparison table -- the UI half of Phase 6.5. The
-// four checks always render in the same order (three hard constraints,
-// then check 4 sharing their section but visually distinct, see
-// flight-constraint-badge.tsx), cost second, descriptive route facts
-// last under their own "descriptive only" heading -- that ordering is
-// the substance the phase spec asked for, not a styling choice, so it's
-// never reshuffled per option.
+// three hard-constraint checks always render first, cost second,
+// descriptive route facts last under their own "descriptive only"
+// heading -- that ordering is the substance the phase spec asked for,
+// not a styling choice, so it's never reshuffled per option.
 export function AddFlightOptionForm({ scenarioId, sources }: { scenarioId: string; sources: Source[] }) {
   const [state, formAction, pending] = useActionState(createFlightOption, initialFormActionState);
   const [sourceChoice, setSourceChoice] = useState("");
@@ -146,16 +142,10 @@ export function AddFlightOptionForm({ scenarioId, sources }: { scenarioId: strin
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-4 text-sm">
-        <label className="flex items-center gap-2">
-          <input type="checkbox" name="separateTickets" className="h-4 w-4" />
-          Separate tickets (not one single itinerary)
-        </label>
-        <label className="flex items-center gap-2">
-          <input type="checkbox" name="competitionRelated" defaultChecked className="h-4 w-4" />
-          Competition-related
-        </label>
-      </div>
+      <label className="flex items-center gap-2 text-sm">
+        <input type="checkbox" name="separateTickets" className="h-4 w-4" />
+        Separate tickets (not one single itinerary)
+      </label>
 
       <div className="space-y-1.5">
         <label htmlFor="flight-option-information-state" className={labelClass}>
@@ -191,14 +181,10 @@ export function AddFlightOptionForm({ scenarioId, sources }: { scenarioId: strin
 export function FlightOptionList({
   evaluations,
   sources,
-  tripId,
-  competitionId,
   asOfDate,
 }: {
   evaluations: FlightOptionEvaluation[];
   sources: Source[];
-  tripId: string;
-  competitionId: string | null;
   asOfDate: string;
 }) {
   if (evaluations.length === 0) {
@@ -208,14 +194,7 @@ export function FlightOptionList({
   return (
     <div className="space-y-4" data-testid="flight-options-list">
       {evaluations.map((evaluation) => (
-        <FlightOptionCard
-          key={evaluation.option.id}
-          evaluation={evaluation}
-          sources={sources}
-          tripId={tripId}
-          competitionId={competitionId}
-          asOfDate={asOfDate}
-        />
+        <FlightOptionCard key={evaluation.option.id} evaluation={evaluation} sources={sources} asOfDate={asOfDate} />
       ))}
     </div>
   );
@@ -224,14 +203,10 @@ export function FlightOptionList({
 function FlightOptionCard({
   evaluation,
   sources,
-  tripId,
-  competitionId,
   asOfDate,
 }: {
   evaluation: FlightOptionEvaluation;
   sources: Source[];
-  tripId: string;
-  competitionId: string | null;
   asOfDate: string;
 }) {
   const [mode, setMode] = useState<"view" | "edit" | "delete">("view");
@@ -264,9 +239,7 @@ function FlightOptionCard({
         <DeleteFlightOptionForm key={attempt} option={option} onDone={() => setMode("view")} />
       ) : (
         <>
-          {/* 1. Constraint results first -- three hard constraints, then
-              check 4 sharing the section but never reading as a pass/fail
-              of its own (flight-constraint-badge.tsx). */}
+          {/* 1. Constraint results first -- the three hard constraints. */}
           <div className="mt-3 space-y-1.5 text-sm">
             <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
               Hard constraints
@@ -284,26 +257,15 @@ function FlightOptionCard({
               </p>
             )}
             <ConstraintRow label="Checked baggage allowed" result={evaluation.baggage} />
-            <div className="flex items-start justify-between gap-2">
-              <span>If bought now</span>
-              <AcceptanceSafeguardBadge status={evaluation.acceptanceSafeguard.status} />
-            </div>
-            <p className="text-xs text-zinc-500 italic dark:text-zinc-400">
-              The three above are hard constraints this option either meets or doesn&apos;t. &quot;If bought now&quot;
-              states what buying it would mean, not a pass or fail of the option itself.
-            </p>
-            {[...evaluation.usCanadaStop.reasons, ...evaluation.festivalArrivalDeparture.reasons, ...evaluation.baggage.reasons, ...evaluation.acceptanceSafeguard.reasons].length > 0 && (
+            {[...evaluation.usCanadaStop.reasons, ...evaluation.festivalArrivalDeparture.reasons, ...evaluation.baggage.reasons].length >
+              0 && (
               <ReasonsList
                 reasons={[
                   ...evaluation.usCanadaStop.reasons,
                   ...evaluation.festivalArrivalDeparture.reasons,
                   ...evaluation.baggage.reasons,
-                  ...evaluation.acceptanceSafeguard.reasons,
                 ]}
               />
-            )}
-            {evaluation.acceptanceSafeguard.status === "unknown" && (
-              <AcceptRiskSection option={option} tripId={tripId} competitionId={competitionId} />
             )}
           </div>
 
@@ -384,76 +346,6 @@ function ReasonsList({ reasons }: { reasons: string[] }) {
         <li key={index}>{reason}</li>
       ))}
     </ul>
-  );
-}
-
-function AcceptRiskSection({
-  option,
-  tripId,
-  competitionId,
-}: {
-  option: FlightOption;
-  tripId: string;
-  competitionId: string | null;
-}) {
-  const canAccept = checkCanAcceptFlightRisk(competitionId);
-  const [open, setOpen] = useState(false);
-
-  if (!canAccept.ok) {
-    return <p className="text-xs text-zinc-500 italic dark:text-zinc-400">{canAccept.message}</p>;
-  }
-  if (!open) {
-    return (
-      <button type="button" onClick={() => setOpen(true)} className="text-xs text-zinc-600 underline dark:text-zinc-400">
-        Accept this risk
-      </button>
-    );
-  }
-  return (
-    <AcceptFlightRiskForm option={option} tripId={tripId} competitionId={competitionId as string} onDone={() => setOpen(false)} />
-  );
-}
-
-function AcceptFlightRiskForm({
-  option,
-  tripId,
-  competitionId,
-  onDone,
-}: {
-  option: FlightOption;
-  tripId: string;
-  competitionId: string;
-  onDone: () => void;
-}) {
-  const [state, formAction, pending] = useActionState(createFlightRiskDecision, initialFormActionState);
-  const formId = useId();
-
-  useEffect(() => {
-    if (state.status === "success") onDone();
-  }, [state, onDone]);
-
-  return (
-    <form action={formAction} className="space-y-2.5 rounded-lg border border-amber-300 p-2.5 dark:border-amber-800">
-      <input type="hidden" name="tripId" value={tripId} />
-      <input type="hidden" name="competitionId" value={competitionId} />
-      <input type="hidden" name="flightOptionId" value={option.id} />
-      <input type="hidden" name="optionLabel" value={option.label} />
-      <div className="space-y-1.5">
-        <label htmlFor={`${formId}-rationale`} className={labelClass}>
-          Why you&apos;re accepting this risk
-        </label>
-        <input id={`${formId}-rationale`} name="rationale" required className={inputClass} />
-      </div>
-      {state.status === "error" && <FormError message={state.message} />}
-      <div className="flex gap-2">
-        <button type="submit" disabled={pending} className={buttonClass}>
-          {pending ? "Saving…" : "Accept the risk"}
-        </button>
-        <button type="button" onClick={onDone} className={secondaryButtonClass}>
-          Cancel
-        </button>
-      </div>
-    </form>
   );
 }
 
@@ -578,16 +470,10 @@ function EditFlightOptionForm({
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-4 text-sm">
-        <label className="flex items-center gap-2">
-          <input type="checkbox" name="separateTickets" defaultChecked={option.separateTickets} className="h-4 w-4" />
-          Separate tickets
-        </label>
-        <label className="flex items-center gap-2">
-          <input type="checkbox" name="competitionRelated" defaultChecked={option.competitionRelated} className="h-4 w-4" />
-          Competition-related
-        </label>
-      </div>
+      <label className="flex items-center gap-2 text-sm">
+        <input type="checkbox" name="separateTickets" defaultChecked={option.separateTickets} className="h-4 w-4" />
+        Separate tickets
+      </label>
 
       <div className="space-y-1.5">
         <label htmlFor={`${formId}-bookingReference`} className={labelClass}>
@@ -891,7 +777,6 @@ export function FlightOptionComparisonTable({ evaluations }: { evaluations: Flig
             <th className="py-1.5 pr-3 font-medium">No US/Canada stop</th>
             <th className="py-1.5 pr-3 font-medium">At the festival on time</th>
             <th className="py-1.5 pr-3 font-medium">Baggage</th>
-            <th className="py-1.5 pr-3 font-medium">If bought now</th>
             <th className="py-1.5 pr-3 font-medium">Effective Flight Cost</th>
             <th className="py-1.5 pr-3 font-medium">Total Itinerary Cost</th>
             <th className="py-1.5 pr-3 font-medium">Route (descriptive only)</th>
@@ -915,9 +800,6 @@ export function FlightOptionComparisonTable({ evaluations }: { evaluations: Flig
               </td>
               <td className="py-1.5 pr-3">
                 <ConstraintBadge status={evaluation.baggage.status} />
-              </td>
-              <td className="py-1.5 pr-3">
-                <AcceptanceSafeguardBadge status={evaluation.acceptanceSafeguard.status} />
               </td>
               <td className="py-1.5 pr-3">
                 {formatAmount(evaluation.effectiveFlightCost.amount, evaluation.effectiveFlightCost.currency)}

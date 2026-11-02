@@ -138,7 +138,6 @@ function mapDecisionRow(row: Record<string, unknown>): Decision {
     tripId: row.trip_id as string,
     competitionId: row.competition_id as string | null,
     paymentId: row.payment_id as string | null,
-    flightOptionId: row.flight_option_id as string | null,
     title: row.title as string,
     rationale: row.rationale as string | null,
     decidedOn: row.decided_on as string,
@@ -244,7 +243,6 @@ function mapFlightOptionRow(row: Record<string, unknown>): FlightOption {
     baggage: row.baggage as FlightOption["baggage"],
     separateTickets: row.separate_tickets as boolean,
     refundability: row.refundability as FlightOption["refundability"],
-    competitionRelated: row.competition_related as boolean,
     bookingReference: row.booking_reference as string | null,
     notes: row.notes as string | null,
     createdAt: row.created_at as string,
@@ -1112,7 +1110,6 @@ export const realDataSource: DataSource = {
         baggage: input.baggage,
         separate_tickets: input.separateTickets,
         refundability: input.refundability,
-        competition_related: input.competitionRelated,
         notes: input.notes ?? null,
       })
       .select("*")
@@ -1137,7 +1134,6 @@ export const realDataSource: DataSource = {
       p_baggage: input.baggage,
       p_separate_tickets: input.separateTickets,
       p_refundability: input.refundability,
-      p_competition_related: input.competitionRelated,
       p_status: input.status,
       p_booking_reference: input.bookingReference ?? null,
       p_notes: input.notes ?? null,
@@ -1266,28 +1262,6 @@ export const realDataSource: DataSource = {
       p_reason: input.reason,
     });
     if (error) throw error;
-  },
-
-  // Mirrors createPaymentRiskDecision exactly -- see its own comment.
-  // optionLabel is read off the live option by the caller
-  // (flight-actions.ts), the same way paymentDescription is.
-  async createFlightRiskDecision(input) {
-    assertWritesAllowed();
-    const supabase = await createClient();
-    const { data, error } = await supabase
-      .from("decisions")
-      .insert({
-        trip_id: input.tripId,
-        competition_id: input.competitionId,
-        flight_option_id: input.flightOptionId,
-        title: `Accepted risk: ${input.optionLabel}`,
-        rationale: input.rationale,
-        decided_by: "traveler",
-      })
-      .select("*")
-      .single();
-    if (error) throw error;
-    return mapDecisionRow(data);
   },
 
   // Import proposals (20261021090000_import_proposals.sql). Saving a

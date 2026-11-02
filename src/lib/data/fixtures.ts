@@ -211,7 +211,6 @@ export const decisions: Decision[] = [
     // stays a general, unlinked decision -- paymentId/accepted* null,
     // same as every decision that isn't a payment risk acceptance.
     paymentId: null,
-    flightOptionId: null,
     title: "Accepted risk: deposit paid for Candidate B before acceptance",
     rationale: "Fictional example: holding a rehearsal-space deposit for the still-pending candidate.",
     decidedOn: "2026-10-01",
@@ -683,7 +682,6 @@ export const flightOptions: FlightOption[] = [
     baggage: "included",
     separateTickets: false,
     refundability: "non_refundable",
-    competitionRelated: true,
     bookingReference: null,
     notes: null,
     createdAt: "2026-10-05T00:00:00Z",
@@ -704,7 +702,6 @@ export const flightOptions: FlightOption[] = [
     baggage: "paid_addon",
     separateTickets: false,
     refundability: "unknown",
-    competitionRelated: true,
     bookingReference: null,
     notes: null,
     createdAt: "2026-10-05T00:00:00Z",

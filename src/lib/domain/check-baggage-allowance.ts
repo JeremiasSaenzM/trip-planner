@@ -2,7 +2,7 @@ import type { FlightBaggage, HardConstraintResult } from "./types";
 
 export type BaggageAllowanceResult = HardConstraintResult & { requiresAddonFee: boolean };
 
-/** Hard constraint 4: the fare must allow one checked suitcase, ~23kg. */
+/** Hard constraint 3: the fare must allow one checked suitcase, ~23kg. */
 export function checkBaggageAllowance(input: { baggage: FlightBaggage }): BaggageAllowanceResult {
   switch (input.baggage) {
     case "included":

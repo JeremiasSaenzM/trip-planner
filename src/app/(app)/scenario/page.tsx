@@ -183,8 +183,6 @@ async function ScenarioOverview({ searchParams }: { searchParams: PageProps<"/sc
           <FlightOptionList
             evaluations={data.flightOptionEvaluations}
             sources={data.sources}
-            tripId={trip.id}
-            competitionId={competition?.id ?? null}
             asOfDate={data.asOfDate}
           />
           <div className="mt-4 border-t border-zinc-200 pt-4 dark:border-zinc-800">
