@@ -163,7 +163,7 @@ function PaymentRow({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="font-medium">{payment.description}</p>
-          <p className="text-xs text-zinc-500 dark:text-zinc-400">
+          <p data-testid="payment-status-summary" className="text-xs text-zinc-500 dark:text-zinc-400">
             {STATUS_LABELS[payment.status]} · {TIMING_LABELS[payment.timingType]} ·{" "}
             {REFUNDABILITY_LABELS[payment.refundability]}
           </p>
