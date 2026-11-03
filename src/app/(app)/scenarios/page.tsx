@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import { getCurrentUser } from "@/lib/auth";
 import { dataSource } from "@/lib/data";
 import type { AcceptanceStatus, Competition, Scenario, Source, Trip } from "@/lib/data/types";
+import { resolveTravelWindow } from "@/lib/domain/resolve-travel-window";
 
 import { AddCompetitionForm, CreateScenarioForm } from "../bootstrap-forms";
 import { parseBasis } from "../dashboard-query";
@@ -12,7 +13,13 @@ import { Card, EmptyState } from "../dashboard-ui";
 import { formatDate } from "../format";
 import { INFO_STATE_LABELS } from "../info-state-labels";
 import { sortScenarios } from "../scenario-order";
-import { CompetitionRowActions, ScenarioRowActions, TravelWindowActions, type ScenarioCascadeCounts } from "../scenarios-ui";
+import {
+  CompetitionRowActions,
+  ScenarioRowActions,
+  ScenarioTravelWindowActions,
+  TravelWindowActions,
+  type ScenarioCascadeCounts,
+} from "../scenarios-ui";
 
 export const metadata: Metadata = { title: "Scenarios" };
 
@@ -112,7 +119,7 @@ async function ScenariosScreen({ searchParams }: { searchParams: PageProps<"/sce
       <section className="space-y-3">
         <h2 className="text-lg font-semibold">Travel window</h2>
         <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          Trip-wide: the same for every scenario.
+          The trip&apos;s default -- each scenario below can set its own instead.
         </p>
         <Card>
           <TravelWindowSummary trip={trip} sources={sources} />
@@ -141,6 +148,7 @@ async function ScenariosScreen({ searchParams }: { searchParams: PageProps<"/sce
                       <p className="text-xs text-zinc-500 dark:text-zinc-400">
                         {refs.length > 0 ? refs.join(" · ") : "Nothing recorded in this scenario yet"}
                       </p>
+                      <ScenarioTravelWindowSummary scenario={scenario} trip={trip} sources={sources} />
                     </div>
                     {isSelected ? (
                       <span className="shrink-0 rounded-full bg-zinc-900 px-2.5 py-0.5 text-xs font-medium text-white dark:bg-zinc-100 dark:text-zinc-950">
@@ -160,6 +168,7 @@ async function ScenariosScreen({ searchParams }: { searchParams: PageProps<"/sce
                     competitions={tripCompetitions}
                     cascadeCounts={cascadeCounts(scenario)}
                   />
+                  <ScenarioTravelWindowActions scenario={scenario} sources={sources} />
                 </Card>
               );
             })}
@@ -217,6 +226,26 @@ function CompetitionSummary({ competition, usedBy }: { competition: Competition;
           : "Not used by any scenario"}
       </p>
     </div>
+  );
+}
+
+// This scenario's resolved travel window -- its own override, or the
+// trip's default (resolveTravelWindow(), the same function
+// dashboard-data.ts uses) -- always saying which one it is, so an
+// override never looks the same as inheriting.
+function ScenarioTravelWindowSummary({ scenario, trip, sources }: { scenario: Scenario; trip: Trip; sources: Source[] }) {
+  const window = resolveTravelWindow(scenario, trip);
+  const source = window.travelDatesSourceId ? sources.find((s) => s.id === window.travelDatesSourceId) : null;
+
+  return (
+    <p className="text-xs text-zinc-500 dark:text-zinc-400">
+      {window.departureDate && window.returnDate
+        ? `${formatDate(window.departureDate)} – ${formatDate(window.returnDate)}`
+        : "Travel window not set"}{" "}
+      ({INFO_STATE_LABELS[window.travelDatesState]}
+      {source ? ` · ${source.provider}` : ""}) --{" "}
+      {window.origin === "scenario" ? "this scenario's own" : "from the trip"}
+    </p>
   );
 }
 

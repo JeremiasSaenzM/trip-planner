@@ -1,14 +1,15 @@
 import { describe, expect, it } from "vitest";
 
 import { checkStayNightsMatchWindow } from "./check-stay-nights-match-window";
+import { resolveTravelWindow, type TravelWindowFields } from "./resolve-travel-window";
 
 describe("checkStayNightsMatchWindow", () => {
   it("reports unknown when the trip's travel window isn't set", () => {
     const result = checkStayNightsMatchWindow({
       stays: [{ nights: 8 }],
       movements: [],
-      tripDepartureDate: null,
-      tripReturnDate: "2027-07-13",
+      departureDate: null,
+      returnDate: "2027-07-13",
     });
     expect(result).toEqual({ status: "unknown" });
   });
@@ -17,8 +18,8 @@ describe("checkStayNightsMatchWindow", () => {
     const result = checkStayNightsMatchWindow({
       stays: [{ nights: 5 }, { nights: 3 }],
       movements: [],
-      tripDepartureDate: "2027-07-04",
-      tripReturnDate: "2027-07-12",
+      departureDate: "2027-07-04",
+      returnDate: "2027-07-12",
     });
     expect(result).toEqual({ status: "ok" });
   });
@@ -27,8 +28,8 @@ describe("checkStayNightsMatchWindow", () => {
     const result = checkStayNightsMatchWindow({
       stays: [{ nights: 21 }],
       movements: [],
-      tripDepartureDate: "2027-07-04",
-      tripReturnDate: "2027-07-15",
+      departureDate: "2027-07-04",
+      returnDate: "2027-07-15",
     });
     expect(result).toEqual({ status: "mismatch", staysNights: 21, windowNights: 11 });
   });
@@ -37,8 +38,8 @@ describe("checkStayNightsMatchWindow", () => {
     const result = checkStayNightsMatchWindow({
       stays: [],
       movements: [],
-      tripDepartureDate: "2027-07-04",
-      tripReturnDate: "2027-07-04",
+      departureDate: "2027-07-04",
+      returnDate: "2027-07-04",
     });
     expect(result).toEqual({ status: "ok" });
   });
@@ -51,8 +52,36 @@ describe("checkStayNightsMatchWindow", () => {
       movements: [
         { sequence: 1, fromLocationId: "Home", toLocationId: "Away", departDate: "2027-07-02", arriveDate: "2027-07-03" },
       ],
-      tripDepartureDate: "2027-07-02",
-      tripReturnDate: "2027-07-14",
+      departureDate: "2027-07-02",
+      returnDate: "2027-07-14",
+    });
+    expect(result).toEqual({ status: "ok" });
+  });
+
+  it("uses an overriding scenario's own window, not the trip's, once resolved", () => {
+    const trip: TravelWindowFields = {
+      departureDate: "2027-07-04",
+      returnDate: "2027-07-15",
+      travelDatesState: "estimate",
+      travelDatesSourceId: null,
+    };
+    const scenario: TravelWindowFields = {
+      departureDate: "2027-07-04",
+      returnDate: "2027-07-12",
+      travelDatesState: "estimate",
+      travelDatesSourceId: null,
+    };
+    const window = resolveTravelWindow(scenario, trip);
+    expect(window.origin).toBe("scenario");
+
+    // Matches the scenario's shorter 8-night window, not the trip's
+    // 11-night one -- if this read trip.returnDate directly instead of
+    // the resolved window, it would report a mismatch instead.
+    const result = checkStayNightsMatchWindow({
+      stays: [{ nights: 8 }],
+      movements: [],
+      departureDate: window.departureDate,
+      returnDate: window.returnDate,
     });
     expect(result).toEqual({ status: "ok" });
   });

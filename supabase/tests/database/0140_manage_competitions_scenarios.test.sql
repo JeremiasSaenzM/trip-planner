@@ -169,7 +169,7 @@ insert into flight_options (
 -- update_scenario
 
 select throws_like(
-  $$ select update_scenario('a1000000-0000-0000-0000-000000000011', 'Renamed', null, '') $$,
+  $$ select update_scenario('a1000000-0000-0000-0000-000000000011', 'Renamed', null, null, null, 'pending', null, '') $$,
   '%reason is required%',
   'update_scenario rejects a blank reason'
 );
@@ -177,7 +177,7 @@ select throws_like(
 select lives_ok(
   $$ select update_scenario(
        'a1000000-0000-0000-0000-000000000011', 'Host TBA', 'a1000000-0000-0000-0000-000000000003',
-       'pgTAP: linking a competition'
+       null, null, 'pending', null, 'pgTAP: linking a competition'
      ) $$,
   'update_scenario renames and links a competition to a scenario that had none'
 );
@@ -189,21 +189,24 @@ select results_eq(
 );
 
 select lives_ok(
-  $$ select update_scenario('a1000000-0000-0000-0000-000000000011', 'Host TBA', null, 'pgTAP: unlinking') $$,
+  $$ select update_scenario(
+       'a1000000-0000-0000-0000-000000000011', 'Host TBA', null, null, null, 'pending', null, 'pgTAP: unlinking'
+     ) $$,
   'update_scenario can unlink the competition again'
 );
 
 select lives_ok(
   $$ select update_scenario(
        'a1000000-0000-0000-0000-000000000012', 'Has a line (renamed)', 'a1000000-0000-0000-0000-000000000004',
-       'pgTAP: renaming only'
+       null, null, 'pending', null, 'pgTAP: renaming only'
      ) $$,
   'update_scenario still allows renaming that scenario while keeping its competition'
 );
 
 select throws_like(
   $$ select update_scenario(
-       'a1000000-0000-0000-0000-000000000011', 'Host TBA', 'a1000000-0000-0000-0000-0000000000ff', 'pgTAP: bad id'
+       'a1000000-0000-0000-0000-000000000011', 'Host TBA', 'a1000000-0000-0000-0000-0000000000ff',
+       null, null, 'pending', null, 'pgTAP: bad id'
      ) $$,
   '%not found%',
   'update_scenario refuses a competition id that does not exist'
@@ -271,7 +274,7 @@ select throws_like(
 );
 
 select throws_like(
-  $$ select update_scenario('a1000000-0000-0000-0000-000000000012', 'x', null, 'not mine') $$,
+  $$ select update_scenario('a1000000-0000-0000-0000-000000000012', 'x', null, null, null, 'pending', null, 'not mine') $$,
   '%not found%',
   'a second account updating my scenario gets "not found"'
 );
@@ -291,10 +294,12 @@ select ok(has_function_privilege('authenticated',
 select ok(not has_function_privilege('anon',
   'update_competition(uuid, text, text, text, text, date, date, text, info_state, uuid, text)', 'EXECUTE'),
   'anon cannot execute update_competition');
-select ok(has_function_privilege('authenticated', 'update_scenario(uuid, text, uuid, text)', 'EXECUTE'),
-  'authenticated can execute update_scenario');
-select ok(not has_function_privilege('anon', 'update_scenario(uuid, text, uuid, text)', 'EXECUTE'),
-  'anon cannot execute update_scenario');
+select ok(has_function_privilege(
+  'authenticated', 'update_scenario(uuid, text, uuid, date, date, info_state, uuid, text)', 'EXECUTE'
+), 'authenticated can execute update_scenario');
+select ok(not has_function_privilege(
+  'anon', 'update_scenario(uuid, text, uuid, date, date, info_state, uuid, text)', 'EXECUTE'
+), 'anon cannot execute update_scenario');
 select ok(has_function_privilege('authenticated', 'delete_scenario(uuid, text)', 'EXECUTE'),
   'authenticated can execute delete_scenario');
 select ok(not has_function_privilege('anon', 'delete_scenario(uuid, text)', 'EXECUTE'),

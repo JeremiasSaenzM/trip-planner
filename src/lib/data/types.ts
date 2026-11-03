@@ -90,6 +90,13 @@ export type Scenario = {
   competitionId: string | null;
   includesExtension: boolean;
   notes: string | null;
+  /** This scenario's own travel window override -- null means it inherits
+   * the trip's (resolveTravelWindow()). Same shape as Trip's own four
+   * fields. */
+  departureDate: string | null;
+  returnDate: string | null;
+  travelDatesState: InfoState;
+  travelDatesSourceId: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -465,9 +472,29 @@ export type CreateScenarioWrite = {
   competitionId?: string;
   includesExtension: boolean;
   notes?: string;
+  /** Absent = inherit the trip's window, the normal case -- a new
+   * scenario's own window is set as a deliberate edit afterward, not at
+   * creation time. Still accepted here for import proposals that know
+   * the window upfront. */
+  departureDate?: string;
+  returnDate?: string;
+  travelDatesSourceId?: string;
 };
 // competitionId absent = unlink (a scenario with no competition yet).
-export type UpdateScenarioWrite = { id: string; name: string; competitionId?: string; reason: string };
+// departureDate/returnDate absent = inherit the trip's window -- never
+// sent as an accidental blank from the regular edit form (both date
+// inputs are required there); clearing an override is its own, separate
+// action (see scenario-actions.ts's clearScenarioTravelWindow).
+export type UpdateScenarioWrite = {
+  id: string;
+  name: string;
+  competitionId?: string;
+  departureDate?: string;
+  returnDate?: string;
+  travelDatesState: InfoState;
+  travelDatesSourceId?: string;
+  reason: string;
+};
 export type DeleteScenarioWrite = { id: string; reason: string };
 // Same shape as DeleteScenarioWrite -- delete_scenario_cascade takes
 // nothing extra, so this is just a type alias for the separate RPC

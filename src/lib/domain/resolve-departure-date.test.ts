@@ -6,8 +6,9 @@ describe("resolveDepartureDate", () => {
   it("uses the trip's own departure date when it's set, even if the competition has dates", () => {
     expect(
       resolveDepartureDate({
-        tripDepartureDate: "2028-07-02",
-        tripTravelDatesState: "estimate",
+        windowDepartureDate: "2028-07-02",
+        windowTravelDatesState: "estimate",
+        windowOrigin: "trip",
         competitionStartDate: "2028-07-05",
         competitionDatesState: "confirmed",
       }),
@@ -17,19 +18,33 @@ describe("resolveDepartureDate", () => {
   it("reports the trip date as confirmed only when the travel dates are", () => {
     expect(
       resolveDepartureDate({
-        tripDepartureDate: "2028-07-02",
-        tripTravelDatesState: "confirmed",
+        windowDepartureDate: "2028-07-02",
+        windowTravelDatesState: "confirmed",
+        windowOrigin: "trip",
         competitionStartDate: null,
         competitionDatesState: null,
       }),
     ).toEqual({ date: "2028-07-02", source: "trip", confirmed: true });
   });
 
-  it("falls back to the competition's first official day when the trip has no departure date", () => {
+  it("uses a scenario's own override, reporting the scenario as the source", () => {
     expect(
       resolveDepartureDate({
-        tripDepartureDate: null,
-        tripTravelDatesState: "pending",
+        windowDepartureDate: "2028-06-28",
+        windowTravelDatesState: "confirmed",
+        windowOrigin: "scenario",
+        competitionStartDate: "2028-07-05",
+        competitionDatesState: "confirmed",
+      }),
+    ).toEqual({ date: "2028-06-28", source: "scenario", confirmed: true });
+  });
+
+  it("falls back to the competition's first official day when the window has no departure date", () => {
+    expect(
+      resolveDepartureDate({
+        windowDepartureDate: null,
+        windowTravelDatesState: "pending",
+        windowOrigin: "trip",
         competitionStartDate: "2028-07-05",
         competitionDatesState: "confirmed",
       }),
@@ -39,8 +54,9 @@ describe("resolveDepartureDate", () => {
   it("returns null when neither exists", () => {
     expect(
       resolveDepartureDate({
-        tripDepartureDate: null,
-        tripTravelDatesState: "pending",
+        windowDepartureDate: null,
+        windowTravelDatesState: "pending",
+        windowOrigin: "trip",
         competitionStartDate: null,
         competitionDatesState: null,
       }),

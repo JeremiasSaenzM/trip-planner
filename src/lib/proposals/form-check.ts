@@ -90,7 +90,16 @@ export function currentFields(op: UpdateOp, targetId: string, rows: CurrentRows)
     }
     case "update_scenario": {
       const row = rows.scenarios.find((s) => s.id === targetId);
-      return row ? { name: row.name, competition: row.competitionId } : null;
+      return row
+        ? {
+            name: row.name,
+            competition: row.competitionId,
+            departureDate: row.departureDate,
+            returnDate: row.returnDate,
+            travelDatesState: row.travelDatesState,
+            travelDatesSource: row.travelDatesSourceId,
+          }
+        : null;
     }
     case "update_budget_line": {
       const row = rows.budgetLines.find((l) => l.id === targetId);
@@ -310,8 +319,15 @@ function checkCreate(
       return result(createCompetitionInput.safeParse({ ...rest, tripId, datesSourceId: ref(datesSource) }));
     }
     case "create_scenario": {
-      const { competition, ...rest } = data as CreateData<"create_scenario">;
-      return result(createScenarioInput.safeParse({ ...rest, tripId, competitionId: ref(competition) }));
+      const { competition, travelDatesSource, ...rest } = data as CreateData<"create_scenario">;
+      return result(
+        createScenarioInput.safeParse({
+          ...rest,
+          tripId,
+          competitionId: ref(competition),
+          travelDatesSourceId: ref(travelDatesSource),
+        }),
+      );
     }
     case "create_budget_line": {
       const { scenario, source, ...rest } = data as CreateData<"create_budget_line">;
@@ -394,7 +410,16 @@ function checkUpdate(op: UpdateOp, id: string, merged: Record<string, unknown>, 
       );
     case "update_scenario":
       return result(
-        updateScenarioInput.safeParse({ id, name: merged.name, competitionId: absent(merged.competition), reason }),
+        updateScenarioInput.safeParse({
+          id,
+          name: merged.name,
+          competitionId: absent(merged.competition),
+          departureDate: absent(merged.departureDate),
+          returnDate: absent(merged.returnDate),
+          travelDatesState: merged.travelDatesState,
+          travelDatesSourceId: absent(merged.travelDatesSource),
+          reason,
+        }),
       );
     case "update_budget_line":
       return result(

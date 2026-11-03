@@ -46,6 +46,7 @@ import {
 } from "@/lib/domain/find-movements-missing-budget-line";
 import { TRAVELLER_INCOME_CADENCE } from "@/lib/domain/income-cadence";
 import { resolveDepartureDate, type ResolvedDeparture } from "@/lib/domain/resolve-departure-date";
+import { resolveTravelWindow, type ResolvedTravelWindow } from "@/lib/domain/resolve-travel-window";
 import { rollUpBudgetByScenario, type RollUpBudgetByScenarioResult } from "@/lib/domain/roll-up-budget-by-scenario";
 import type { Basis } from "@/lib/domain/types";
 
@@ -68,7 +69,12 @@ export type DashboardData =
       basis: Basis;
       asOfDate: string;
       rollup: RollUpBudgetByScenarioResult;
-      /** The date every savings deadline is measured against: the trip's
+      /** The travel window in effect for this scenario -- its own
+       * override, or the trip's default (resolveTravelWindow()). Every
+       * check below that cares about "the travel window" reads this,
+       * never trip.departureDate/returnDate directly. */
+      travelWindow: ResolvedTravelWindow;
+      /** The date every savings deadline is measured against: travelWindow's
        * own departure date, else the competition's first official day
        * (resolveDepartureDate()). null when neither exists. */
       departure: ResolvedDeparture | null;
@@ -257,15 +263,17 @@ export async function loadDashboardData(params: {
     ? competitions.find((c) => c.id === scenario.competitionId) ?? null
     : null;
 
+  const travelWindow = resolveTravelWindow(scenario, trip);
   const departure = resolveDepartureDate({
-    tripDepartureDate: trip.departureDate,
-    tripTravelDatesState: trip.travelDatesState,
+    windowDepartureDate: travelWindow.departureDate,
+    windowTravelDatesState: travelWindow.travelDatesState,
+    windowOrigin: travelWindow.origin,
     competitionStartDate: competition?.startDate ?? null,
     competitionDatesState: competition?.datesState ?? null,
   });
   const travelWindowIssues = checkTravelWindow({
-    departureDate: trip.departureDate,
-    returnDate: trip.returnDate,
+    departureDate: travelWindow.departureDate,
+    returnDate: travelWindow.returnDate,
     festivalStartDate: competition?.startDate ?? null,
     festivalEndDate: competition?.endDate ?? null,
   });
@@ -279,15 +287,15 @@ export async function loadDashboardData(params: {
     .sort((a, b) => a.sequence - b.sequence);
 
   const itineraryTimeline = buildItineraryTimeline(scenarioMovements);
-  // Mirrors trip.departureDate/returnDate exactly, never departure's
-  // own resolveDepartureDate() fallback -- see this check's own
-  // comment for why a consistency check can't guess what the savings
-  // plan is allowed to.
+  // Mirrors travelWindow's own dates exactly, never departure's own
+  // resolveDepartureDate() fallback -- see this check's own comment for
+  // why a consistency check can't guess what the savings plan is allowed
+  // to.
   const stayNightsCheck = checkStayNightsMatchWindow({
     stays: scenarioStays,
     movements: scenarioMovements,
-    tripDepartureDate: trip.departureDate,
-    tripReturnDate: trip.returnDate,
+    departureDate: travelWindow.departureDate,
+    returnDate: travelWindow.returnDate,
   });
   const festivalStayCoverage = checkFestivalStayCoverage({
     stays: scenarioStays,
@@ -309,8 +317,8 @@ export async function loadDashboardData(params: {
   const budgetLineNightsAddUp = checkBudgetLineNightsAddUp({
     budgetLines: scenarioBudgetLines,
     movements: scenarioMovements,
-    tripDepartureDate: trip.departureDate,
-    tripReturnDate: trip.returnDate,
+    departureDate: travelWindow.departureDate,
+    returnDate: travelWindow.returnDate,
   });
   const budgetLineDaysAddUp = checkBudgetLineDaysAddUp(scenarioBudgetLines, scenarioMovements);
 
@@ -373,6 +381,7 @@ export async function loadDashboardData(params: {
       basis,
       asOfDate,
       rollup,
+      travelWindow,
       departure,
       departureSaveBy: null,
       travelWindowIssues,
@@ -445,6 +454,7 @@ export async function loadDashboardData(params: {
     basis,
     asOfDate,
     rollup,
+    travelWindow,
     departure,
     departureSaveBy: obligationsResult.departureSaveBy,
     travelWindowIssues,

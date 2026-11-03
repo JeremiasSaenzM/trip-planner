@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { dataSource } from "@/lib/data";
 import { translatePostgresError } from "@/lib/data/error-messages";
 import { updateCompetitionInput } from "@/lib/validation/competitions";
-import { deleteScenarioInput, updateScenarioInput } from "@/lib/validation/scenarios";
+import { clearScenarioTravelWindowInput, deleteScenarioInput, updateScenarioInput } from "@/lib/validation/scenarios";
 import { updateTripTravelWindowInput } from "@/lib/validation/trips";
 
 import { initialFormActionState, type FormActionState } from "./form-action-state";
@@ -60,8 +60,79 @@ export async function updateCompetition(_previous: FormActionState, formData: Fo
   return { status: "success" };
 }
 
+// Renames/relinks only -- the window fields aren't edited here, but
+// update_scenario is a full-row replace, so EditScenarioForm carries the
+// scenario's current window through as hidden fields (never editable
+// ones) rather than this silently clearing it to "pending".
 export async function updateScenario(_previous: FormActionState, formData: FormData): Promise<FormActionState> {
   const parsed = updateScenarioInput.safeParse({
+    id: formData.get("id"),
+    name: formData.get("name"),
+    competitionId: optionalText(formData.get("competitionId")),
+    departureDate: optionalText(formData.get("departureDate")),
+    returnDate: optionalText(formData.get("returnDate")),
+    travelDatesState: formData.get("travelDatesState"),
+    travelDatesSourceId: optionalText(formData.get("travelDatesSourceId")),
+    reason: formData.get("reason"),
+  });
+  if (!parsed.success) return { status: "error", message: firstIssueMessage(parsed.error) };
+
+  try {
+    await dataSource.updateScenario(parsed.data);
+  } catch (error) {
+    return { status: "error", message: translatePostgresError(error as { message: string }) };
+  }
+
+  revalidateAll();
+  return { status: "success" };
+}
+
+// This scenario's own travel window override -- a separate action from
+// the rename/relink form above, so the two date inputs here are always
+// both required (HTML + Zod), never defaulted from a blank field. See
+// clearScenarioTravelWindow below for reverting to the trip's window.
+export async function updateScenarioTravelWindow(
+  _previous: FormActionState,
+  formData: FormData,
+): Promise<FormActionState> {
+  let travelDatesSourceId: string | undefined;
+  try {
+    travelDatesSourceId = await resolveSourceId(formData, "travelDatesSource");
+  } catch (error) {
+    return { status: "error", message: (error as Error).message };
+  }
+
+  const parsed = updateScenarioInput.safeParse({
+    id: formData.get("id"),
+    name: formData.get("name"),
+    competitionId: optionalText(formData.get("competitionId")),
+    departureDate: optionalText(formData.get("departureDate")),
+    returnDate: optionalText(formData.get("returnDate")),
+    travelDatesState: formData.get("travelDatesState"),
+    travelDatesSourceId,
+    reason: formData.get("reason"),
+  });
+  if (!parsed.success) return { status: "error", message: firstIssueMessage(parsed.error) };
+
+  try {
+    await dataSource.updateScenario(parsed.data);
+  } catch (error) {
+    return { status: "error", message: translatePostgresError(error as { message: string }) };
+  }
+
+  revalidateAll();
+  return { status: "success" };
+}
+
+// Reverts this scenario to the trip's own window. The four window
+// fields are hardcoded here, never read from an editable field -- the
+// only thing this form asks for is a reason, same shape as
+// DeleteScenarioForm next to EditScenarioForm.
+export async function clearScenarioTravelWindow(
+  _previous: FormActionState,
+  formData: FormData,
+): Promise<FormActionState> {
+  const parsed = clearScenarioTravelWindowInput.safeParse({
     id: formData.get("id"),
     name: formData.get("name"),
     competitionId: optionalText(formData.get("competitionId")),
@@ -70,7 +141,13 @@ export async function updateScenario(_previous: FormActionState, formData: FormD
   if (!parsed.success) return { status: "error", message: firstIssueMessage(parsed.error) };
 
   try {
-    await dataSource.updateScenario(parsed.data);
+    await dataSource.updateScenario({
+      id: parsed.data.id,
+      name: parsed.data.name,
+      competitionId: parsed.data.competitionId,
+      travelDatesState: "pending",
+      reason: parsed.data.reason,
+    });
   } catch (error) {
     return { status: "error", message: translatePostgresError(error as { message: string }) };
   }

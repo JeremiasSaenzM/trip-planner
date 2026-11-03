@@ -10,10 +10,12 @@ import { initialFormActionState } from "./form-action-state";
 import { buttonClass, FormError, inputClass, labelClass, secondaryButtonClass } from "./form-styles";
 import { INFO_STATE_LABELS, INFO_STATE_ORDER } from "./info-state-labels";
 import {
+  clearScenarioTravelWindow,
   deleteScenario,
   deleteScenarioCascade,
   updateCompetition,
   updateScenario,
+  updateScenarioTravelWindow,
   updateTripTravelWindow,
 } from "./scenario-actions";
 import { SourcePicker } from "./source-picker";
@@ -108,6 +110,17 @@ function EditScenarioForm({
   return (
     <form action={formAction} className="mt-2 space-y-2.5">
       <input type="hidden" name="id" value={scenario.id} />
+      {/* This form only renames/relinks -- the travel window has its own
+          edit control (EditScenarioTravelWindowForm). Carried through
+          unchanged here since update_scenario is a full-row replace;
+          never editable in this form, so there's nothing here a blank
+          field could accidentally clear. */}
+      {scenario.departureDate && <input type="hidden" name="departureDate" value={scenario.departureDate} />}
+      {scenario.returnDate && <input type="hidden" name="returnDate" value={scenario.returnDate} />}
+      <input type="hidden" name="travelDatesState" value={scenario.travelDatesState} />
+      {scenario.travelDatesSourceId && (
+        <input type="hidden" name="travelDatesSourceId" value={scenario.travelDatesSourceId} />
+      )}
       <div className="space-y-1.5">
         <label htmlFor={`${formId}-name`} className={labelClass}>
           New name
@@ -534,6 +547,196 @@ function EditTravelWindowForm({ trip, sources, onDone }: { trip: Trip; sources: 
       <div className="flex gap-2">
         <button type="submit" disabled={pending} className={buttonClass}>
           {pending ? "Saving…" : "Save"}
+        </button>
+        <button type="button" onClick={onDone} className={secondaryButtonClass}>
+          Cancel
+        </button>
+      </div>
+    </form>
+  );
+}
+
+// A scenario's own travel window override -- read-only summary lives on
+// /scenarios/page.tsx (ScenarioTravelWindowSummary, built from
+// resolveTravelWindow()); this is the edit/revert toggle underneath it,
+// same split as TravelWindowActions above for the trip's own window.
+export function ScenarioTravelWindowActions({ scenario, sources }: { scenario: Scenario; sources: Source[] }) {
+  const [mode, setMode] = useState<"view" | "edit" | "revert">("view");
+  const [attempt, setAttempt] = useState(0);
+  const hasOwnWindow = scenario.departureDate !== null;
+
+  function startMode(next: "edit" | "revert") {
+    setAttempt((value) => value + 1);
+    setMode(next);
+  }
+
+  if (mode === "edit") {
+    return (
+      <EditScenarioTravelWindowForm key={attempt} scenario={scenario} sources={sources} onDone={() => setMode("view")} />
+    );
+  }
+  if (mode === "revert") {
+    return <RevertScenarioTravelWindowForm key={attempt} scenario={scenario} onDone={() => setMode("view")} />;
+  }
+
+  return (
+    <div className="mt-2 flex flex-wrap gap-3 text-sm">
+      <button type="button" onClick={() => startMode("edit")} className="text-zinc-600 underline dark:text-zinc-400">
+        {hasOwnWindow ? "Edit this scenario's window" : "Set this scenario's own window"}
+      </button>
+      {hasOwnWindow && (
+        <button type="button" onClick={() => startMode("revert")} className="text-zinc-600 underline dark:text-zinc-400">
+          Revert to the trip&apos;s window
+        </button>
+      )}
+    </div>
+  );
+}
+
+function EditScenarioTravelWindowForm({
+  scenario,
+  sources,
+  onDone,
+}: {
+  scenario: Scenario;
+  sources: Source[];
+  onDone: () => void;
+}) {
+  const [state, formAction, pending] = useActionState(updateScenarioTravelWindow, initialFormActionState);
+  const formId = useId();
+  const fieldId = (field: string) => `${formId}-${field}`;
+
+  const [datesState, setDatesState] = useState<InfoState>(scenario.travelDatesState);
+  const [sourceChoice, setSourceChoice] = useState(scenario.travelDatesSourceId ?? "");
+  const [clientError, setClientError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (state.status === "success") onDone();
+  }, [state, onDone]);
+
+  // Mirrors scenarios_travel_dates_confirmed_needs_source; both date
+  // inputs are `required` below, so there's no form shape that submits
+  // one date without the other -- clearing an override uses
+  // RevertScenarioTravelWindowForm instead, never this form left blank.
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    if (datesState === "confirmed" && sourceChoice === "") {
+      event.preventDefault();
+      setClientError("Confirmed travel dates need a source -- add one, or set them back to an estimate.");
+      return;
+    }
+    setClientError(null);
+  }
+
+  return (
+    <form action={formAction} onSubmit={handleSubmit} className="mt-2 space-y-2.5">
+      <input type="hidden" name="id" value={scenario.id} />
+      <input type="hidden" name="name" value={scenario.name} />
+      {scenario.competitionId && <input type="hidden" name="competitionId" value={scenario.competitionId} />}
+      <div className="grid grid-cols-2 gap-2.5">
+        <div className="space-y-1.5">
+          <label htmlFor={fieldId("departure")} className={labelClass}>
+            Departure date
+          </label>
+          <input
+            id={fieldId("departure")}
+            name="departureDate"
+            type="date"
+            required
+            defaultValue={scenario.departureDate ?? ""}
+            className={inputClass}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <label htmlFor={fieldId("return")} className={labelClass}>
+            Return date
+          </label>
+          <input
+            id={fieldId("return")}
+            name="returnDate"
+            type="date"
+            required
+            defaultValue={scenario.returnDate ?? ""}
+            className={inputClass}
+          />
+        </div>
+      </div>
+      <p className="text-xs text-zinc-500 dark:text-zinc-400">
+        This scenario&apos;s own departure and return date, overriding the trip&apos;s. Both are required here --
+        to go back to the trip&apos;s window instead, cancel and use &quot;Revert to the trip&apos;s window&quot;.
+      </p>
+      <div className="space-y-1.5">
+        <label htmlFor={fieldId("state")} className={labelClass}>
+          Information state (travel dates)
+        </label>
+        <select
+          id={fieldId("state")}
+          name="travelDatesState"
+          value={datesState}
+          onChange={(event) => setDatesState(event.target.value as InfoState)}
+          className={inputClass}
+        >
+          {INFO_STATE_ORDER.map((value) => (
+            <option key={value} value={value}>
+              {INFO_STATE_LABELS[value]}
+            </option>
+          ))}
+        </select>
+      </div>
+      <SourcePicker
+        name="travelDatesSource"
+        label="Source (travel dates)"
+        sources={sources}
+        required={false}
+        value={sourceChoice}
+        onChange={setSourceChoice}
+      />
+      <div className="space-y-1.5">
+        <label htmlFor={fieldId("reason")} className={labelClass}>
+          Reason for this change
+        </label>
+        <input id={fieldId("reason")} name="reason" required className={inputClass} />
+      </div>
+      {clientError && <FormError message={clientError} />}
+      {state.status === "error" && <FormError message={state.message} />}
+      <div className="flex gap-2">
+        <button type="submit" disabled={pending} className={buttonClass}>
+          {pending ? "Saving…" : "Save"}
+        </button>
+        <button type="button" onClick={onDone} className={secondaryButtonClass}>
+          Cancel
+        </button>
+      </div>
+    </form>
+  );
+}
+
+function RevertScenarioTravelWindowForm({ scenario, onDone }: { scenario: Scenario; onDone: () => void }) {
+  const [state, formAction, pending] = useActionState(clearScenarioTravelWindow, initialFormActionState);
+  const formId = useId();
+
+  useEffect(() => {
+    if (state.status === "success") onDone();
+  }, [state, onDone]);
+
+  return (
+    <form action={formAction} className="mt-2 space-y-2.5">
+      <input type="hidden" name="id" value={scenario.id} />
+      <input type="hidden" name="name" value={scenario.name} />
+      {scenario.competitionId && <input type="hidden" name="competitionId" value={scenario.competitionId} />}
+      <p className="text-sm">
+        Go back to the trip&apos;s own travel window? This scenario&apos;s own departure and return date will be
+        cleared.
+      </p>
+      <div className="space-y-1.5">
+        <label htmlFor={`${formId}-reason`} className={labelClass}>
+          Reason for this change
+        </label>
+        <input id={`${formId}-reason`} name="reason" required className={inputClass} />
+      </div>
+      {state.status === "error" && <FormError message={state.message} />}
+      <div className="flex gap-2">
+        <button type="submit" disabled={pending} className={buttonClass}>
+          {pending ? "Reverting…" : "Revert"}
         </button>
         <button type="button" onClick={onDone} className={secondaryButtonClass}>
           Cancel

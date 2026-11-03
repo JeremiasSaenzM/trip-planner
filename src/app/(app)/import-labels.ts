@@ -62,6 +62,10 @@ const FIELD_LABELS: Record<string, string> = {
   competition: "Competition",
   includesExtension: "Includes an extension",
   scenario: "Scenario",
+  departureDate: "Departure date",
+  returnDate: "Return date",
+  travelDatesState: "Travel dates: information state",
+  travelDatesSource: "Travel dates: source",
   category: "Budget category",
   description: "Description",
   amountMin: "Minimum",
@@ -158,6 +162,7 @@ export function formatProposalValue(field: string, value: unknown): string {
       return `${value} — ${CATEGORY_LABELS[value as BudgetCategory] ?? value}`;
     case "informationState":
     case "datesState":
+    case "travelDatesState":
       return INFO_STATE_LABELS[value as InfoState] ?? value;
     case "confidence":
       return CONFIDENCE_LABELS[value as Confidence] ?? value;

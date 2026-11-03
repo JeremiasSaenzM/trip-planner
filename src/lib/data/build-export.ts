@@ -29,7 +29,10 @@ import type {
 //   6 -- stays and movements (Phase 6.4)
 //   7 -- locations: stays/movements now point at locationId/fromLocationId/
 //        toLocationId instead of free text, so locations ships alongside them
-export const EXPORT_SCHEMA_VERSION = 7;
+//   8 -- scenarios gained their own travel window override (departureDate,
+//        returnDate, travelDatesState, travelDatesSourceId), same shape as
+//        trips' own (Phase 6.7)
+export const EXPORT_SCHEMA_VERSION = 8;
 
 export type ExportPayload = {
   exportedAt: string;
