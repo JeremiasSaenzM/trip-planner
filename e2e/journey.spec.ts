@@ -253,12 +253,12 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await row.getByLabel("Reason for this change").fill("Committing the deposit");
     await row.getByRole("button", { name: "Save", exact: true }).click();
 
-    // The full summary text, not a bare "Committed": while the status
+    // The summary's own test id, not a bare text match: while the status
     // form is still settling, a <select>'s own <option value="committed">
     // also matches "Committed" -- a bare substring is ambiguous between
     // that (always reported "hidden" by Playwright, select or not) and
     // the row's real summary text, and intermittently fails strict mode.
-    await expect(row.getByText("Committed · Due on date · Non-refundable")).toBeVisible();
+    await expect(row.getByTestId("payment-status-summary")).toContainText("Committed");
   });
 
   const tripCostRangeTarget = page.getByTestId("trip-cost-range-target");

@@ -15,6 +15,7 @@ I'm a developer in the making. This project is for learning and for my portfolio
 - Don't add libraries without saying why.
 - Never add Co-Authored-By or 'Generated with Claude Code' lines to commits or pull requests.
 - This project is worked on from two machines (a Windows PC and a Mac). Always git pull on main before starting, and push or open a PR before switching machines. Never leave uncommitted work on one machine.
+- At the start of a working session, check main's CI status (`gh run list --branch main --limit 3` or equivalent) before starting anything else, and tell me if it's red. A push-triggered run can fail after a PR merged clean (the PR tested the branch, not the merged result), and nothing else surfaces that -- catching it here beats it sitting unnoticed until the next PR runs into it.
 
 ## Stack
 
