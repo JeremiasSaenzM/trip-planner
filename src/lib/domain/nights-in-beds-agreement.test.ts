@@ -19,15 +19,15 @@ describe("the nights-in-beds checks agree with each other", () => {
       { sequence: 2, fromLocationId: "Away", toLocationId: "Home", departDate: "2027-07-14", arriveDate: "2027-07-14" },
     ];
     const stays = [{ nights: 11 }];
-    const tripDepartureDate = "2027-07-02";
-    const tripReturnDate = "2027-07-14";
+    const departureDate = "2027-07-02";
+    const returnDate = "2027-07-14";
 
-    const stayCheck = checkStayNightsMatchWindow({ stays, movements, tripDepartureDate, tripReturnDate });
+    const stayCheck = checkStayNightsMatchWindow({ stays, movements, departureDate, returnDate });
     const linesCheck = checkBudgetLineNightsAddUp({
       budgetLines: [{ quantity: 11, quantityUnit: "night" }],
       movements,
-      tripDepartureDate,
-      tripReturnDate,
+      departureDate,
+      returnDate,
     });
     const unaccounted = checkNightsAccountedFor(movements, [{ locationId: "Away", startDate: "2027-07-03", nights: 11 }]);
 
@@ -43,20 +43,20 @@ describe("the nights-in-beds checks agree with each other", () => {
       { sequence: 1, fromLocationId: "Home", toLocationId: "Away", departDate: "2027-07-02", arriveDate: "2027-07-03" },
       { sequence: 2, fromLocationId: "Away", toLocationId: "Home", departDate: "2027-07-14", arriveDate: "2027-07-14" },
     ];
-    const tripDepartureDate = "2027-07-02";
-    const tripReturnDate = "2027-07-14";
+    const departureDate = "2027-07-02";
+    const returnDate = "2027-07-14";
 
     const stayCheck = checkStayNightsMatchWindow({
       stays: [{ nights: 10 }],
       movements,
-      tripDepartureDate,
-      tripReturnDate,
+      departureDate,
+      returnDate,
     });
     const linesCheck = checkBudgetLineNightsAddUp({
       budgetLines: [{ quantity: 10, quantityUnit: "night" }],
       movements,
-      tripDepartureDate,
-      tripReturnDate,
+      departureDate,
+      returnDate,
     });
 
     expect(stayCheck).toEqual({ status: "mismatch", staysNights: 10, windowNights: 11 });

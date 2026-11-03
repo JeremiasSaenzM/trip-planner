@@ -73,12 +73,12 @@ export type ReferenceKind =
 export const REFERENCE_FIELDS: Record<ProposalOp, Record<string, ReferenceKind>> = {
   create_source: {},
   create_competition: { datesSource: "source" },
-  create_scenario: { competition: "competition" },
+  create_scenario: { competition: "competition", travelDatesSource: "source" },
   create_budget_line: { scenario: "scenario", source: "source" },
   create_payment: { scenario: "scenario", budgetLine: "budget_line" },
   create_fx_rate: { source: "source" },
   update_competition: { datesSource: "source" },
-  update_scenario: { competition: "competition" },
+  update_scenario: { competition: "competition", travelDatesSource: "source" },
   update_budget_line: { source: "source" },
   update_payment: { datesSource: "source", source: "source" },
   update_fx_rate: { source: "source" },
@@ -187,6 +187,11 @@ export const CREATE_DATA = {
     competition: reference.optional(),
     includesExtension: z.boolean().optional(),
     notes: freeText.optional(),
+    // Absent = inherit the trip's window, the normal case. Together
+    // only -- mirrors scenarios_travel_dates_together.
+    departureDate: isoDate.optional(),
+    returnDate: isoDate.optional(),
+    travelDatesSource: reference.optional(),
   }),
   create_budget_line: z.strictObject({
     scenario: reference.optional(),
@@ -328,6 +333,10 @@ export const UPDATE_CHANGES = {
     .strictObject({
       name: change(name).optional(),
       competition: referenceChange.optional(),
+      departureDate: change(isoDate.nullable()).optional(),
+      returnDate: change(isoDate.nullable()).optional(),
+      travelDatesState: change(infoState).optional(),
+      travelDatesSource: referenceChange.optional(),
     })
     .refine(atLeastOneChange, "An update needs at least one change"),
   update_budget_line: z

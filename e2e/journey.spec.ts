@@ -657,6 +657,33 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await expect(page.getByTestId("no-savings-requirement")).toHaveCount(0);
   });
 
+  await test.step("a scenario can override the trip's travel window, and revert to it", async () => {
+    await page.goto(`/scenarios?scenario=${firstScenarioId}`);
+    const card = scenarioCard(page, "Thornmere 2029");
+    await expect(card).toContainText("Nov 3, 2029 – Nov 14, 2029");
+    await expect(card).toContainText("from the trip");
+
+    await card.getByRole("button", { name: "Set this scenario's own window" }).click();
+    await card.getByLabel("Departure date").fill("2029-10-28");
+    await card.getByLabel("Return date").fill("2029-11-10");
+    await card.getByLabel("Reason for this change").fill("Arriving even earlier in this scenario");
+    await card.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(card).toContainText("Oct 28, 2029 – Nov 10, 2029");
+    await expect(card).toContainText("this scenario's own");
+
+    await page.goto(`/scenario?scenario=${firstScenarioId}`);
+    const whatThisIs = page.locator("section").filter({ has: page.getByRole("heading", { name: "What this is" }) });
+    await expect(whatThisIs.getByText("Leave Oct 28, 2029 · return Nov 10, 2029")).toBeVisible();
+    await expect(whatThisIs.getByText("this scenario's own")).toBeVisible();
+
+    await page.goto(`/scenarios?scenario=${firstScenarioId}`);
+    await scenarioCard(page, "Thornmere 2029").getByRole("button", { name: "Revert to the trip's window" }).click();
+    await scenarioCard(page, "Thornmere 2029").getByLabel("Reason for this change").fill("Back to the trip's plan");
+    await scenarioCard(page, "Thornmere 2029").getByRole("button", { name: "Revert", exact: true }).click();
+    await expect(scenarioCard(page, "Thornmere 2029")).toContainText("Nov 3, 2029 – Nov 14, 2029");
+    await expect(scenarioCard(page, "Thornmere 2029")).toContainText("from the trip");
+  });
+
   await test.step("the Scenario Overview explains what this scenario is, and says what isn't stored", async () => {
     await page.goto(`/?scenario=${firstScenarioId}`);
     await page.getByRole("link", { name: "About this scenario" }).click();
@@ -741,9 +768,7 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await page.getByLabel("Nights").fill("10");
     await page.getByLabel("Kind").selectOption("festival");
     await page.getByRole("button", { name: "Add stay", exact: true }).click();
-    await expect(
-      page.getByText("Stays total 10 nights, but the trip's travel window is 11 nights."),
-    ).toBeVisible();
+    await expect(page.getByText("Stays total 10 nights, but the travel window is 11 nights.")).toBeVisible();
 
     const stay = stayRow(page, "Cardiff");
     await stay.getByRole("button", { name: "Edit", exact: true }).click();
@@ -751,7 +776,7 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await stay.getByLabel("Reason for this change").fill("Counted wrong the first time");
     await stay.getByRole("button", { name: "Save", exact: true }).click();
 
-    await expect(page.getByText(/Stays total \d+ nights, but the trip's travel window/)).not.toBeVisible();
+    await expect(page.getByText(/Stays total \d+ nights, but the travel window/)).not.toBeVisible();
   });
 
   await test.step("add accommodation options to the stay, watch the checks run, and compare", async () => {
@@ -1195,7 +1220,7 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     expect(after.data.stays.some((s: { locationId: string }) => s.locationId === olympicsVillage?.id)).toBe(true);
 
     await page.goto(`/scenario?scenario=${olympics.id}`);
-    await expect(page.getByText("Stays total 5 nights, but the trip's travel window is 11 nights.")).toBeVisible();
+    await expect(page.getByText("Stays total 5 nights, but the travel window is 11 nights.")).toBeVisible();
   });
 
   await test.step("what was approved is in the plan, and nothing else", async () => {
@@ -1234,7 +1259,7 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     const exported = JSON.parse(readFileSync(path!, "utf-8"));
 
     expect(typeof exported.exportedAt).toBe("string");
-    expect(exported.schemaVersion).toBe(7);
+    expect(exported.schemaVersion).toBe(8);
     expect(exported.data.trips[0]).toMatchObject({ departureDate: "2029-11-03", returnDate: "2029-11-14" });
 
     const cardiff = exported.data.locations.find((l: { name: string }) => l.name === "Cardiff");

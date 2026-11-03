@@ -115,6 +115,10 @@ function mapScenarioRow(row: Record<string, unknown>): Scenario {
     competitionId: row.competition_id as string | null,
     includesExtension: row.includes_extension as boolean,
     notes: row.notes as string | null,
+    departureDate: row.departure_date as string | null,
+    returnDate: row.return_date as string | null,
+    travelDatesState: row.travel_dates_state as Scenario["travelDatesState"],
+    travelDatesSourceId: row.travel_dates_source_id as string | null,
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
   };
@@ -601,6 +605,9 @@ export const realDataSource: DataSource = {
         competition_id: input.competitionId ?? null,
         includes_extension: input.includesExtension,
         notes: input.notes ?? null,
+        departure_date: input.departureDate ?? null,
+        return_date: input.returnDate ?? null,
+        travel_dates_source_id: input.travelDatesSourceId ?? null,
       })
       .select("*")
       .single();
@@ -615,6 +622,10 @@ export const realDataSource: DataSource = {
       p_id: input.id,
       p_name: input.name,
       p_competition_id: input.competitionId ?? null,
+      p_departure_date: input.departureDate ?? null,
+      p_return_date: input.returnDate ?? null,
+      p_travel_dates_state: input.travelDatesState,
+      p_travel_dates_source_id: input.travelDatesSourceId ?? null,
       p_reason: input.reason,
     });
     if (error) throw error;

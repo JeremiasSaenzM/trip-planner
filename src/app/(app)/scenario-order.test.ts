@@ -12,6 +12,10 @@ function scenario(id: string, createdAt: string): Scenario {
     competitionId: null,
     includesExtension: false,
     notes: null,
+    departureDate: null,
+    returnDate: null,
+    travelDatesState: "pending",
+    travelDatesSourceId: null,
     createdAt,
     updatedAt: createdAt,
   };

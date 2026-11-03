@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { checkTravelWindow } from "./check-travel-window";
+import { resolveTravelWindow, type TravelWindowFields } from "./resolve-travel-window";
 
 const FESTIVAL = { festivalStartDate: "2028-07-05", festivalEndDate: "2028-07-09" };
 
@@ -26,5 +27,26 @@ describe("checkTravelWindow", () => {
     expect(
       checkTravelWindow({ departureDate: "2028-07-09", returnDate: "2028-07-05", festivalStartDate: null, festivalEndDate: null }),
     ).toEqual([]);
+  });
+
+  it("uses an overriding scenario's own window, not the trip's, once resolved", () => {
+    const trip: TravelWindowFields = {
+      departureDate: "2028-07-05", // would flag leaves_too_late on its own
+      returnDate: "2028-07-25",
+      travelDatesState: "estimate",
+      travelDatesSourceId: null,
+    };
+    const scenario: TravelWindowFields = {
+      departureDate: "2028-07-02",
+      returnDate: "2028-07-25",
+      travelDatesState: "estimate",
+      travelDatesSourceId: null,
+    };
+    const window = resolveTravelWindow(scenario, trip);
+    expect(window.origin).toBe("scenario");
+
+    expect(checkTravelWindow({ ...FESTIVAL, departureDate: window.departureDate, returnDate: window.returnDate })).toEqual(
+      [],
+    );
   });
 });

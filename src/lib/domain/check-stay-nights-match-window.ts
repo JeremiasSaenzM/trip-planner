@@ -3,8 +3,10 @@ import { countNightsInBeds, type TimelineMovement } from "./build-itinerary-time
 export type CheckStayNightsMatchWindowInput = {
   stays: { nights: number }[];
   movements: TimelineMovement[];
-  tripDepartureDate: string | null;
-  tripReturnDate: string | null;
+  /** The resolved travel window's dates (resolveTravelWindow()) -- the
+   * trip's own, or a scenario's override. */
+  departureDate: string | null;
+  returnDate: string | null;
 };
 
 export type StayNightsCheckResult =
@@ -16,15 +18,15 @@ export type StayNightsCheckResult =
  * Catches a budget priced for a different trip length than what's
  * actually scheduled -- a 21-night budget priced against an 11-night
  * air fare, say. Sums every stay's own nights and compares the total
- * to countNightsInBeds() -- the trip's travel window, less any night
+ * to countNightsInBeds() -- the resolved travel window, less any night
  * a movement crosses overnight -- so this agrees with
  * checkNightsAccountedFor about which nights actually need a bed.
  */
 export function checkStayNightsMatchWindow(input: CheckStayNightsMatchWindowInput): StayNightsCheckResult {
   const beds = countNightsInBeds({
     movements: input.movements,
-    tripDepartureDate: input.tripDepartureDate,
-    tripReturnDate: input.tripReturnDate,
+    departureDate: input.departureDate,
+    returnDate: input.returnDate,
   });
   if (beds.status === "unknown") return { status: "unknown" };
 

@@ -248,8 +248,9 @@ describe("payments due after departure, and payments with no due date", () => {
 
   it("anchors on the trip's departure date when it's earlier than the festival start", () => {
     const departure = resolveDepartureDate({
-      tripDepartureDate: TRIP_DEPARTURE,
-      tripTravelDatesState: "estimate",
+      windowDepartureDate: TRIP_DEPARTURE,
+      windowTravelDatesState: "estimate",
+      windowOrigin: "trip",
       competitionStartDate: FESTIVAL_START,
       competitionDatesState: "pending",
     })!;

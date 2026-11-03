@@ -58,6 +58,12 @@ describe("departureAnchorText", () => {
     );
   });
 
+  it("names this scenario's own departure date when it overrides the trip's", () => {
+    expect(departureAnchorText({ date: "2028-06-28", source: "scenario", confirmed: true }, null)).toBe(
+      "Saving toward this scenario's own departure on Jun 28, 2028.",
+    );
+  });
+
   it("says the festival's first day is a stand-in when the trip has no departure date", () => {
     expect(departureAnchorText({ date: "2028-07-05", source: "competition", confirmed: true }, "2028-07-05")).toBe(
       "No departure date set for the trip yet, so saving toward the festival's first day, Jul 5, 2028.",

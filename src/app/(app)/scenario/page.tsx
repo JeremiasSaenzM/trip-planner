@@ -3,11 +3,12 @@ import Link from "next/link";
 import { Suspense } from "react";
 
 import { getCurrentUser } from "@/lib/auth";
-import type { BudgetLine, Competition, Location, Movement, Trip } from "@/lib/data/types";
+import type { BudgetLine, Competition, Location, Movement } from "@/lib/data/types";
 import type { InfoState } from "@/lib/domain/types";
 
 import { countDaysOnGround, type ItineraryDay } from "@/lib/domain/build-itinerary-timeline";
 import { observationAgeDays, SOURCE_STALENESS_DAYS } from "@/lib/domain/observation-age";
+import type { ResolvedTravelWindow } from "@/lib/domain/resolve-travel-window";
 
 import { CATEGORY_LABELS } from "../category-labels";
 import { CONFIDENCE_LABELS, CONFIDENCE_NOT_ASSESSED } from "../confidence-labels";
@@ -53,7 +54,8 @@ async function ScenarioOverview({ searchParams }: { searchParams: PageProps<"/sc
   if (data.status === "no_trip") return <EmptyState>No trip yet. Start one from Overview.</EmptyState>;
   if (data.status === "no_scenario") return <EmptyState>No scenario yet for this trip.</EmptyState>;
 
-  const { trip, scenario, competition, rollup, savings, departure, pots, budgetLines, sources, locations } = data;
+  const { scenario, competition, rollup, savings, departure, travelWindow, pots, budgetLines, sources, locations } =
+    data;
   const binding = savings?.bindingRequirement[data.basis] ?? null;
   const evidence = summarizeBudgetEvidence(budgetLines, sources);
 
@@ -96,7 +98,7 @@ async function ScenarioOverview({ searchParams }: { searchParams: PageProps<"/sc
               </>
             )}
             <Fact label="Travel window">
-              <TravelWindowText trip={trip} />
+              <TravelWindowText window={travelWindow} />
             </Fact>
             <Fact label="Notes">
               {scenario.notes ? (
@@ -420,9 +422,9 @@ function HostText({ competition }: { competition: Competition }) {
 }
 
 // The five Phase 6.4 checks -- warnings, never blocks. "unknown" (the
-// trip's travel window or the competition's festival dates aren't set
-// yet) is stated plainly rather than as a Caveat: there's nothing wrong
-// to flag, just nothing to compare against yet.
+// travel window or the competition's festival dates aren't set yet) is
+// stated plainly rather than as a Caveat: there's nothing wrong to flag,
+// just nothing to compare against yet.
 function ItineraryChecks({ data }: { data: Extract<DashboardData, { status: "ready" }> }) {
   const {
     stayNightsCheck,
@@ -455,7 +457,7 @@ function ItineraryChecks({ data }: { data: Extract<DashboardData, { status: "rea
       {stayNightsCheck.status === "mismatch" && (
         <Caveat>
           Stays total {stayNightsCheck.staysNights} night{stayNightsCheck.staysNights === 1 ? "" : "s"}, but the
-          trip&apos;s travel window is {stayNightsCheck.windowNights} night
+          travel window is {stayNightsCheck.windowNights} night
           {stayNightsCheck.windowNights === 1 ? "" : "s"}.
         </Caveat>
       )}
@@ -581,15 +583,21 @@ function daysAwayText(movements: Movement[]): string {
   return `${daysAway} day${daysAway === 1 ? "" : "s"} on the ground.`;
 }
 
-function TravelWindowText({ trip }: { trip: Trip }) {
-  if (!trip.departureDate && !trip.returnDate) {
+// Reads the resolved window (resolveTravelWindow(), via loadDashboardData's
+// travelWindow), never the trip directly -- so a scenario's own override
+// shows here, not silently the trip's dates underneath it.
+function TravelWindowText({ window }: { window: ResolvedTravelWindow }) {
+  if (!window.departureDate && !window.returnDate) {
     return <Missing>Not set -- savings deadlines run to the festival&apos;s first official day</Missing>;
   }
   return (
     <>
-      Leave {trip.departureDate ? formatDate(trip.departureDate) : <Missing>not set</Missing>} · return{" "}
-      {trip.returnDate ? formatDate(trip.returnDate) : <Missing>not set</Missing>}{" "}
-      <InfoStateBadge state={trip.travelDatesState} />
+      Leave {window.departureDate ? formatDate(window.departureDate) : <Missing>not set</Missing>} · return{" "}
+      {window.returnDate ? formatDate(window.returnDate) : <Missing>not set</Missing>}{" "}
+      <InfoStateBadge state={window.travelDatesState} />{" "}
+      <span className="text-zinc-500 dark:text-zinc-400">
+        ({window.origin === "scenario" ? "this scenario's own" : "from the trip"})
+      </span>
     </>
   );
 }

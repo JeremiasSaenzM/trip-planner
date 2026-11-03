@@ -4,8 +4,10 @@ import type { QuantityUnit } from "./types";
 export type BudgetLineNightsCheckInput = {
   budgetLines: { quantity: number | null; quantityUnit: QuantityUnit | null }[];
   movements: TimelineMovement[];
-  tripDepartureDate: string | null;
-  tripReturnDate: string | null;
+  /** The resolved travel window's dates (resolveTravelWindow()) -- the
+   * trip's own, or a scenario's override. */
+  departureDate: string | null;
+  returnDate: string | null;
 };
 
 export type BudgetLineNightsCheckResult =
@@ -23,8 +25,8 @@ export type BudgetLineNightsCheckResult =
 export function checkBudgetLineNightsAddUp(input: BudgetLineNightsCheckInput): BudgetLineNightsCheckResult {
   const beds = countNightsInBeds({
     movements: input.movements,
-    tripDepartureDate: input.tripDepartureDate,
-    tripReturnDate: input.tripReturnDate,
+    departureDate: input.departureDate,
+    returnDate: input.returnDate,
   });
   if (beds.status === "unknown") return { status: "unknown" };
 

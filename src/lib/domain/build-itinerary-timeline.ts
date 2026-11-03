@@ -136,20 +136,21 @@ export function buildItineraryTimeline<M extends TimelineMovement>(movements: M[
 
 export type NightsInBedsInput = {
   movements: TimelineMovement[];
-  /** YYYY-MM-DD, the trip's own departure and return dates -- never
-   * resolveDepartureDate()'s fallback to the competition's first day.
-   * A consistency check is under no obligation to always produce a
-   * number the way the savings plan is, so it reports "unknown"
-   * instead of guessing once these aren't both set. */
-  tripDepartureDate: string | null;
-  tripReturnDate: string | null;
+  /** YYYY-MM-DD, the resolved travel window's own departure and return
+   * dates (resolveTravelWindow() -- the trip's, or a scenario's own
+   * override) -- never resolveDepartureDate()'s fallback to the
+   * competition's first day. A consistency check is under no obligation
+   * to always produce a number the way the savings plan is, so it
+   * reports "unknown" instead of guessing once these aren't both set. */
+  departureDate: string | null;
+  returnDate: string | null;
 };
 
 export type NightsInBedsResult = { status: "unknown" } | { status: "ok"; nights: number };
 
 /**
  * The one definition of "a night that needs a bed": every night of the
- * trip's own travel window, less any night some movement crosses
+ * resolved travel window, less any night some movement crosses
  * overnight. checkStayNightsMatchWindow, checkNightsAccountedFor (via
  * buildItineraryTimeline above) and checkBudgetLineNightsAddUp all
  * call this -- or share its transitNightDates() -- rather than each
@@ -158,16 +159,16 @@ export type NightsInBedsResult = { status: "unknown" } | { status: "ok"; nights:
  * check 4's walk already subtracted transit nights.
  */
 export function countNightsInBeds(input: NightsInBedsInput): NightsInBedsResult {
-  if (input.tripDepartureDate === null || input.tripReturnDate === null) {
+  if (input.departureDate === null || input.returnDate === null) {
     return { status: "unknown" };
   }
 
-  const departure = DateTime.fromISO(input.tripDepartureDate, { zone: "utc" });
-  const returnDate = DateTime.fromISO(input.tripReturnDate, { zone: "utc" });
+  const departure = DateTime.fromISO(input.departureDate, { zone: "utc" });
+  const returnDate = DateTime.fromISO(input.returnDate, { zone: "utc" });
   const windowNights = returnDate.diff(departure, "days").days;
 
   const transit = transitNightDates(input.movements);
-  const nightsInTransit = datesBetween(input.tripDepartureDate, input.tripReturnDate).filter((date) =>
+  const nightsInTransit = datesBetween(input.departureDate, input.returnDate).filter((date) =>
     transit.has(date),
   ).length;
 

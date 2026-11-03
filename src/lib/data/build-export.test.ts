@@ -29,9 +29,9 @@ describe("buildExportPayload", () => {
 
     expect(result.exportedAt).toBe("2026-10-15T12:00:00.000Z");
     expect(result.schemaVersion).toBe(EXPORT_SCHEMA_VERSION);
-    // Pinned: locations (Phase 6.5b) changed the exported shape, so
-    // this has to have moved past 6.
-    expect(EXPORT_SCHEMA_VERSION).toBe(7);
+    // Pinned: scenario travel windows (Phase 6.7) changed the exported
+    // shape, so this has to have moved past 7.
+    expect(EXPORT_SCHEMA_VERSION).toBe(8);
     expect(result.data.trips).toBe(fixtures.trips);
     expect(result.data.changeLog).toBe(fixtures.changeLog);
     expect(Object.keys(result.data)).toEqual([

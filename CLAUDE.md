@@ -81,7 +81,7 @@ These come from the planning system. Encode them in the schema and in tested fun
 **Savings.** The app tells me the **required** monthly saving (target and conservative): remaining amount ÷ the income dates left before the deadline (`incomeDatesBetween()`: whole paydays after today, up to and including the deadline — never fractional months), per deadline. It never asks for or plans around my "savings capacity". If I record money already set aside, it recalculates what's left.
 
 **Departure rule (savings deadlines).** Every payment must be saved for by the day I leave, because money spent during the trip can't be saved from income earned during the trip.
-- "The day I leave" is the trip's own `departure_date` when set (trip-level, the same in every scenario), otherwise the competition's first official day (`resolveDepartureDate()`).
+- "The day I leave" is the resolved travel window's own `departure_date` (`resolveTravelWindow()`: a scenario's own window when it has set one, otherwise the trip's), otherwise the competition's first official day (`resolveDepartureDate()`).
 - A payment due after departure (a hotel paid at the property, local transport bought on arrival) is moved to the departure date.
 - A payment with no due date, and the part of a budget line no payment covers yet, are assumed due at departure: the latest date they could still be saved by.
 - Moving is never silent: every savings pot lists its payments with their own amount, currency and real due date, and says which were moved or undated (`buildDeadlinePots()`). A line's uncovered remainder says whether it has no payment at all or payments that don't cover all of it, and is left out entirely where it's $0 at the selected basis.
@@ -125,10 +125,13 @@ Each phase ends with something working, committed, and pushed.
    - Booked stay: name, address, check-in and check-out dates, confirmation number, contact details.
    - The festival-period arrangement is flagged as choir-organised, with my individual cost possibly pending. The app records it; it does not plan the choir's arrangements (see Scope boundaries).
    - Never rank on descriptive attributes. The hard constraints and cost rules (planning-system files 04 and 07, restated under Domain rules above) apply as they do elsewhere.
+6.7. **Scenario travel windows** — Added from using the app, not part of the original plan: the travel window lived only on the trip, so two scenarios could never differ in *when* the trip happens -- exactly the comparison the app exists for (a fare for 2-25 July vs. 5-20 July).
+   - Each scenario can set its own `departure_date`/`return_date`/`travel_dates_state`/`travel_dates_source_id`, nullable, all-or-nothing together. Null means it inherits the trip's window -- `resolveTravelWindow()` is the one place that decides which wins, and every reader (the savings clamp, the travel-window check, stay-nights and budget-line-nights checks, the Scenario Overview and Scenarios pages) goes through it or its result, never `trips`/`scenarios`' own dates directly.
+   - Clearing an override is a separate, explicit action ("Revert to the trip's window"), never a blank field in the regular edit form -- same reasoning as the rest of this app's full-row-replace writes.
 7. **Reports and polish** — Printable budget summary, payment calendar, README with screenshots and the story of the project.
    - Printable trip sheet, readable on a phone: where I sleep each night, how I get between places, flight and booking references, emergency contacts.
    - Saving-method selector: choose flat / one phase at a time / one pot per payment; show only that chart, and make the headline number follow the choice (e.g. "Amount to save during current phase = X").
 
 ## Current phase
 
-Phase 6.4 — Scenario identity: stays and movements.
+Phase 6.7 — Scenario travel windows.
