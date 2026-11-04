@@ -30,9 +30,9 @@ function checkTravelWindowTogether(
   }
 }
 
-// competitionId is optional: a scenario can cost a competition whose
-// host isn't announced yet, and be linked to one later (updateScenario
-// below). includesExtension/notes describe the routing; departureDate/
+// eventId is optional: a scenario can cost an event whose host isn't
+// announced yet, and be linked to one later (updateScenario below).
+// includesExtension/notes describe the routing; departureDate/
 // returnDate/travelDatesSourceId are accepted here mainly for import
 // proposals that already know a candidate's own window -- the "create
 // scenario" form itself doesn't expose them, since setting an override
@@ -41,7 +41,7 @@ export const createScenarioInput = z
   .object({
     tripId: id,
     name: z.string().trim().min(1, "Name the scenario"),
-    competitionId: id.optional(),
+    eventId: id.optional(),
     includesExtension: z.boolean().default(false),
     notes: z.string().trim().optional(),
     departureDate: isoDate.optional(),
@@ -52,9 +52,9 @@ export const createScenarioInput = z
     checkTravelWindowTogether(ctx, value.departureDate, value.returnDate, ["departureDate"], ["returnDate"]);
   });
 
-// competitionId absent = unlink. update_scenario refuses to change it
-// under a committed non-refundable competition payment -- the DB is the
-// one that can see those, so there's no client-side mirror of that rule.
+// eventId absent = unlink. update_scenario refuses to change it under a
+// committed non-refundable event payment -- the DB is the one that can
+// see those, so there's no client-side mirror of that rule.
 //
 // departureDate/returnDate absent = inherit the trip's window. This form
 // is full-row-replace (same as update_budget_line/update_stay), and both
@@ -66,7 +66,7 @@ export const updateScenarioInput = z
   .object({
     id,
     name: z.string().trim().min(1, "Name the scenario"),
-    competitionId: id.optional(),
+    eventId: id.optional(),
     departureDate: isoDate.optional(),
     returnDate: isoDate.optional(),
     travelDatesState: infoState,
@@ -88,13 +88,13 @@ export const updateScenarioInput = z
 // Reverting a scenario to the trip's window is a separate, deliberate
 // action from the general edit above -- no date fields at all here, so
 // there's nothing a blank field could accidentally clear. name/
-// competitionId are carried through unchanged (update_scenario is a
+// eventId are carried through unchanged (update_scenario is a
 // full-row replace); the caller reads them off the existing scenario,
 // never from an editable field in this form.
 export const clearScenarioTravelWindowInput = z.object({
   id,
   name: z.string().trim().min(1),
-  competitionId: id.optional(),
+  eventId: id.optional(),
   reason: changeReason,
 });
 

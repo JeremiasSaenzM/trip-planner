@@ -18,7 +18,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: { default: "Trip Planner", template: "%s · Trip Planner" },
-  description: "Personal planner for choir competition trips.",
+  description: "Personal planner for trips to choir events.",
   // Private app: ask search engines not to index it.
   robots: { index: false, follow: false },
 };

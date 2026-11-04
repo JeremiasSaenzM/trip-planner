@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 
 import { getCurrentUser } from "@/lib/auth";
-import type { BudgetLine, Competition, Location, Movement } from "@/lib/data/types";
+import type { BudgetLine, TripEvent, Location, Movement } from "@/lib/data/types";
 import type { InfoState } from "@/lib/domain/types";
 
 import { countDaysOnGround, type ItineraryDay } from "@/lib/domain/build-itinerary-timeline";
@@ -54,7 +54,7 @@ async function ScenarioOverview({ searchParams }: { searchParams: PageProps<"/sc
   if (data.status === "no_trip") return <EmptyState>No trip yet. Start one from Overview.</EmptyState>;
   if (data.status === "no_scenario") return <EmptyState>No scenario yet for this trip.</EmptyState>;
 
-  const { scenario, competition, rollup, savings, departure, travelWindow, pots, budgetLines, sources, locations } =
+  const { scenario, event, rollup, savings, departure, travelWindow, pots, budgetLines, sources, locations } =
     data;
   const binding = savings?.bindingRequirement[data.basis] ?? null;
   const evidence = summarizeBudgetEvidence(budgetLines, sources);
@@ -77,19 +77,19 @@ async function ScenarioOverview({ searchParams }: { searchParams: PageProps<"/sc
             {scenario.name}
           </p>
           <dl className="mt-3 space-y-3 text-sm">
-            <Fact label="Competition">
-              {competition ? competition.name : <Missing>No competition linked to this scenario</Missing>}
+            <Fact label="Event">
+              {event ? event.name : <Missing>No event linked to this scenario</Missing>}
             </Fact>
-            {competition && (
+            {event && (
               <>
                 <Fact label="Host">
-                  <HostText competition={competition} />
+                  <HostText event={event} />
                 </Fact>
-                <Fact label="Festival dates">
-                  {competition.startDate && competition.endDate ? (
+                <Fact label="Event dates">
+                  {event.startDate && event.endDate ? (
                     <>
-                      {formatDate(competition.startDate)} – {formatDate(competition.endDate)}{" "}
-                      <InfoStateBadge state={competition.datesState} />
+                      {formatDate(event.startDate)} – {formatDate(event.endDate)}{" "}
+                      <InfoStateBadge state={event.datesState} />
                     </>
                   ) : (
                     <Missing>Not announced yet</Missing>
@@ -226,7 +226,7 @@ async function ScenarioOverview({ searchParams }: { searchParams: PageProps<"/sc
             <CardLabel>Required monthly saving</CardLabel>
             {binding === null ? (
               <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-                {noDepartureReason(competition)}, so there&apos;s no savings requirement to compute.
+                {noDepartureReason(event)}, so there&apos;s no savings requirement to compute.
               </p>
             ) : (
               <p data-testid="scenario-required-saving" className="text-2xl font-semibold tracking-tight">
@@ -254,7 +254,7 @@ async function ScenarioOverview({ searchParams }: { searchParams: PageProps<"/sc
             </>
           ) : (
             <Missing>
-              {noDepartureReason(competition)}, so there are no deadlines to save toward.{" "}
+              {noDepartureReason(event)}, so there are no deadlines to save toward.{" "}
               <Link href={`/scenarios?scenario=${scenario.id}&basis=${data.basis}`} className="underline">
                 Set the trip&apos;s travel window
               </Link>
@@ -416,19 +416,19 @@ function InfoStateBadge({ state }: { state: InfoState }) {
   );
 }
 
-function HostText({ competition }: { competition: Competition }) {
-  const place = [competition.venue, competition.city, competition.country].filter(Boolean).join(", ");
+function HostText({ event }: { event: TripEvent }) {
+  const place = [event.venue, event.city, event.country].filter(Boolean).join(", ");
   return place ? <>{place}</> : <Missing>Host not announced yet</Missing>;
 }
 
 // The five Phase 6.4 checks -- warnings, never blocks. "unknown" (the
-// travel window or the competition's festival dates aren't set yet) is
+// travel window or the event's dates aren't set yet) is
 // stated plainly rather than as a Caveat: there's nothing wrong to flag,
 // just nothing to compare against yet.
 function ItineraryChecks({ data }: { data: Extract<DashboardData, { status: "ready" }> }) {
   const {
     stayNightsCheck,
-    festivalStayCoverage,
+    eventStayCoverage,
     pathContinuityIssues,
     unaccountedNights,
     movementsMissingBudgetLine,
@@ -441,7 +441,7 @@ function ItineraryChecks({ data }: { data: Extract<DashboardData, { status: "rea
 
   const nothingToReport =
     stayNightsCheck.status !== "mismatch" &&
-    festivalStayCoverage.status !== "gap" &&
+    eventStayCoverage.status !== "gap" &&
     pathContinuityIssues.length === 0 &&
     unaccountedNights.length === 0 &&
     movementsMissingBudgetLine.length === 0 &&
@@ -461,14 +461,14 @@ function ItineraryChecks({ data }: { data: Extract<DashboardData, { status: "rea
           {stayNightsCheck.windowNights === 1 ? "" : "s"}.
         </Caveat>
       )}
-      {festivalStayCoverage.status === "unknown" && (
-        <Missing>Festival dates not set -- can&apos;t check festival-stay coverage.</Missing>
+      {eventStayCoverage.status === "unknown" && (
+        <Missing>Event dates not set -- can&apos;t check event-stay coverage.</Missing>
       )}
-      {festivalStayCoverage.status === "gap" && (
+      {eventStayCoverage.status === "gap" && (
         <Caveat>
-          No festival-kind stay covers {festivalStayCoverage.uncoveredNights.length} night
-          {festivalStayCoverage.uncoveredNights.length === 1 ? "" : "s"}:{" "}
-          {festivalStayCoverage.uncoveredNights.map((date) => formatDate(date)).join(", ")}.
+          No event-kind stay covers {eventStayCoverage.uncoveredNights.length} night
+          {eventStayCoverage.uncoveredNights.length === 1 ? "" : "s"}:{" "}
+          {eventStayCoverage.uncoveredNights.map((date) => formatDate(date)).join(", ")}.
         </Caveat>
       )}
       {pathContinuityIssues.length > 0 && (
@@ -525,7 +525,7 @@ function ItineraryChecks({ data }: { data: Extract<DashboardData, { status: "rea
       )}
       {nothingToReport &&
         stayNightsCheck.status !== "unknown" &&
-        festivalStayCoverage.status !== "unknown" &&
+        eventStayCoverage.status !== "unknown" &&
         budgetLineNightsAddUp.status !== "unknown" && (
           <p className="text-sm text-zinc-600 dark:text-zinc-400">Every itinerary check passes.</p>
         )}
@@ -588,7 +588,7 @@ function daysAwayText(movements: Movement[]): string {
 // shows here, not silently the trip's dates underneath it.
 function TravelWindowText({ window }: { window: ResolvedTravelWindow }) {
   if (!window.departureDate && !window.returnDate) {
-    return <Missing>Not set -- savings deadlines run to the festival&apos;s first official day</Missing>;
+    return <Missing>Not set -- savings deadlines run to the event&apos;s first official day</Missing>;
   }
   return (
     <>

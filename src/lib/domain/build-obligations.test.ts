@@ -170,7 +170,7 @@ describe("buildObligations", () => {
     expect(hotel.amountConservativeUsd).toBeCloseTo(500 * 1.15, 5);
   });
 
-  it("marks every figure provisional when the departure date isn't confirmed, and refuses to compute with no competition at all", () => {
+  it("marks every figure provisional when the departure date isn't confirmed, and refuses to compute with no event at all", () => {
     const base = {
       payments: [] as PaymentForObligations[],
       allTripPayments: [] as PaymentForObligations[],
@@ -185,8 +185,8 @@ describe("buildObligations", () => {
     if (provisional.status !== "ready") throw new Error("expected ready");
     expect(provisional.provisional).toBe(true);
 
-    const noCompetition = buildObligations({ ...base, departureDate: null, departureDateConfirmed: false });
-    expect(noCompetition.status).toBe("no_departure_date");
+    const noEvent = buildObligations({ ...base, departureDate: null, departureDateConfirmed: false });
+    expect(noEvent.status).toBe("no_departure_date");
   });
 
   it("still reports availableUsd with no departure date -- money set aside isn't $0 just because dates are missing", () => {
@@ -574,8 +574,8 @@ describe("buildObligations: a line fully covered by its payment has no unallocat
   // (39 * (31 / 39) is 30.999999999999996), which used to leave a
   // remainder of a few billionths of a cent behind -- shown as "$0.00".
   const cases: { line: BudgetLineForObligations; currency: string }[] = [
-    { line: { id: "L1", description: "Coach to the festival", amountMin: 31, amountTarget: 39, amountConservative: 52, currency: "USD" }, currency: "USD" },
-    { line: { id: "L1", description: "Rail to the festival", amountMin: 15, amountTarget: 22, amountConservative: 29, currency: "GBP" }, currency: "GBP" },
+    { line: { id: "L1", description: "Coach to the event", amountMin: 31, amountTarget: 39, amountConservative: 52, currency: "USD" }, currency: "USD" },
+    { line: { id: "L1", description: "Rail to the event", amountMin: 15, amountTarget: 22, amountConservative: 29, currency: "GBP" }, currency: "GBP" },
     { line: { id: "L1", description: "Museum passes", amountMin: 29, amountTarget: 67, amountConservative: 80, currency: "EUR" }, currency: "EUR" },
   ];
   const rates = ["GBP", "EUR"].flatMap((currency) => [

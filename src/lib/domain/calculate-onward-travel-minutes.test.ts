@@ -7,10 +7,10 @@ const PARIS = "Europe/Paris"; // UTC+2 in July (CEST)
 const LONDON = "Europe/London"; // UTC+1 in July (BST) -- also Thornmere's zone
 
 describe("calculateOnwardTravelMinutes", () => {
-  it("is zero when the flight already lands at the festival city", () => {
+  it("is zero when the flight already lands at the event city", () => {
     const result = calculateOnwardTravelMinutes({
       flightOptionId: FLIGHT_OPTION_ID,
-      festivalStayLocationId: "Thornmere",
+      eventStayLocationId: "Thornmere",
       movements: [
         {
           sequence: 1,
@@ -36,7 +36,7 @@ describe("calculateOnwardTravelMinutes", () => {
   it("computes Paris 10:00 -> London 11:00 as two hours, not one", () => {
     const result = calculateOnwardTravelMinutes({
       flightOptionId: FLIGHT_OPTION_ID,
-      festivalStayLocationId: "London",
+      eventStayLocationId: "London",
       movements: [
         {
           sequence: 1,
@@ -74,7 +74,7 @@ describe("calculateOnwardTravelMinutes", () => {
   it("computes London 10:00 -> Paris 11:00 as zero hours, not one", () => {
     const result = calculateOnwardTravelMinutes({
       flightOptionId: FLIGHT_OPTION_ID,
-      festivalStayLocationId: "Paris",
+      eventStayLocationId: "Paris",
       movements: [
         {
           sequence: 1,
@@ -105,12 +105,12 @@ describe("calculateOnwardTravelMinutes", () => {
     expect(result).toEqual({ status: "known", minutes: 0 });
   });
 
-  it("walks forward through onward legs to the festival stay, summing waiting and travel time", () => {
+  it("walks forward through onward legs to the event stay, summing waiting and travel time", () => {
     // Paris (flight lands) -> London -> Thornmere, mirroring the
     // traveller's actual route in the phase discussion.
     const result = calculateOnwardTravelMinutes({
       flightOptionId: FLIGHT_OPTION_ID,
-      festivalStayLocationId: "Thornmere",
+      eventStayLocationId: "Thornmere",
       movements: [
         {
           sequence: 1,
@@ -157,19 +157,19 @@ describe("calculateOnwardTravelMinutes", () => {
     expect(result).toEqual({ status: "known", minutes: 540 });
   });
 
-  it("reports unknown, not a guess, when no festival-kind stay is recorded yet", () => {
+  it("reports unknown, not a guess, when no event-kind stay is recorded yet", () => {
     const result = calculateOnwardTravelMinutes({
       flightOptionId: FLIGHT_OPTION_ID,
-      festivalStayLocationId: null,
+      eventStayLocationId: null,
       movements: [],
     });
-    expect(result).toEqual({ status: "unknown", reason: "no festival-kind stay recorded to travel onward to" });
+    expect(result).toEqual({ status: "unknown", reason: "no event-kind stay recorded to travel onward to" });
   });
 
   it("reports unknown when nothing in the scenario is linked to this flight option", () => {
     const result = calculateOnwardTravelMinutes({
       flightOptionId: FLIGHT_OPTION_ID,
-      festivalStayLocationId: "Thornmere",
+      eventStayLocationId: "Thornmere",
       movements: [
         {
           sequence: 1,
@@ -191,7 +191,7 @@ describe("calculateOnwardTravelMinutes", () => {
   it("reports unknown, not a wrong number, when a location on the route has no time zone recorded yet", () => {
     const result = calculateOnwardTravelMinutes({
       flightOptionId: FLIGHT_OPTION_ID,
-      festivalStayLocationId: "Thornmere",
+      eventStayLocationId: "Thornmere",
       movements: [
         {
           sequence: 1,
@@ -225,7 +225,7 @@ describe("calculateOnwardTravelMinutes", () => {
   it("bounds the total by the day's limits, rather than giving up, when an onward leg has no time of day recorded", () => {
     const result = calculateOnwardTravelMinutes({
       flightOptionId: FLIGHT_OPTION_ID,
-      festivalStayLocationId: "Thornmere",
+      eventStayLocationId: "Thornmere",
       movements: [
         {
           sequence: 1,
@@ -268,7 +268,7 @@ describe("calculateOnwardTravelMinutes", () => {
     // answer, not merely a bound.
     const result = calculateOnwardTravelMinutes({
       flightOptionId: FLIGHT_OPTION_ID,
-      festivalStayLocationId: "Thornmere",
+      eventStayLocationId: "Thornmere",
       movements: [
         {
           sequence: 1,
@@ -316,10 +316,10 @@ describe("calculateOnwardTravelMinutes", () => {
     expect(result).toEqual({ status: "bounded", minMinutes: 540, maxMinutes: 540 });
   });
 
-  it("reports unknown when the chain after the flight never reaches the festival stay", () => {
+  it("reports unknown when the chain after the flight never reaches the event stay", () => {
     const result = calculateOnwardTravelMinutes({
       flightOptionId: FLIGHT_OPTION_ID,
-      festivalStayLocationId: "Thornmere",
+      eventStayLocationId: "Thornmere",
       movements: [
         {
           sequence: 1,

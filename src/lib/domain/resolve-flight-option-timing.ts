@@ -26,11 +26,11 @@ export type FlightOptionTiming = {
  * straight from the segments checkUsCanadaStop already treats as the
  * only source of truth for a stop: the last outbound segment's landing
  * is the option's own arrival, the first return segment's departure is
- * when it leaves again. Feeds checkFestivalArrivalDeparture's
+ * when it leaves again. Feeds checkEventPresence's
  * outboundArrivalAt directly. returnDepartureAt isn't currently used
- * there -- the festival-departure half of that check reads when the
- * traveller leaves the festival location, not this flight's own
- * departure (see findFestivalDeparture). It's kept, not dropped,
+ * there -- the event-departure half of that check reads when the
+ * traveller leaves the event location, not this flight's own
+ * departure (see findEventDeparture). It's kept, not dropped,
  * because this is exactly the shape that lost the naive-local-time
  * caveat for two PRs: a value derived, attached to a type, and never
  * wired anywhere, so nothing noticed it needed the caveat until it

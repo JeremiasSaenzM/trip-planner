@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { dataSource } from "@/lib/data";
 import { translatePostgresError } from "@/lib/data/error-messages";
-import { updateCompetitionInput } from "@/lib/validation/competitions";
+import { updateEventInput } from "@/lib/validation/events";
 import { clearScenarioTravelWindowInput, deleteScenarioInput, updateScenarioInput } from "@/lib/validation/scenarios";
 import { updateTripTravelWindowInput } from "@/lib/validation/trips";
 
@@ -13,18 +13,18 @@ import { firstIssueMessage, optionalText } from "./server-action-helpers";
 import { resolveSourceId } from "./source-actions";
 
 // Server Actions behind /scenarios' edit and delete forms (see
-// scenarios-ui.tsx). Adding a competition or a scenario reuses
+// scenarios-ui.tsx). Adding an event or a scenario reuses
 // bootstrap-actions.ts. Every one of these goes through an RPC that sets
 // app.change_reason (20261019090000_manage_competitions_scenarios.sql).
 //
-// A competition's dates drive Overview, Payments and Deadlines, and every
+// An event's dates drive Overview, Payments and Deadlines, and every
 // page's scenario selector lists scenarios by name -- so each action
 // revalidates everything under the root layout, not one page.
 function revalidateAll() {
   revalidatePath("/", "layout");
 }
 
-export async function updateCompetition(_previous: FormActionState, formData: FormData): Promise<FormActionState> {
+export async function updateEvent(_previous: FormActionState, formData: FormData): Promise<FormActionState> {
   let datesSourceId: string | undefined;
   try {
     datesSourceId = await resolveSourceId(formData, "datesSource");
@@ -32,7 +32,7 @@ export async function updateCompetition(_previous: FormActionState, formData: Fo
     return { status: "error", message: (error as Error).message };
   }
 
-  const parsed = updateCompetitionInput.safeParse({
+  const parsed = updateEventInput.safeParse({
     id: formData.get("id"),
     name: formData.get("name"),
     city: optionalText(formData.get("city")),
@@ -48,7 +48,7 @@ export async function updateCompetition(_previous: FormActionState, formData: Fo
   if (!parsed.success) return { status: "error", message: firstIssueMessage(parsed.error) };
 
   try {
-    await dataSource.updateCompetition(parsed.data);
+    await dataSource.updateEvent(parsed.data);
   } catch (error) {
     return { status: "error", message: translatePostgresError(error as { message: string }) };
   }
@@ -68,7 +68,7 @@ export async function updateScenario(_previous: FormActionState, formData: FormD
   const parsed = updateScenarioInput.safeParse({
     id: formData.get("id"),
     name: formData.get("name"),
-    competitionId: optionalText(formData.get("competitionId")),
+    eventId: optionalText(formData.get("eventId")),
     departureDate: optionalText(formData.get("departureDate")),
     returnDate: optionalText(formData.get("returnDate")),
     travelDatesState: formData.get("travelDatesState"),
@@ -105,7 +105,7 @@ export async function updateScenarioTravelWindow(
   const parsed = updateScenarioInput.safeParse({
     id: formData.get("id"),
     name: formData.get("name"),
-    competitionId: optionalText(formData.get("competitionId")),
+    eventId: optionalText(formData.get("eventId")),
     departureDate: optionalText(formData.get("departureDate")),
     returnDate: optionalText(formData.get("returnDate")),
     travelDatesState: formData.get("travelDatesState"),
@@ -135,7 +135,7 @@ export async function clearScenarioTravelWindow(
   const parsed = clearScenarioTravelWindowInput.safeParse({
     id: formData.get("id"),
     name: formData.get("name"),
-    competitionId: optionalText(formData.get("competitionId")),
+    eventId: optionalText(formData.get("eventId")),
     reason: formData.get("reason"),
   });
   if (!parsed.success) return { status: "error", message: firstIssueMessage(parsed.error) };
@@ -144,7 +144,7 @@ export async function clearScenarioTravelWindow(
     await dataSource.updateScenario({
       id: parsed.data.id,
       name: parsed.data.name,
-      competitionId: parsed.data.competitionId,
+      eventId: parsed.data.eventId,
       travelDatesState: "pending",
       reason: parsed.data.reason,
     });
@@ -197,7 +197,7 @@ export async function deleteScenarioCascade(
 }
 
 // The trip's travel window. Its departure date moves every savings
-// deadline (resolveDepartureDate()), so -- like the competition edits
+// deadline (resolveDepartureDate()), so -- like the event edits
 // above -- this revalidates everything.
 export async function updateTripTravelWindow(
   _previous: FormActionState,

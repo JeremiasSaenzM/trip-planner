@@ -139,7 +139,7 @@ export type NightsInBedsInput = {
   /** YYYY-MM-DD, the resolved travel window's own departure and return
    * dates (resolveTravelWindow() -- the trip's, or a scenario's own
    * override) -- never resolveDepartureDate()'s fallback to the
-   * competition's first day. A consistency check is under no obligation
+   * event's first day. A consistency check is under no obligation
    * to always produce a number the way the savings plan is, so it
    * reports "unknown" instead of guessing once these aren't both set. */
   departureDate: string | null;

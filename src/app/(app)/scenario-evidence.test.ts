@@ -30,9 +30,9 @@ function line(id: string, overrides: Partial<BudgetLine>): BudgetLine {
 
 const SOURCE: Source = {
   id: "src-1",
-  provider: "Fictional festival site",
+  provider: "Fictional event site",
   tier: 1,
-  url: "https://example.invalid/festival",
+  url: "https://example.invalid/event",
   observedOn: "2026-10-01",
   applicablePeriod: null,
   notes: null,
@@ -51,8 +51,8 @@ describe("summarizeBudgetEvidence", () => {
 
   it("pairs each sourced line with its source, by category", () => {
     expect(evidence.sourced.map((s) => [s.line.id, s.source.provider])).toEqual([
-      ["fee", "Fictional festival site"],
-      ["flights", "Fictional festival site"],
+      ["fee", "Fictional event site"],
+      ["flights", "Fictional event site"],
     ]);
   });
 

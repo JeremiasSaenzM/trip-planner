@@ -28,7 +28,7 @@ async function ExportScreen() {
   return (
     <div className="space-y-4">
       <p className="text-sm text-zinc-600 dark:text-zinc-400">
-        Downloads everything in your trip as one JSON file: trips, competitions, scenarios, sources, budget
+        Downloads everything in your trip as one JSON file: trips, events, scenarios, sources, budget
         lines, payments, savings entries, FX rates, decisions, open items, flight options and segments,
         imported research proposals (with what became of each), and the full change log.
       </p>

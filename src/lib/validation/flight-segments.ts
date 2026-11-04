@@ -11,7 +11,7 @@ export const countryCode = z.string().trim().toUpperCase().regex(/^[A-Z]{2}$/, "
 // Luxon's own ISO parser (used throughout src/lib/domain) accepts an
 // offset or "Z"; a bare local time with no offset would silently be
 // read as UTC, which is exactly the kind of mistake checkUsCanadaStop/
-// checkFestivalArrivalDeparture can't catch after the fact.
+// checkEventPresence can't catch after the fact.
 export const isoInstant = z
   .string()
   .refine((value) => /(?:Z|[+-]\d{2}:\d{2})$/.test(value), "Include a time zone offset (e.g. +02:00 or Z)");

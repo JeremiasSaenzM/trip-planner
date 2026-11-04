@@ -4,17 +4,17 @@ import { Suspense } from "react";
 
 import { getCurrentUser } from "@/lib/auth";
 import { dataSource } from "@/lib/data";
-import type { AcceptanceStatus, Competition, Scenario, Source, Trip } from "@/lib/data/types";
+import type { TripEvent, Scenario, Source, Trip } from "@/lib/data/types";
 import { resolveTravelWindow } from "@/lib/domain/resolve-travel-window";
 
-import { AddCompetitionForm, CreateScenarioForm } from "../bootstrap-forms";
+import { AddEventForm, CreateScenarioForm } from "../bootstrap-forms";
 import { parseBasis } from "../dashboard-query";
 import { Card, EmptyState } from "../dashboard-ui";
 import { formatDate } from "../format";
 import { INFO_STATE_LABELS } from "../info-state-labels";
 import { sortScenarios } from "../scenario-order";
 import {
-  CompetitionRowActions,
+  EventRowActions,
   ScenarioRowActions,
   ScenarioTravelWindowActions,
   TravelWindowActions,
@@ -22,14 +22,6 @@ import {
 } from "../scenarios-ui";
 
 export const metadata: Metadata = { title: "Scenarios" };
-
-// Read-only here on purpose -- see update_competition's comment on why
-// acceptance gets its own flow.
-const ACCEPTANCE_LABELS: Record<AcceptanceStatus, string> = {
-  pending: "Acceptance pending",
-  accepted: "Accepted",
-  declined: "Declined",
-};
 
 export default function ScenariosPage({ searchParams }: PageProps<"/scenarios">) {
   return (
@@ -43,17 +35,17 @@ export default function ScenariosPage({ searchParams }: PageProps<"/scenarios">)
 }
 
 // Not built on loadDashboardData(): this page doesn't need any of the
-// savings/rollup work, only the trip's competitions and scenarios plus
+// savings/rollup work, only the trip's events and scenarios plus
 // what references each scenario (so the cards can say why a delete
 // would be refused before you try).
 async function ScenariosScreen({ searchParams }: { searchParams: PageProps<"/scenarios">["searchParams"] }) {
   await getCurrentUser();
   const { scenario: scenarioParam, basis: basisParam } = await searchParams;
 
-  const [trips, competitions, scenarios, sources, budgetLines, payments, flightOptions, stays, movements] =
+  const [trips, events, scenarios, sources, budgetLines, payments, flightOptions, stays, movements] =
     await Promise.all([
       dataSource.getTrips(),
-      dataSource.getCompetitions(),
+      dataSource.getEvents(),
       dataSource.getScenarios(),
       dataSource.getSources(),
       dataSource.getBudgetLines(),
@@ -66,7 +58,7 @@ async function ScenariosScreen({ searchParams }: { searchParams: PageProps<"/sce
   const trip = trips[0];
   if (!trip) return <EmptyState>No trip yet. Start one from Overview.</EmptyState>;
 
-  const tripCompetitions = [...competitions.filter((c) => c.tripId === trip.id)].sort(
+  const tripEvents = [...events.filter((e) => e.tripId === trip.id)].sort(
     (a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id),
   );
   const tripScenarios = sortScenarios(scenarios.filter((s) => s.tripId === trip.id));
@@ -134,7 +126,7 @@ async function ScenariosScreen({ searchParams }: { searchParams: PageProps<"/sce
         ) : (
           <div className="space-y-2">
             {tripScenarios.map((scenario) => {
-              const competition = tripCompetitions.find((c) => c.id === scenario.competitionId) ?? null;
+              const event = tripEvents.find((e) => e.id === scenario.eventId) ?? null;
               const isSelected = scenario.id === selected?.id;
               const refs = references(scenario);
               return (
@@ -143,7 +135,7 @@ async function ScenariosScreen({ searchParams }: { searchParams: PageProps<"/sce
                     <div className="min-w-0">
                       <p className="font-medium">{scenario.name}</p>
                       <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                        {competition ? competition.name : "No competition yet"}
+                        {event ? event.name : "No event yet"}
                       </p>
                       <p className="text-xs text-zinc-500 dark:text-zinc-400">
                         {refs.length > 0 ? refs.join(" · ") : "Nothing recorded in this scenario yet"}
@@ -165,7 +157,7 @@ async function ScenariosScreen({ searchParams }: { searchParams: PageProps<"/sce
                   </div>
                   <ScenarioRowActions
                     scenario={scenario}
-                    competitions={tripCompetitions}
+                    events={tripEvents}
                     cascadeCounts={cascadeCounts(scenario)}
                   />
                   <ScenarioTravelWindowActions scenario={scenario} sources={sources} />
@@ -177,21 +169,21 @@ async function ScenariosScreen({ searchParams }: { searchParams: PageProps<"/sce
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-lg font-semibold">Competitions</h2>
+        <h2 className="text-lg font-semibold">Events</h2>
         <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          Trip-wide: one competition can feed several scenarios.
+          Trip-wide: one event can feed several scenarios.
         </p>
-        {tripCompetitions.length === 0 ? (
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">No competitions yet.</p>
+        {tripEvents.length === 0 ? (
+          <p className="text-sm text-zinc-500 dark:text-zinc-400">No events yet.</p>
         ) : (
           <div className="space-y-2">
-            {tripCompetitions.map((competition) => (
-              <Card key={competition.id}>
-                <CompetitionSummary
-                  competition={competition}
-                  usedBy={tripScenarios.filter((s) => s.competitionId === competition.id)}
+            {tripEvents.map((event) => (
+              <Card key={event.id}>
+                <EventSummary
+                  event={event}
+                  usedBy={tripScenarios.filter((s) => s.eventId === event.id)}
                 />
-                <CompetitionRowActions competition={competition} sources={sources} />
+                <EventRowActions event={event} sources={sources} />
               </Card>
             ))}
           </div>
@@ -200,26 +192,25 @@ async function ScenariosScreen({ searchParams }: { searchParams: PageProps<"/sce
 
       <section className="space-y-3">
         <h2 className="text-lg font-semibold">Add</h2>
-        <AddCompetitionForm tripId={trip.id} />
-        <CreateScenarioForm tripId={trip.id} competitions={tripCompetitions} />
+        <AddEventForm tripId={trip.id} />
+        <CreateScenarioForm tripId={trip.id} events={tripEvents} />
       </section>
     </div>
   );
 }
 
-function CompetitionSummary({ competition, usedBy }: { competition: Competition; usedBy: Scenario[] }) {
-  const place = [competition.city, competition.country].filter(Boolean).join(", ");
+function EventSummary({ event, usedBy }: { event: TripEvent; usedBy: Scenario[] }) {
+  const place = [event.city, event.country].filter(Boolean).join(", ");
   const dates =
-    competition.startDate && competition.endDate
-      ? `${formatDate(competition.startDate)} – ${formatDate(competition.endDate)} (${INFO_STATE_LABELS[competition.datesState]})`
-      : "Festival dates not announced yet";
+    event.startDate && event.endDate
+      ? `${formatDate(event.startDate)} – ${formatDate(event.endDate)} (${INFO_STATE_LABELS[event.datesState]})`
+      : "Event dates not announced yet";
 
   return (
     <div className="min-w-0 space-y-0.5">
-      <p className="font-medium">{competition.name}</p>
+      <p className="font-medium">{event.name}</p>
       <p className="text-xs text-zinc-500 dark:text-zinc-400">{place || "Host city not announced yet"}</p>
       <p className="text-xs text-zinc-500 dark:text-zinc-400">{dates}</p>
-      <p className="text-xs text-zinc-500 dark:text-zinc-400">{ACCEPTANCE_LABELS[competition.acceptanceStatus]}</p>
       <p className="text-xs text-zinc-500 dark:text-zinc-400">
         {usedBy.length > 0
           ? `Used by: ${usedBy.map((s) => s.name).join(", ")}`
@@ -263,7 +254,7 @@ function TravelWindowSummary({ trip, sources }: { trip: Trip; sources: Source[] 
       </p>
       {!trip.departureDate && (
         <p className="text-xs text-zinc-500 dark:text-zinc-400">
-          Until a departure date is set, savings deadlines run to the festival&apos;s first official day.
+          Until a departure date is set, savings deadlines run to the event&apos;s first official day.
         </p>
       )}
     </div>

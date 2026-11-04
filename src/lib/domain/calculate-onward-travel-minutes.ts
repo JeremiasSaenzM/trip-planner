@@ -21,10 +21,10 @@ export type CalculateOnwardTravelMinutesInput = {
   flightOptionId: string;
   /** This scenario's full movement chain, any order. */
   movements: OnwardTravelMovement[];
-  /** The festival-kind stay's location id, i.e. "actually being at the
-   * destination" per hard constraint 2 -- null when no festival-kind
+  /** The event-kind stay's location id, i.e. "actually being at the
+   * destination" per hard constraint 2 -- null when no event-kind
    * stay is recorded yet. */
-  festivalStayLocationId: string | null;
+  eventStayLocationId: string | null;
 };
 
 export type OnwardTravelResult =
@@ -66,7 +66,7 @@ export function earliestPossibleInstant(date: string, time: string | null): Date
 // flight's own arrival), the same shortfall nudges minMinutes very
 // slightly late, leaning toward fail -- the safer direction -- but
 // still worth naming rather than claiming one uniform lean. A caller
-// using this standalone, not in such a pair (findFestivalDeparture),
+// using this standalone, not in such a pair (findEventDeparture),
 // only ever sees the first lean. Either way it's under a minute against
 // day-granularity data, immaterial here. If anything ever hinges on
 // that margin, the honest pessimistic bound is the next day's start,
@@ -77,9 +77,9 @@ export function latestPossibleInstant(date: string, time: string | null): DateTi
 
 /**
  * "Minutes from landing to actually being at the destination"
- * (checkFestivalArrivalDeparture's onwardTravel) -- walked from
+ * (checkEventPresence's onwardTravel) -- walked from
  * the movement linked to this flight option forward along the chain,
- * by sequence, until a leg arrives at the festival-kind stay's
+ * by sequence, until a leg arrives at the event-kind stay's
  * location. Includes any waiting time between legs, not just time
  * actually travelling.
  *
@@ -97,8 +97,8 @@ export function latestPossibleInstant(date: string, time: string | null): DateTi
  * constraint 2 without the missing time of day.
  */
 export function calculateOnwardTravelMinutes(input: CalculateOnwardTravelMinutesInput): OnwardTravelResult {
-  if (input.festivalStayLocationId === null) {
-    return { status: "unknown", reason: "no festival-kind stay recorded to travel onward to" };
+  if (input.eventStayLocationId === null) {
+    return { status: "unknown", reason: "no event-kind stay recorded to travel onward to" };
   }
 
   const sorted = [...input.movements].sort((a, b) => a.sequence - b.sequence);
@@ -108,19 +108,19 @@ export function calculateOnwardTravelMinutes(input: CalculateOnwardTravelMinutes
   }
 
   const flightMovement = sorted[flightIndex];
-  if (flightMovement.toLocationId === input.festivalStayLocationId) {
+  if (flightMovement.toLocationId === input.eventStayLocationId) {
     return { status: "known", minutes: 0 };
   }
 
   let destinationIndex = -1;
   for (let i = flightIndex + 1; i < sorted.length; i++) {
-    if (sorted[i].toLocationId === input.festivalStayLocationId) {
+    if (sorted[i].toLocationId === input.eventStayLocationId) {
       destinationIndex = i;
       break;
     }
   }
   if (destinationIndex === -1) {
-    return { status: "unknown", reason: "the movement chain after this flight never reaches the festival stay's location" };
+    return { status: "unknown", reason: "the movement chain after this flight never reaches the event stay's location" };
   }
 
   const onwardLegs = sorted.slice(flightIndex + 1, destinationIndex + 1);

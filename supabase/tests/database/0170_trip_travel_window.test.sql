@@ -5,7 +5,7 @@ create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 select plan(16);
 
-select col_is_null('trips', 'departure_date', 'trips.departure_date is nullable (falls back to the competition)');
+select col_is_null('trips', 'departure_date', 'trips.departure_date is nullable (falls back to the event)');
 select col_is_null('trips', 'return_date', 'trips.return_date is nullable');
 
 set local role authenticated;

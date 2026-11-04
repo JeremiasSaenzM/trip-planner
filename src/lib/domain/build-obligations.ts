@@ -134,9 +134,9 @@ export type BuildObligationsInput = {
   rates: FxRate[];
   /** YYYY-MM-DD, the day the traveller leaves -- resolved by the caller
    * with resolveDepartureDate() (the trip's own departure date, else the
-   * competition's first official day). null if neither exists. */
+   * event's first official day). null if neither exists. */
   departureDate: string | null;
-  /** competition.dates_state === 'confirmed', resolved by the caller. */
+  /** event.dates_state === 'confirmed', resolved by the caller. */
   departureDateConfirmed: boolean;
   /** When the traveller's income arrives (TRAVELLER_INCOME_CADENCE) --
    * every saving deadline snaps back to the last income date on or

@@ -37,11 +37,11 @@ describe("translatePostgresError", () => {
     );
   });
 
-  it("translates the competition both-or-neither dates check", () => {
+  it("translates the event both-or-neither dates check", () => {
     const message = translatePostgresError({
-      message: 'new row for relation "competitions" violates check constraint "competitions_dates_together"',
+      message: 'new row for relation "events" violates check constraint "events_dates_together"',
     });
-    expect(message).toBe("Give both festival dates (first and final day), or neither.");
+    expect(message).toBe("Give both event dates (first and final day), or neither.");
   });
 
   it("translates delete_scenario's refusals by their suffix", () => {

@@ -13,7 +13,7 @@ const SOURCE_ID = "30000000-0000-0000-0000-000000000001";
 const LOCATION_ID = fixtures.locations[0].id;
 
 const rows: CurrentRows = {
-  competitions: fixtures.competitions,
+  events: fixtures.events,
   scenarios: fixtures.scenarios,
   budgetLines: fixtures.budgetLines,
   payments: fixtures.payments,
@@ -66,10 +66,10 @@ describe("checkAgainstForm: creates go through the form's own schema", () => {
     ).toEqual({ ok: true });
   });
 
-  it("refuses a competition with only one festival date", () => {
-    expect(check("create_competition", { data: { name: "x", startDate: "2028-07-01" } })).toEqual({
+  it("refuses an event with only one date", () => {
+    expect(check("create_event", { data: { name: "x", startDate: "2028-07-01" } })).toEqual({
       ok: false,
-      message: "Give both festival dates (first and final day), or neither.",
+      message: "Give both event dates (first and final day), or neither.",
     });
   });
 
@@ -119,7 +119,7 @@ describe("checkAgainstForm: creates go through the form's own schema", () => {
           location: { id: LOCATION_ID },
           startDate: "2027-07-04",
           nights: 8,
-          kind: "festival",
+          kind: "event",
           informationState: "estimate",
         },
       }),
@@ -224,7 +224,7 @@ describe("checkAgainstForm: updates are checked as the row would end up", () => 
 // change, the review screen would show that field as stale forever.
 describe("currentFields", () => {
   const targets: Record<UpdateOp, string> = {
-    update_competition: fixtures.competitions[0].id,
+    update_event: fixtures.events[0].id,
     update_scenario: fixtures.scenarios[0].id,
     update_budget_line: fixtures.budgetLines[0].id,
     update_payment: fixtures.payments[0].id,

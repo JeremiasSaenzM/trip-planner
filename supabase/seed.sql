@@ -48,24 +48,24 @@ insert into sources (id, owner_id, provider, tier, url, observed_on, notes) valu
    'Model estimate (fictional)', 6, null, '2026-10-01', 'Used only for planning-stage FX and fares.');
 
 -- One candidate with dates still just an estimate, one with the official
--- festival dates confirmed and the choir already accepted.
-insert into competitions (
+-- event dates confirmed and selected.
+insert into events (
   id, owner_id, trip_id, name, city, country, venue,
   start_date, end_date, timezone, dates_state, dates_source_id,
-  acceptance_status, acceptance_decided_on, acceptance_source_id, is_selected
+  is_selected
 ) values
   ('40000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001',
    '20000000-0000-0000-0000-000000000001',
    'Fictional International Choir Festival (Candidate B)', 'Verenna', 'Italy', null,
    '2032-05-01', '2032-05-07', 'Europe/Rome', 'estimate', null,
-   'pending', null, null, false),
+   false),
   ('40000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000001',
    '20000000-0000-0000-0000-000000000001',
    'Fictional International Choir Festival (Candidate A)', 'Fontvieux', 'France', 'Fictional Grand Hall',
    '2031-03-05', '2031-03-11', 'Europe/Paris', 'confirmed', '30000000-0000-0000-0000-000000000001',
-   'accepted', '2026-09-01', '30000000-0000-0000-0000-000000000001', true);
+   true);
 
-insert into scenarios (id, owner_id, trip_id, name, competition_id, includes_extension, notes) values
+insert into scenarios (id, owner_id, trip_id, name, event_id, includes_extension, notes) values
   ('50000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001',
    '20000000-0000-0000-0000-000000000001', 'Candidate A — direct trip',
    '40000000-0000-0000-0000-000000000002', false, null),
@@ -74,7 +74,7 @@ insert into scenarios (id, owner_id, trip_id, name, competition_id, includes_ext
    '40000000-0000-0000-0000-000000000002', true, 'Fictional example: a few extra days in Paris after the festival.');
 
 insert into decisions (
-  id, owner_id, trip_id, competition_id, title, rationale,
+  id, owner_id, trip_id, event_id, title, rationale,
   decided_on, decided_by, reversible, source_id
 ) values
   ('60000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001',
@@ -92,7 +92,7 @@ insert into budget_lines (
 ) values
   ('70000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001',
    '20000000-0000-0000-0000-000000000001', '50000000-0000-0000-0000-000000000001',
-   'A', 'Competition registration fee', 150, 180, 220, 'EUR',
+   'A', 'Event registration fee', 150, 180, 220, 'EUR',
    'confirmed', '30000000-0000-0000-0000-000000000001'),
   ('70000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000001',
    '20000000-0000-0000-0000-000000000001', '50000000-0000-0000-0000-000000000001',
@@ -173,7 +173,7 @@ insert into fx_rates (id, owner_id, currency, rate_to_usd, rate_date, rate_kind,
    'EUR', 1.150000, '2026-10-01', 'planning_conservative', 'assumption', '30000000-0000-0000-0000-000000000006');
 
 insert into open_items (
-  id, owner_id, trip_id, competition_id, title, description,
+  id, owner_id, trip_id, event_id, title, description,
   due_date, dates_state, dates_source_id, category, status,
   related_budget_line_id, related_payment_id
 ) values
@@ -196,7 +196,7 @@ insert into open_items (
 -- Five flight options under the direct-trip scenario, each exercising a
 -- different case Phase 4's rule functions will need to handle: a clean
 -- non-US route, a US connection, a Puerto Rico stop (counts as US),
--- an option landing during day 1 of the festival instead of before it,
+-- an option landing during day 1 of the event instead of before it,
 -- and a fare with no checked bag allowed at all.
 insert into flight_options (
   id, owner_id, scenario_id, label, fare, bag_fee, mandatory_fees, currency,
@@ -215,7 +215,7 @@ insert into flight_options (
    'estimate', '30000000-0000-0000-0000-000000000003', '2026-10-06', 'included', false,
    'unknown'),
   ('c0000000-0000-0000-0000-000000000004', '10000000-0000-0000-0000-000000000001',
-   '50000000-0000-0000-0000-000000000001', 'Direct, lands during day 1 of the festival', 500, 0, 35, 'EUR',
+   '50000000-0000-0000-0000-000000000001', 'Direct, lands during day 1 of the event', 500, 0, 35, 'EUR',
    'estimate', '30000000-0000-0000-0000-000000000002', '2026-10-07', 'included', false,
    'refundable'),
   ('c0000000-0000-0000-0000-000000000005', '10000000-0000-0000-0000-000000000001',
@@ -244,7 +244,7 @@ insert into flight_segments (owner_id, flight_option_id, direction, segment_orde
   ('10000000-0000-0000-0000-000000000001', 'c0000000-0000-0000-0000-000000000003', 'return', 1, 'CDG', 'SJU', 'FR', 'PR', 'FX303', '2031-03-12 12:00:00+02', '2031-03-12 17:00:00-04', false),
   ('10000000-0000-0000-0000-000000000001', 'c0000000-0000-0000-0000-000000000003', 'return', 2, 'SJU', 'MAD', 'PR', 'ES', 'FX304', '2031-03-12 23:00:00-04', '2031-03-13 12:00:00+02', false);
 
--- fo4: direct route, but arrives during day 1 of the festival instead of before it
+-- fo4: direct route, but arrives during day 1 of the event instead of before it
 insert into flight_segments (owner_id, flight_option_id, direction, segment_order, from_airport, to_airport, from_country, to_country, flight_number, depart_at, arrive_at, is_technical_stop) values
   ('10000000-0000-0000-0000-000000000001', 'c0000000-0000-0000-0000-000000000004', 'outbound', 1, 'MAD', 'CDG', 'ES', 'FR', 'FX401', '2031-03-05 07:30:00+02', '2031-03-05 10:00:00+02', false),
   ('10000000-0000-0000-0000-000000000001', 'c0000000-0000-0000-0000-000000000004', 'return', 1, 'CDG', 'MAD', 'FR', 'ES', 'FX402', '2031-03-12 18:00:00+02', '2031-03-12 20:30:00+02', false);
@@ -254,8 +254,8 @@ insert into flight_segments (owner_id, flight_option_id, direction, segment_orde
   ('10000000-0000-0000-0000-000000000001', 'c0000000-0000-0000-0000-000000000005', 'outbound', 1, 'MAD', 'CDG', 'ES', 'FR', 'FX501', '2031-03-04 17:30:00+02', '2031-03-04 20:00:00+02', false),
   ('10000000-0000-0000-0000-000000000001', 'c0000000-0000-0000-0000-000000000005', 'return', 1, 'CDG', 'MAD', 'FR', 'ES', 'FX502', '2031-03-12 19:00:00+02', '2031-03-12 21:30:00+02', false);
 
--- Candidate A's itinerary: one festival stay in Fontvieux (matching the
--- accepted festival dates, 2031-03-05 to 2031-03-11) and the two legs
+-- Candidate A's itinerary: one event stay in Fontvieux (matching the
+-- confirmed event dates, 2031-03-05 to 2031-03-11) and the two legs
 -- of flightOptions[0]'s clean route either side of it. The return leg
 -- is an overnight flight (departs 07-12, lands 07-13) -- the night of
 -- 07-12 needs no stay, a live example of check 4 not requiring a bed
@@ -267,7 +267,7 @@ insert into locations (id, owner_id, name) values
 
 insert into stays (id, owner_id, scenario_id, location_id, start_date, nights, kind, budget_line_id, information_state) values
   ('f2000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001',
-   '50000000-0000-0000-0000-000000000001', 'f1000000-0000-0000-0000-000000000002', '2031-03-04', 8, 'festival',
+   '50000000-0000-0000-0000-000000000001', 'f1000000-0000-0000-0000-000000000002', '2031-03-04', 8, 'event',
    '70000000-0000-0000-0000-000000000003', 'estimate');
 
 insert into movements (

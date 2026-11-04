@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { Competition, FlightOption, FlightSegment, FxRate, Location, Movement, Stay } from "@/lib/data/types";
+import type { TripEvent, FlightOption, FlightSegment, FxRate, Location, Movement, Stay } from "@/lib/data/types";
 import { calculateEffectiveFlightCost, type EffectiveFlightCostResult } from "@/lib/domain/calculate-effective-flight-cost";
 import { calculateOnwardTravelMinutes, type OnwardTravelResult } from "@/lib/domain/calculate-onward-travel-minutes";
 import {
@@ -9,16 +9,13 @@ import {
   type TotalItineraryCostResult,
 } from "@/lib/domain/calculate-total-itinerary-cost";
 import { checkBaggageAllowance, type BaggageAllowanceResult } from "@/lib/domain/check-baggage-allowance";
+import { checkEventPresence, type EventPresenceResult } from "@/lib/domain/check-event-presence";
 import {
-  checkFestivalArrivalDeparture,
-  type FestivalArrivalDepartureResult,
-} from "@/lib/domain/check-festival-arrival-departure";
-import {
-  checkFestivalLocationTimezone,
-  type FestivalLocationTimezoneResult,
-} from "@/lib/domain/check-festival-location-timezone";
+  checkEventLocationTimezone,
+  type EventLocationTimezoneResult,
+} from "@/lib/domain/check-event-location-timezone";
 import { checkUsCanadaStop, type UsCanadaStopResult } from "@/lib/domain/check-us-canada-stop";
-import { findFestivalDeparture, type FestivalDepartureResult } from "@/lib/domain/find-festival-departure";
+import { findEventDeparture, type EventDepartureResult } from "@/lib/domain/find-event-departure";
 import { resolveFlightOptionTiming } from "@/lib/domain/resolve-flight-option-timing";
 import type { Basis } from "@/lib/domain/types";
 
@@ -26,27 +23,27 @@ export type FlightOptionEvaluation = {
   option: FlightOption;
   segments: FlightSegment[];
   usCanadaStop: UsCanadaStopResult;
-  festivalArrivalDeparture: FestivalArrivalDepartureResult;
-  festivalLocationTimezone: FestivalLocationTimezoneResult;
+  eventPresence: EventPresenceResult;
+  eventLocationTimezone: EventLocationTimezoneResult;
   baggage: BaggageAllowanceResult;
   effectiveFlightCost: EffectiveFlightCostResult;
   totalItineraryCost: TotalItineraryCostResult;
   onwardTravel: OnwardTravelResult;
-  festivalDeparture: FestivalDepartureResult;
+  eventDeparture: EventDepartureResult;
 };
 
 // The three checks and two costs the Flight options section renders,
 // run once per option here rather than in the page itself, so the
 // section and any future comparison view read off the exact same
-// results. festivalStayLocationId and the movement chain come from
+// results. eventStayLocationId and the movement chain come from
 // this scenario's own stays/movements (Phase 6.4 identity), never
 // guessed. Each movement's own zones are resolved here, from
-// locations, once -- calculateOnwardTravelMinutes/findFestivalDeparture
+// locations, once -- calculateOnwardTravelMinutes/findEventDeparture
 // never look locations up themselves.
 export function evaluateFlightOption(input: {
   option: FlightOption;
   segments: FlightSegment[];
-  competition: Competition | null;
+  event: TripEvent | null;
   movements: Movement[];
   stays: Stay[];
   locations: Location[];
@@ -55,7 +52,7 @@ export function evaluateFlightOption(input: {
   basis: Basis;
   asOfDate: string;
 }): FlightOptionEvaluation {
-  const { option, segments, competition, movements, stays, locations, budgetLines, rates, basis, asOfDate } = input;
+  const { option, segments, event, movements, stays, locations, budgetLines, rates, basis, asOfDate } = input;
 
   const usCanadaStop = checkUsCanadaStop(
     segments.map((segment) => ({
@@ -69,8 +66,8 @@ export function evaluateFlightOption(input: {
 
   const zoneOf = (locationId: string) => locations.find((location) => location.id === locationId)?.timezone ?? null;
 
-  const festivalStay = stays.find((stay) => stay.kind === "festival") ?? null;
-  const festivalStayLocationId = festivalStay?.locationId ?? null;
+  const eventStay = stays.find((stay) => stay.kind === "event") ?? null;
+  const eventStayLocationId = eventStay?.locationId ?? null;
   const onwardMovements = movements.map((movement) => ({
     sequence: movement.sequence,
     fromLocationId: movement.fromLocationId,
@@ -87,29 +84,33 @@ export function evaluateFlightOption(input: {
   const onwardTravel = calculateOnwardTravelMinutes({
     flightOptionId: option.id,
     movements: onwardMovements,
-    festivalStayLocationId,
+    eventStayLocationId,
   });
-  // Option-independent: when the traveller leaves the festival location
+  // Option-independent: when the traveller leaves the event location
   // is a fact about the scenario's own movement chain, not about which
   // flight option is being evaluated.
-  const festivalDeparture = findFestivalDeparture({
+  const eventDeparture = findEventDeparture({
     movements: onwardMovements,
-    festivalStayLocationId,
+    eventStayLocationId,
   });
 
-  const festivalArrivalDeparture = checkFestivalArrivalDeparture({
+  const eventPresence = checkEventPresence({
     outboundArrivalAt: timing.outboundArrivalAt,
     onwardTravel,
-    festivalDeparture,
-    festivalStartDate: competition?.startDate ?? null,
-    festivalEndDate: competition?.endDate ?? null,
-    timezone: competition?.timezone ?? null,
-    datesInformationState: competition?.datesState ?? "estimate",
+    eventDeparture,
+    event: event
+      ? {
+          startDate: event.startDate,
+          endDate: event.endDate,
+          timezone: event.timezone,
+          datesState: event.datesState,
+        }
+      : null,
   });
 
-  const festivalLocationTimezone = checkFestivalLocationTimezone({
-    competitionTimezone: competition?.timezone ?? null,
-    festivalStayTimezone: festivalStayLocationId ? zoneOf(festivalStayLocationId) : null,
+  const eventLocationTimezone = checkEventLocationTimezone({
+    eventTimezone: event?.timezone ?? null,
+    eventStayTimezone: eventStayLocationId ? zoneOf(eventStayLocationId) : null,
   });
 
   const baggage = checkBaggageAllowance({ baggage: option.baggage });
@@ -141,12 +142,12 @@ export function evaluateFlightOption(input: {
     option,
     segments,
     usCanadaStop,
-    festivalArrivalDeparture,
-    festivalLocationTimezone,
+    eventPresence,
+    eventLocationTimezone,
     baggage,
     effectiveFlightCost,
     totalItineraryCost,
     onwardTravel,
-    festivalDeparture,
+    eventDeparture,
   };
 }

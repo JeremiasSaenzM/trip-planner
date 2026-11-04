@@ -8,7 +8,7 @@ describe("buildExportPayload", () => {
     const result = buildExportPayload({
       exportedAt: "2026-10-15T12:00:00.000Z",
       trips: fixtures.trips,
-      competitions: fixtures.competitions,
+      events: fixtures.events,
       scenarios: fixtures.scenarios,
       sources: fixtures.sources,
       budgetLines: fixtures.budgetLines,
@@ -29,14 +29,14 @@ describe("buildExportPayload", () => {
 
     expect(result.exportedAt).toBe("2026-10-15T12:00:00.000Z");
     expect(result.schemaVersion).toBe(EXPORT_SCHEMA_VERSION);
-    // Pinned: scenario travel windows (Phase 6.7) changed the exported
-    // shape, so this has to have moved past 7.
-    expect(EXPORT_SCHEMA_VERSION).toBe(8);
+    // Pinned: renaming competitions to events (Phase 6.9) changed the
+    // exported shape, so this has to have moved past 8.
+    expect(EXPORT_SCHEMA_VERSION).toBe(9);
     expect(result.data.trips).toBe(fixtures.trips);
     expect(result.data.changeLog).toBe(fixtures.changeLog);
     expect(Object.keys(result.data)).toEqual([
       "trips",
-      "competitions",
+      "events",
       "scenarios",
       "sources",
       "budgetLines",
@@ -60,7 +60,7 @@ describe("buildExportPayload", () => {
     const result = buildExportPayload({
       exportedAt: "2026-10-15T12:00:00.000Z",
       trips: fixtures.trips,
-      competitions: [],
+      events: [],
       scenarios: [],
       sources: [],
       budgetLines: [],
@@ -88,7 +88,7 @@ describe("buildExportPayload", () => {
     const result = buildExportPayload({
       exportedAt: "2026-10-15T12:00:00.000Z",
       trips: [],
-      competitions: [],
+      events: [],
       scenarios: [],
       sources: [],
       budgetLines: [],

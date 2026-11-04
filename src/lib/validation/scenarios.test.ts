@@ -3,23 +3,23 @@ import { describe, expect, it } from "vitest";
 import { clearScenarioTravelWindowInput, createScenarioInput, deleteScenarioInput, updateScenarioInput } from "./scenarios";
 
 const TRIP_ID = "11111111-1111-4111-8111-111111111111";
-const COMPETITION_ID = "22222222-2222-4222-8222-222222222222";
+const EVENT_ID = "22222222-2222-4222-8222-222222222222";
 const SCENARIO_ID = "33333333-3333-4333-8333-333333333333";
 const SOURCE_ID = "44444444-4444-4444-8444-444444444444";
 
 describe("createScenarioInput", () => {
-  it("accepts a scenario with a competition", () => {
-    const result = createScenarioInput.safeParse({ tripId: TRIP_ID, name: "Thornmere 2029", competitionId: COMPETITION_ID });
+  it("accepts a scenario with an event", () => {
+    const result = createScenarioInput.safeParse({ tripId: TRIP_ID, name: "Thornmere 2029", eventId: EVENT_ID });
     expect(result.success).toBe(true);
   });
 
-  it("accepts a scenario with no competition yet -- it can be linked later", () => {
+  it("accepts a scenario with no event yet -- it can be linked later", () => {
     const result = createScenarioInput.safeParse({ tripId: TRIP_ID, name: "Host not announced" });
     expect(result.success).toBe(true);
   });
 
   it("rejects a blank name", () => {
-    const result = createScenarioInput.safeParse({ tripId: TRIP_ID, name: "", competitionId: COMPETITION_ID });
+    const result = createScenarioInput.safeParse({ tripId: TRIP_ID, name: "", eventId: EVENT_ID });
     expect(result.success).toBe(false);
   });
 
@@ -42,12 +42,12 @@ describe("createScenarioInput", () => {
 describe("updateScenarioInput", () => {
   const BASE = { id: SCENARIO_ID, name: "Thornmere 2029 + Paris", travelDatesState: "pending" as const, reason: "Adding Paris" };
 
-  it("accepts a rename that links a competition", () => {
-    const result = updateScenarioInput.safeParse({ ...BASE, competitionId: COMPETITION_ID });
+  it("accepts a rename that links an event", () => {
+    const result = updateScenarioInput.safeParse({ ...BASE, eventId: EVENT_ID });
     expect(result.success).toBe(true);
   });
 
-  it("accepts no competition (unlinking)", () => {
+  it("accepts no event (unlinking)", () => {
     const result = updateScenarioInput.safeParse({ ...BASE, name: "Host TBA" });
     expect(result.success).toBe(true);
   });
@@ -122,7 +122,7 @@ describe("clearScenarioTravelWindowInput", () => {
     const result = clearScenarioTravelWindowInput.safeParse({
       id: SCENARIO_ID,
       name: "Thornmere 2029",
-      competitionId: COMPETITION_ID,
+      eventId: EVENT_ID,
       reason: "Back to the trip's own window",
     });
     expect(result.success).toBe(true);

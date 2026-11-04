@@ -46,7 +46,7 @@ export function departureAnchorText(departure: ResolvedDeparture, departureSaveB
       ? `Saving toward your departure on ${date}.`
       : departure.source === "scenario"
         ? `Saving toward this scenario's own departure on ${date}.`
-        : `No departure date set for the trip yet, so saving toward the festival's first day, ${date}.`;
+        : `No departure date set for the trip yet, so saving toward the event's first day, ${date}.`;
   return departureSaveBy && departureSaveBy !== departure.date
     ? `${anchor} Your last income before then arrives ${formatDate(departureSaveBy)}.`
     : anchor;

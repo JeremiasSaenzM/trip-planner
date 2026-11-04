@@ -11,17 +11,17 @@ function paste(items: unknown[], extra: Record<string, unknown> = {}): string {
   return JSON.stringify({ format: "trip-planner-proposals", version: 1, ...extra, items });
 }
 
-const competition = {
-  op: "create_competition",
+const event = {
+  op: "create_event",
   ref: "comp",
   reason: "Host announced",
-  data: { name: "Fictional Festival 2028" },
+  data: { name: "Fictional Event 2028" },
 };
 const scenario = {
   op: "create_scenario",
   ref: "scn",
   reason: "One scenario per candidate",
-  data: { name: "Fictional 2028", competition: { ref: "comp" } },
+  data: { name: "Fictional 2028", event: { ref: "comp" } },
 };
 const line = {
   op: "create_budget_line",
@@ -56,18 +56,18 @@ function problemsOf(text: string): string[] {
 
 describe("parseProposalPaste: a valid batch", () => {
   it("links refs to positions and records what each item depends on", () => {
-    const result = parseProposalPaste(paste([competition, scenario, line, update], { note: "Research, 20 Oct" }));
+    const result = parseProposalPaste(paste([event, scenario, line, update], { note: "Research, 20 Oct" }));
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
     expect(result.note).toBe("Research, 20 Oct");
     expect(result.items.map((item) => [item.position, item.op, item.dependsOn])).toEqual([
-      [0, "create_competition", []],
+      [0, "create_event", []],
       [1, "create_scenario", [0]],
       [2, "create_budget_line", [1]],
       [3, "update_budget_line", []],
     ]);
-    expect(result.items[1].payload).toEqual({ data: { name: "Fictional 2028", competition: { item: 0 } } });
+    expect(result.items[1].payload).toEqual({ data: { name: "Fictional 2028", event: { item: 0 } } });
     expect((result.items[2].payload as { data: { scenario: unknown } }).data.scenario).toEqual({ item: 1 });
     expect(result.items[3]).toMatchObject({
       targetId: LINE_ID,
@@ -86,7 +86,7 @@ describe("parseProposalPaste: a valid batch", () => {
         location: { id: LOCATION_ID },
         startDate: "2027-07-04",
         nights: 8,
-        kind: "festival",
+        kind: "event",
         informationState: "estimate",
       },
     };
@@ -104,12 +104,12 @@ describe("parseProposalPaste: a valid batch", () => {
         informationState: "estimate",
       },
     };
-    const result = parseProposalPaste(paste([competition, scenario, stay, movement]));
+    const result = parseProposalPaste(paste([event, scenario, stay, movement]));
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
     expect(result.items.map((item) => [item.position, item.op, item.dependsOn])).toEqual([
-      [0, "create_competition", []],
+      [0, "create_event", []],
       [1, "create_scenario", [0]],
       [2, "create_stay", [1]],
       [3, "create_movement", [1]],
@@ -142,8 +142,8 @@ describe("parseProposalPaste: a valid batch", () => {
   });
 
   it("trims text values", () => {
-    const result = parseProposalPaste(paste([{ ...competition, reason: "  spaced  ", data: { name: "  Festival  " } }]));
-    expect(result.ok && result.items[0]).toMatchObject({ reason: "spaced", payload: { data: { name: "Festival" } } });
+    const result = parseProposalPaste(paste([{ ...event, reason: "  spaced  ", data: { name: "  Event  " } }]));
+    expect(result.ok && result.items[0]).toMatchObject({ reason: "spaced", payload: { data: { name: "Event" } } });
   });
 });
 
@@ -153,14 +153,14 @@ describe("parseProposalPaste: malformed input", () => {
   });
 
   it("refuses text that isn't JSON", () => {
-    expect(problemsOf("create competition X please")[0]).toMatch(/^That isn't valid JSON/);
+    expect(problemsOf("create event X please")[0]).toMatch(/^That isn't valid JSON/);
   });
 
   it("refuses the wrong format or version", () => {
-    expect(problemsOf(JSON.stringify({ format: "something-else", version: 1, items: [competition] })).join(" ")).toMatch(
+    expect(problemsOf(JSON.stringify({ format: "something-else", version: 1, items: [event] })).join(" ")).toMatch(
       /"format" must be "trip-planner-proposals"/,
     );
-    expect(problemsOf(JSON.stringify({ format: "trip-planner-proposals", version: 2, items: [competition] })).join(" ")).toMatch(
+    expect(problemsOf(JSON.stringify({ format: "trip-planner-proposals", version: 2, items: [event] })).join(" ")).toMatch(
       /"version" must be 1/,
     );
   });
@@ -170,12 +170,12 @@ describe("parseProposalPaste: malformed input", () => {
   });
 
   it("refuses an item with no reason, or a blank one", () => {
-    expect(problemsOf(paste([omit(competition, "reason")]))[0]).toMatch(/^Item 1 \(create_competition\), reason:/);
-    expect(problemsOf(paste([{ ...competition, reason: "   " }]))[0]).toMatch(/Every proposal needs a reason/);
+    expect(problemsOf(paste([omit(event, "reason")]))[0]).toMatch(/^Item 1 \(create_event\), reason:/);
+    expect(problemsOf(paste([{ ...event, reason: "   " }]))[0]).toMatch(/Every proposal needs a reason/);
   });
 
   it("names the item, its op and the field for a wrong type", () => {
-    const problems = problemsOf(paste([competition, { ...line, data: { ...line.data, amountTarget: "1000" } }]));
+    const problems = problemsOf(paste([event, { ...line, data: { ...line.data, amountTarget: "1000" } }]));
     expect(problems).toHaveLength(1);
     expect(problems[0]).toMatch(/^Item 2 \(create_budget_line\), data\.amountTarget:/);
   });
@@ -199,37 +199,37 @@ describe("parseProposalPaste: malformed input", () => {
 
   it("refuses a reference to a ref that doesn't exist yet, or comes later", () => {
     expect(problemsOf(paste([scenario]))).toEqual([
-      'Item 1 (create_scenario), data.competition: "comp" isn\'t the ref of an earlier item.',
+      'Item 1 (create_scenario), data.event: "comp" isn\'t the ref of an earlier item.',
     ]);
-    expect(problemsOf(paste([scenario, competition]))[0]).toMatch(/isn't the ref of an earlier item/);
+    expect(problemsOf(paste([scenario, event]))[0]).toMatch(/isn't the ref of an earlier item/);
   });
 
   it("refuses a reference to an item of the wrong kind", () => {
-    expect(problemsOf(paste([competition, { ...line, data: { ...line.data, scenario: { ref: "comp" } } }]))).toEqual([
-      'Item 2 (create_budget_line), data.scenario: "comp" is a create_competition, but this needs a scenario.',
+    expect(problemsOf(paste([event, { ...line, data: { ...line.data, scenario: { ref: "comp" } } }]))).toEqual([
+      'Item 2 (create_budget_line), data.scenario: "comp" is a create_event, but this needs a scenario.',
     ]);
   });
 
   it("refuses an item that references itself", () => {
-    expect(problemsOf(paste([{ ...scenario, ref: "comp", data: { name: "Loop", competition: { ref: "comp" } } }]))[0]).toMatch(
+    expect(problemsOf(paste([{ ...scenario, ref: "comp", data: { name: "Loop", event: { ref: "comp" } } }]))[0]).toMatch(
       /isn't the ref of an earlier item/,
     );
   });
 
   it("refuses a duplicate ref", () => {
-    expect(problemsOf(paste([competition, competition]))).toEqual([
-      'Item 2 (create_competition): the ref "comp" is already used by item 1.',
+    expect(problemsOf(paste([event, event]))).toEqual([
+      'Item 2 (create_event): the ref "comp" is already used by item 1.',
     ]);
   });
 
   it("refuses the stored {item: n} form in a paste", () => {
-    expect(problemsOf(paste([competition, { ...scenario, data: { name: "x", competition: { item: 0 } } }]))[0]).toMatch(
+    expect(problemsOf(paste([event, { ...scenario, data: { name: "x", event: { item: 0 } } }]))[0]).toMatch(
       /not \{"item": \.\.\.\}/,
     );
   });
 
   it("refuses an impossible date", () => {
-    expect(problemsOf(paste([{ ...competition, data: { name: "x", startDate: "2027-02-31", endDate: "2027-03-02" } }]))[0]).toMatch(
+    expect(problemsOf(paste([{ ...event, data: { name: "x", startDate: "2027-02-31", endDate: "2027-03-02" } }]))[0]).toMatch(
       /That isn't a real date/,
     );
   });
@@ -237,14 +237,14 @@ describe("parseProposalPaste: malformed input", () => {
 
 describe("parseProposalPaste: hostile input", () => {
   it("refuses an unknown key at every level", () => {
-    expect(problemsOf(paste([competition], { table: "payments" })).join(" ")).toMatch(/table/);
-    expect(problemsOf(paste([{ ...competition, column: "owner_id" }])).join(" ")).toMatch(/column/);
-    expect(problemsOf(paste([{ ...competition, data: { ...competition.data, owner_id: "x" } }])).join(" ")).toMatch(/owner_id/);
+    expect(problemsOf(paste([event], { table: "payments" })).join(" ")).toMatch(/table/);
+    expect(problemsOf(paste([{ ...event, column: "owner_id" }])).join(" ")).toMatch(/column/);
+    expect(problemsOf(paste([{ ...event, data: { ...event.data, owner_id: "x" } }])).join(" ")).toMatch(/owner_id/);
   });
 
   it("refuses a smuggled trip id on a create", () => {
     expect(
-      problemsOf(paste([{ ...competition, data: { ...competition.data, tripId: "20000000-0000-0000-0000-000000000099" } }])).join(" "),
+      problemsOf(paste([{ ...event, data: { ...event.data, tripId: "20000000-0000-0000-0000-000000000099" } }])).join(" "),
     ).toMatch(/tripId/);
   });
 
@@ -257,11 +257,11 @@ describe("parseProposalPaste: hostile input", () => {
   });
 
   it("refuses __proto__ and constructor keys rather than merging them", () => {
-    const text = `{"format": "trip-planner-proposals", "version": 1, "items": [{"op": "create_competition", "reason": "x", "data": {"name": "x", "__proto__": {"polluted": true}}}]}`;
+    const text = `{"format": "trip-planner-proposals", "version": 1, "items": [{"op": "create_event", "reason": "x", "data": {"name": "x", "__proto__": {"polluted": true}}}]}`;
     expect(problemsOf(text).join(" ")).toMatch(/__proto__/);
     expect(({} as Record<string, unknown>).polluted).toBeUndefined();
 
-    const constructorText = paste([{ ...competition, data: { name: "x", constructor: { prototype: { polluted: true } } } }]);
+    const constructorText = paste([{ ...event, data: { name: "x", constructor: { prototype: { polluted: true } } } }]);
     expect(problemsOf(constructorText).join(" ")).toMatch(/constructor/);
   });
 
@@ -283,9 +283,9 @@ describe("parseProposalPaste: hostile input", () => {
 
   it("stores SQL-looking text as plain text -- it is only ever a value", () => {
     const result = parseProposalPaste(
-      paste([{ ...competition, data: { name: "Robert'); drop table competitions;--" } }]),
+      paste([{ ...event, data: { name: "Robert'); drop table events;--" } }]),
     );
-    expect(result.ok && result.items[0].payload).toEqual({ data: { name: "Robert'); drop table competitions;--" } });
+    expect(result.ok && result.items[0].payload).toEqual({ data: { name: "Robert'); drop table events;--" } });
   });
 
   it("refuses Infinity (1e400), negative amounts and amounts too large for the column", () => {
@@ -297,17 +297,17 @@ describe("parseProposalPaste: hostile input", () => {
   });
 
   it("refuses an over-long string", () => {
-    expect(problemsOf(paste([{ ...competition, data: { name: "x".repeat(201) } }])).join(" ")).toMatch(/under 200/);
-    expect(problemsOf(paste([{ ...competition, reason: "x".repeat(1001) }])).join(" ")).toMatch(/under 1000/);
+    expect(problemsOf(paste([{ ...event, data: { name: "x".repeat(201) } }])).join(" ")).toMatch(/under 200/);
+    expect(problemsOf(paste([{ ...event, reason: "x".repeat(1001) }])).join(" ")).toMatch(/under 1000/);
   });
 
   it("refuses more items than a batch can hold", () => {
-    const items = Array.from({ length: MAX_PROPOSAL_ITEMS + 1 }, () => ({ ...competition, ref: undefined }));
+    const items = Array.from({ length: MAX_PROPOSAL_ITEMS + 1 }, () => ({ ...event, ref: undefined }));
     expect(problemsOf(paste(items)).join(" ")).toMatch(/at most 200 items/);
   });
 
   it("refuses a paste over the size limit before even parsing it", () => {
-    const text = paste([{ ...competition, reason: "x".repeat(MAX_PROPOSAL_TEXT_BYTES) }]);
+    const text = paste([{ ...event, reason: "x".repeat(MAX_PROPOSAL_TEXT_BYTES) }]);
     expect(problemsOf(text)).toEqual(["That's too much to paste at once (the limit is 200 KB)."]);
   });
 

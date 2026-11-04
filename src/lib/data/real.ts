@@ -7,7 +7,7 @@ import type {
   AccommodationOption,
   BudgetLine,
   ChangeLogEntry,
-  Competition,
+  TripEvent,
   DataSource,
   Decision,
   FlightOption,
@@ -42,7 +42,7 @@ function mapTripRow(row: Record<string, unknown>): Trip {
   };
 }
 
-function mapCompetitionRow(row: Record<string, unknown>): Competition {
+function mapEventRow(row: Record<string, unknown>): TripEvent {
   return {
     id: row.id as string,
     tripId: row.trip_id as string,
@@ -53,11 +53,8 @@ function mapCompetitionRow(row: Record<string, unknown>): Competition {
     startDate: row.start_date as string | null,
     endDate: row.end_date as string | null,
     timezone: row.timezone as string | null,
-    datesState: row.dates_state as Competition["datesState"],
+    datesState: row.dates_state as TripEvent["datesState"],
     datesSourceId: row.dates_source_id as string | null,
-    acceptanceStatus: row.acceptance_status as Competition["acceptanceStatus"],
-    acceptanceDecidedOn: row.acceptance_decided_on as string | null,
-    acceptanceSourceId: row.acceptance_source_id as string | null,
     isSelected: row.is_selected as boolean,
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
@@ -112,7 +109,7 @@ function mapScenarioRow(row: Record<string, unknown>): Scenario {
     id: row.id as string,
     tripId: row.trip_id as string,
     name: row.name as string,
-    competitionId: row.competition_id as string | null,
+    eventId: row.event_id as string | null,
     includesExtension: row.includes_extension as boolean,
     notes: row.notes as string | null,
     departureDate: row.departure_date as string | null,
@@ -140,7 +137,7 @@ function mapDecisionRow(row: Record<string, unknown>): Decision {
   return {
     id: row.id as string,
     tripId: row.trip_id as string,
-    competitionId: row.competition_id as string | null,
+    eventId: row.event_id as string | null,
     title: row.title as string,
     rationale: row.rationale as string | null,
     decidedOn: row.decided_on as string,
@@ -362,11 +359,11 @@ export const realDataSource: DataSource = {
     return (data ?? []).map(mapSourceRow);
   },
 
-  async getCompetitions() {
+  async getEvents() {
     const supabase = await createClient();
-    const { data, error } = await supabase.from("competitions").select("*");
+    const { data, error } = await supabase.from("events").select("*");
     if (error) throw error;
-    return (data ?? []).map(mapCompetitionRow);
+    return (data ?? []).map(mapEventRow);
   },
 
   async getScenarios() {
@@ -419,7 +416,7 @@ export const realDataSource: DataSource = {
       (row): OpenItem => ({
         id: row.id,
         tripId: row.trip_id,
-        competitionId: row.competition_id,
+        eventId: row.event_id,
         title: row.title,
         description: row.description,
         dueDate: row.due_date,
@@ -548,11 +545,11 @@ export const realDataSource: DataSource = {
     return mapTripRow(data as Record<string, unknown>);
   },
 
-  async createCompetition(input) {
+  async createEvent(input) {
     assertWritesAllowed();
     const supabase = await createClient();
     const { data, error } = await supabase
-      .from("competitions")
+      .from("events")
       .insert({
         trip_id: input.tripId,
         name: input.name,
@@ -568,16 +565,16 @@ export const realDataSource: DataSource = {
       .select("*")
       .single();
     if (error) throw error;
-    return mapCompetitionRow(data);
+    return mapEventRow(data);
   },
 
-  // Edits go through update_competition
-  // (20261019090000_manage_competitions_scenarios.sql), same reason as
+  // Edits go through update_event
+  // (20261104090000_rename_competitions_to_events.sql), same reason as
   // updateSavingsEntry below: the reason has to be set in the same call.
-  async updateCompetition(input) {
+  async updateEvent(input) {
     assertWritesAllowed();
     const supabase = await createClient();
-    const { data, error } = await supabase.rpc("update_competition", {
+    const { data, error } = await supabase.rpc("update_event", {
       p_id: input.id,
       p_name: input.name,
       p_city: input.city ?? null,
@@ -591,7 +588,7 @@ export const realDataSource: DataSource = {
       p_reason: input.reason,
     });
     if (error) throw error;
-    return mapCompetitionRow(data as Record<string, unknown>);
+    return mapEventRow(data as Record<string, unknown>);
   },
 
   async createScenario(input) {
@@ -602,7 +599,7 @@ export const realDataSource: DataSource = {
       .insert({
         trip_id: input.tripId,
         name: input.name,
-        competition_id: input.competitionId ?? null,
+        event_id: input.eventId ?? null,
         includes_extension: input.includesExtension,
         notes: input.notes ?? null,
         departure_date: input.departureDate ?? null,
@@ -621,7 +618,7 @@ export const realDataSource: DataSource = {
     const { data, error } = await supabase.rpc("update_scenario", {
       p_id: input.id,
       p_name: input.name,
-      p_competition_id: input.competitionId ?? null,
+      p_event_id: input.eventId ?? null,
       p_departure_date: input.departureDate ?? null,
       p_return_date: input.returnDate ?? null,
       p_travel_dates_state: input.travelDatesState,

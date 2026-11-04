@@ -1,4 +1,4 @@
-import type { Competition } from "@/lib/data/types";
+import type { TripEvent } from "@/lib/data/types";
 
 import { formatUsd } from "./format";
 
@@ -8,10 +8,10 @@ import { formatUsd } from "./format";
 // split), so they never fall back to a silent $0 or a silent single
 // bucket instead. Only called when the trip has no departure date
 // either (see resolveDepartureDate()).
-export function noDepartureReason(competition: Competition | null): string {
-  return competition === null
-    ? "No departure date yet, and this scenario has no competition"
-    : "No departure date or festival dates yet";
+export function noDepartureReason(event: TripEvent | null): string {
+  return event === null
+    ? "No departure date yet, and this scenario has no event"
+    : "No departure date or event dates yet";
 }
 
 export function Card({ children }: { children: React.ReactNode }) {

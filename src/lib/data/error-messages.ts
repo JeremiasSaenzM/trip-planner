@@ -12,18 +12,18 @@ const CHECK_CONSTRAINT_MESSAGES: Record<string, string> = {
   payments_confirmed_needs_source: "Confirmed needs a source -- add one, or set this back to an estimate.",
   payments_dates_confirmed_needs_source:
     "A confirmed date needs a source -- add one, or set the date back to an estimate.",
-  competitions_dates_confirmed_needs_source:
+  events_dates_confirmed_needs_source:
     "A confirmed date needs a source -- add one, or set the date back to an estimate.",
   budget_lines_amount_order: "Minimum, target and conservative must stay in that order (min ≤ target ≤ conservative).",
   payments_paid_not_over_total: "The amount paid can't be more than the total.",
-  competitions_end_after_start: "The festival can't end before it starts.",
+  events_end_after_start: "The event can't end before it starts.",
   trips_return_after_departure: "You can't come home before you leave -- check the return date.",
   trips_travel_dates_confirmed_needs_source:
     "Confirmed travel dates need a source -- add one, or set them back to an estimate.",
   trips_confirmed_travel_dates_need_dates:
     "Confirmed travel dates need both the departure and the return date.",
-  competitions_dates_together: "Give both festival dates (first and final day), or neither.",
-  competitions_confirmed_dates_need_dates:
+  events_dates_together: "Give both event dates (first and final day), or neither.",
+  events_confirmed_dates_need_dates:
     "Confirmed dates need the dates themselves -- add them, or leave the dates pending.",
   fx_rates_currency_date_kind_unique: "There's already a rate for this currency, date and kind -- edit that one instead.",
   savings_entries_amount_positive: "The amount has to be more than zero.",
@@ -60,8 +60,9 @@ const BUDGET_LINE_REFUSAL_MESSAGES: [suffix: string, message: string][] = [
 ];
 
 // delete_scenario()/update_scenario() raise these with a dynamic id
-// interpolated in (20261019090000_manage_competitions_scenarios.sql),
-// matched by their stable suffixes.
+// interpolated in (20261019090000_manage_competitions_scenarios.sql,
+// renamed by 20261104090000_rename_competitions_to_events.sql), matched
+// by their stable suffixes.
 const SCENARIO_REFUSAL_MESSAGES: [suffix: string, message: string][] = [
   [
     "still has budget lines -- delete them first.",

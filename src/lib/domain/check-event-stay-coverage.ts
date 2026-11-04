@@ -2,46 +2,46 @@ import { DateTime } from "luxon";
 
 import type { StayKind } from "./types";
 
-export type CheckFestivalStayCoverageInput = {
+export type CheckEventStayCoverageInput = {
   stays: { kind: StayKind; startDate: string; nights: number }[];
-  /** YYYY-MM-DD, the competition's first and final official days. */
-  festivalStartDate: string | null;
-  festivalEndDate: string | null;
+  /** YYYY-MM-DD, the event's first and final official days. */
+  eventStartDate: string | null;
+  eventEndDate: string | null;
 };
 
-export type FestivalStayCoverageResult =
+export type EventStayCoverageResult =
   | { status: "unknown" }
   | { status: "ok" }
   | { status: "gap"; uncoveredNights: string[] };
 
 /**
- * Check 2: a festival-kind stay must span the night before the first
- * official festival day (so there's a bed the night a same-day arrival
+ * Check 2: an event-kind stay must span the night before the first
+ * official event day (so there's a bed the night a same-day arrival
  * lands, not just a flight landing that day) through the final
- * official festival day's own night (you check out the morning after).
- * What happens inside the festival is irrelevant to this check, only
+ * official event day's own night (you check out the morning after).
+ * What happens inside the event is irrelevant to this check, only
  * the bed either side of it.
  *
- * Reports "unknown" rather than guessing once the competition's own
+ * Reports "unknown" rather than guessing once the event's own
  * dates aren't both set yet -- same reasoning as
  * checkStayNightsMatchWindow.
  */
-export function checkFestivalStayCoverage(input: CheckFestivalStayCoverageInput): FestivalStayCoverageResult {
-  if (input.festivalStartDate === null || input.festivalEndDate === null) {
+export function checkEventStayCoverage(input: CheckEventStayCoverageInput): EventStayCoverageResult {
+  if (input.eventStartDate === null || input.eventEndDate === null) {
     return { status: "unknown" };
   }
 
   const covered = new Set<string>();
   for (const stay of input.stays) {
-    if (stay.kind !== "festival") continue;
+    if (stay.kind !== "event") continue;
     const start = DateTime.fromISO(stay.startDate, { zone: "utc" });
     for (let i = 0; i < stay.nights; i++) {
       covered.add(start.plus({ days: i }).toISODate() as string);
     }
   }
 
-  const firstRequiredNight = DateTime.fromISO(input.festivalStartDate, { zone: "utc" }).minus({ days: 1 });
-  const lastRequiredNight = DateTime.fromISO(input.festivalEndDate, { zone: "utc" });
+  const firstRequiredNight = DateTime.fromISO(input.eventStartDate, { zone: "utc" }).minus({ days: 1 });
+  const lastRequiredNight = DateTime.fromISO(input.eventEndDate, { zone: "utc" });
 
   const uncoveredNights: string[] = [];
   for (let night = firstRequiredNight; night <= lastRequiredNight; night = night.plus({ days: 1 })) {

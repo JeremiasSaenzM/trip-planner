@@ -308,7 +308,7 @@ function AccommodationOptionCard({
             <ConstraintRow label="Nights match the stay" result={evaluation.nightsMatchStay} />
             <ConstraintRow label="Dates covered by source" result={evaluation.datesCovered} />
             <ConstraintRow label="Cancellation deadline" result={evaluation.cancellationDeadline} />
-            <ConstraintRow label="Eligible for the festival stay" result={evaluation.hostelEligibility} />
+            <ConstraintRow label="Eligible for the event stay" result={evaluation.hostelEligibility} />
             {[
               ...evaluation.nightsMatchStay.reasons,
               ...evaluation.datesCovered.reasons,
@@ -379,7 +379,7 @@ function AccommodationOptionCard({
   );
 }
 
-function ConstraintRow({ label, result }: { label: string; result: { status: "pass" | "fail" | "unknown" } }) {
+function ConstraintRow({ label, result }: { label: string; result: { status: "pass" | "fail" | "unknown" | "not_applicable" } }) {
   return (
     <div className="flex items-start justify-between gap-2">
       <span>{label}</span>

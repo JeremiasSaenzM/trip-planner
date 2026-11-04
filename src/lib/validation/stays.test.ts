@@ -8,7 +8,7 @@ describe("createStayInput", () => {
     locationId: "22222222-2222-4222-8222-222222222222",
     startDate: "2027-07-04",
     nights: 8,
-    kind: "festival" as const,
+    kind: "event" as const,
     informationState: "estimate" as const,
   };
 
@@ -44,7 +44,7 @@ describe("updateStayInput", () => {
       locationId: "22222222-2222-4222-8222-222222222222",
       startDate: "2027-07-04",
       nights: 8,
-      kind: "festival" as const,
+      kind: "event" as const,
       informationState: "estimate" as const,
     };
     expect(updateStayInput.safeParse(base).success).toBe(false);

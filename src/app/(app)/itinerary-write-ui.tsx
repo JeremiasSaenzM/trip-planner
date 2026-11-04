@@ -70,7 +70,7 @@ function BudgetLinePicker({
 // Mirrors BudgetLinePicker exactly: a flight option link is optional
 // (findMovementsMissingBudgetLine has no flight-option equivalent --
 // nothing flags an unlinked leg), and it's how a stay or movement
-// becomes the "festival-stay location" / "flight's own movement" the
+// becomes the "event-stay location" / "flight's own movement" the
 // Flight options section's checks walk the movement chain from (see
 // src/app/(app)/flight-evaluation.ts).
 function FlightOptionPicker({

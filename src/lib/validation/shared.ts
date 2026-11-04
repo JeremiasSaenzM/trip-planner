@@ -65,7 +65,7 @@ export const changeReason = z.string().trim().min(1, "Say why you're making this
 /**
  * Mirrors "confirmed needs a source": budget_lines_confirmed_needs_source,
  * payments_confirmed_needs_source, payments_dates_confirmed_needs_source,
- * competitions_dates_confirmed_needs_source. Call from a schema's
+ * events_dates_confirmed_needs_source. Call from a schema's
  * `.superRefine()` so the error attaches to the source field, not the
  * state field -- that's the one the person needs to go fill in.
  */
