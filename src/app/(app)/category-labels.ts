@@ -3,7 +3,7 @@ import type { BudgetCategory } from "@/lib/domain/types";
 // Shared between charts.tsx (the "Budget by category" bars) and the
 // payment write forms (the category picker for a new budget line).
 export const CATEGORY_LABELS: Record<BudgetCategory, string> = {
-  A: "Competition",
+  A: "Event fees",
   B: "Transport",
   C: "Lodging",
   D: "Local transit",

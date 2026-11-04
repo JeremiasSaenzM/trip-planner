@@ -27,18 +27,22 @@ export type FlightBaggage = "included" | "paid_addon" | "not_allowed" | "unknown
  * inferred from arithmetic (phase-6.6-accommodation.md). */
 export type AccommodationRateUnit = "per_night" | "per_stay";
 
-/** A stay's role in the trip -- check-festival-stay-coverage.ts filters
- * on "festival" specifically, which is what makes this a domain
+/** A stay's role in the trip -- check-event-stay-coverage.ts filters
+ * on "event" specifically, which is what makes this a domain
  * discriminant rather than just a data label (contrast MovementMode,
  * in src/lib/data/types.ts, which no domain function branches on). */
-export type StayKind = "festival" | "independent" | "transit";
+export type StayKind = "event" | "independent" | "transit";
 
 /** What a budget line's quantity counts, when it has one -- a rate
  * times a count ("Paris nights (13)") rather than a flat amount. Null
  * means flat; see budget_lines_quantity_pair (06.4b migration). */
 export type QuantityUnit = "night" | "day" | "person" | "item";
 
-export type ConstraintStatus = "pass" | "fail" | "unknown";
+/** not_applicable is distinct from unknown: unknown means a fact is
+ * missing and could still resolve either way; not_applicable means
+ * there's nothing for this check to resolve (no event to be present
+ * for, or an event with no dates yet) -- a settled state, not a gap. */
+export type ConstraintStatus = "pass" | "fail" | "unknown" | "not_applicable";
 
 export type HardConstraintResult = {
   status: ConstraintStatus;

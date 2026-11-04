@@ -92,7 +92,7 @@ select throws_like(
 
 select lives_ok(
   $$ select update_stay(
-       '11000000-0000-0000-0000-000000000005', '11000000-0000-0000-0000-000000000012', '2027-01-01', 6, 'festival',
+       '11000000-0000-0000-0000-000000000005', '11000000-0000-0000-0000-000000000012', '2027-01-01', 6, 'event',
        '11000000-0000-0000-0000-000000000003', 'estimate', null, null, null, 'pgTAP: updating it'
      ) $$,
   'update_stay succeeds with a real reason'
@@ -100,7 +100,7 @@ select lives_ok(
 
 select results_eq(
   $$ select location_id, nights, kind from stays where id = '11000000-0000-0000-0000-000000000005' $$,
-  $$ values ('11000000-0000-0000-0000-000000000012'::uuid, 6::smallint, 'festival'::stay_kind) $$,
+  $$ values ('11000000-0000-0000-0000-000000000012'::uuid, 6::smallint, 'event'::stay_kind) $$,
   'the stay was actually updated'
 );
 
@@ -112,7 +112,7 @@ select throws_like(
 
 select lives_ok(
   $$ select update_stay(
-       '11000000-0000-0000-0000-000000000005', '11000000-0000-0000-0000-000000000012', '2027-01-01', 6, 'festival',
+       '11000000-0000-0000-0000-000000000005', '11000000-0000-0000-0000-000000000012', '2027-01-01', 6, 'event',
        null, 'estimate', null, null, null, 'pgTAP: unlinking the budget line'
      ) $$,
   'update_stay can clear budget_line_id'

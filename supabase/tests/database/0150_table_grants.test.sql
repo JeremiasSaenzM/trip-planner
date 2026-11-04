@@ -18,7 +18,7 @@ select set_eq(
   $$ select c.relname::text from pg_class c
      where c.relnamespace = 'public'::regnamespace and c.relkind in ('r', 'p', 'v', 'm') $$,
   array[
-    'trips', 'sources', 'competitions', 'scenarios', 'decisions', 'budget_lines',
+    'trips', 'sources', 'events', 'scenarios', 'decisions', 'budget_lines',
     'payments', 'savings_entries', 'fx_rates', 'open_items', 'flight_options',
     'flight_segments', 'change_log', 'proposal_batches', 'proposal_items',
     'stays', 'movements', 'locations', 'accommodation_options'
@@ -51,9 +51,9 @@ select table_privs_are('public', 'sources', 'authenticated', array['SELECT', 'IN
 select table_privs_are('public', 'sources', 'service_role', array['SELECT', 'INSERT', 'UPDATE', 'DELETE'], 'service_role: sources');
 select table_privs_are('public', 'sources', 'anon', array[]::text[], 'anon: nothing on sources');
 
-select table_privs_are('public', 'competitions', 'authenticated', array['SELECT', 'INSERT', 'UPDATE', 'DELETE'], 'authenticated: competitions');
-select table_privs_are('public', 'competitions', 'service_role', array['SELECT', 'INSERT', 'UPDATE', 'DELETE'], 'service_role: competitions');
-select table_privs_are('public', 'competitions', 'anon', array[]::text[], 'anon: nothing on competitions');
+select table_privs_are('public', 'events', 'authenticated', array['SELECT', 'INSERT', 'UPDATE', 'DELETE'], 'authenticated: events');
+select table_privs_are('public', 'events', 'service_role', array['SELECT', 'INSERT', 'UPDATE', 'DELETE'], 'service_role: events');
+select table_privs_are('public', 'events', 'anon', array[]::text[], 'anon: nothing on events');
 
 select table_privs_are('public', 'scenarios', 'authenticated', array['SELECT', 'INSERT', 'UPDATE', 'DELETE'], 'authenticated: scenarios');
 select table_privs_are('public', 'scenarios', 'service_role', array['SELECT', 'INSERT', 'UPDATE', 'DELETE'], 'service_role: scenarios');

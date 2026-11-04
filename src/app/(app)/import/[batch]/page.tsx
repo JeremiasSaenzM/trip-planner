@@ -40,7 +40,7 @@ async function BatchScreen({ params }: { params: PageProps<"/import/[batch]">["p
     batches,
     allItems,
     sources,
-    competitions,
+    events,
     scenarios,
     budgetLines,
     payments,
@@ -56,7 +56,7 @@ async function BatchScreen({ params }: { params: PageProps<"/import/[batch]">["p
     dataSource.getProposalBatches(),
     dataSource.getProposalItems(),
     dataSource.getSources(),
-    dataSource.getCompetitions(),
+    dataSource.getEvents(),
     dataSource.getScenarios(),
     dataSource.getBudgetLines(),
     dataSource.getPayments(),
@@ -75,7 +75,7 @@ async function BatchScreen({ params }: { params: PageProps<"/import/[batch]">["p
 
   const reviews = reviewBatch(allItems.filter((item) => item.batchId === batch.id), {
     sources,
-    competitions,
+    events,
     scenarios,
     budgetLines,
     payments,

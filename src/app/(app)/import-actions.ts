@@ -40,7 +40,7 @@ async function loadRows(): Promise<ReviewRows & { tripId: string | null }> {
   const [
     trips,
     sources,
-    competitions,
+    events,
     scenarios,
     budgetLines,
     payments,
@@ -55,7 +55,7 @@ async function loadRows(): Promise<ReviewRows & { tripId: string | null }> {
   ] = await Promise.all([
     dataSource.getTrips(),
     dataSource.getSources(),
-    dataSource.getCompetitions(),
+    dataSource.getEvents(),
     dataSource.getScenarios(),
     dataSource.getBudgetLines(),
     dataSource.getPayments(),
@@ -71,7 +71,7 @@ async function loadRows(): Promise<ReviewRows & { tripId: string | null }> {
   return {
     tripId: trips[0]?.id ?? null,
     sources,
-    competitions,
+    events,
     scenarios,
     budgetLines,
     payments,
@@ -189,7 +189,7 @@ export async function approveProposal(_previous: FormActionState, formData: Form
 // Every pending item, in batch order, each in its own transaction: one
 // that fails (a broken rule, the safeguard, a value that moved) is
 // reported and the rest carry on. Order is what lets a chain like
-// competition -> scenario -> budget lines go through in one click --
+// event -> scenario -> budget lines go through in one click --
 // each approval unlocks the next. Items that aren't ready (stale,
 // blocked, waiting on something that failed) are left pending as they
 // are, not counted as failures.

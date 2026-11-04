@@ -15,7 +15,7 @@ export async function GET() {
 
   const [
     trips,
-    competitions,
+    events,
     scenarios,
     sources,
     budgetLines,
@@ -34,7 +34,7 @@ export async function GET() {
     changeLog,
   ] = await Promise.all([
     dataSource.getTrips(),
-    dataSource.getCompetitions(),
+    dataSource.getEvents(),
     dataSource.getScenarios(),
     dataSource.getSources(),
     dataSource.getBudgetLines(),
@@ -57,7 +57,7 @@ export async function GET() {
   const payload = buildExportPayload({
     exportedAt: now.toISOString(),
     trips,
-    competitions,
+    events,
     scenarios,
     sources,
     budgetLines,

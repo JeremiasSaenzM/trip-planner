@@ -6,7 +6,7 @@ import { changeReason, id, infoState } from "./shared";
 
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use a YYYY-MM-DD date");
 
-export const stayKind = z.enum(["festival", "independent", "transit"] satisfies [StayKind, ...StayKind[]]);
+export const stayKind = z.enum(["event", "independent", "transit"] satisfies [StayKind, ...StayKind[]]);
 
 // No "confirmed needs a source" refinement here -- stays_movements.sql's
 // own comment explains why: the column exists so a later booking

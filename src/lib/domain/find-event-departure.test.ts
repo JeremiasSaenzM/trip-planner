@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { findFestivalDeparture } from "./find-festival-departure";
+import { findEventDeparture } from "./find-event-departure";
 
-describe("findFestivalDeparture", () => {
+describe("findEventDeparture", () => {
   it("is known, in the departure location's own zone, when the departing movement has a time of day", () => {
-    const result = findFestivalDeparture({
-      festivalStayLocationId: "Thornmere",
+    const result = findEventDeparture({
+      eventStayLocationId: "Thornmere",
       movements: [
         { sequence: 1, fromLocationId: "Home", fromZone: null, departDate: "2027-07-01", departTime: "08:00:00" },
         { sequence: 2, fromLocationId: "Thornmere", fromZone: "Europe/London", departDate: "2027-07-10", departTime: "09:00:00" },
@@ -16,8 +16,8 @@ describe("findFestivalDeparture", () => {
   });
 
   it("bounds the day, in the departure location's own zone, when the departing movement has no time of day", () => {
-    const result = findFestivalDeparture({
-      festivalStayLocationId: "Thornmere",
+    const result = findEventDeparture({
+      eventStayLocationId: "Thornmere",
       movements: [
         { sequence: 1, fromLocationId: "Thornmere", fromZone: "Europe/London", departDate: "2027-07-10", departTime: null },
       ],
@@ -29,38 +29,38 @@ describe("findFestivalDeparture", () => {
     });
   });
 
-  it("picks the last movement leaving the festival location, not the first -- a day trip out and back doesn't count as leaving for good", () => {
-    const result = findFestivalDeparture({
-      festivalStayLocationId: "Thornmere",
+  it("picks the last movement leaving the event location, not the first -- a day trip out and back doesn't count as leaving for good", () => {
+    const result = findEventDeparture({
+      eventStayLocationId: "Thornmere",
       movements: [
-        // Day trip to Chester and back, mid-festival.
+        // Day trip to Chester and back, mid-event.
         { sequence: 1, fromLocationId: "Thornmere", fromZone: "Europe/London", departDate: "2027-07-06", departTime: "10:00:00" },
         { sequence: 2, fromLocationId: "Chester", fromZone: "Europe/London", departDate: "2027-07-06", departTime: "18:00:00" },
-        // Leaving for good, after the festival ends.
+        // Leaving for good, after the event ends.
         { sequence: 3, fromLocationId: "Thornmere", fromZone: "Europe/London", departDate: "2027-07-10", departTime: "09:00:00" },
       ],
     });
     expect(result).toEqual({ status: "known", departsAt: "2027-07-10T09:00:00.000+01:00" });
   });
 
-  it("is unknown when no festival-kind stay is recorded yet", () => {
-    const result = findFestivalDeparture({ festivalStayLocationId: null, movements: [] });
-    expect(result).toEqual({ status: "unknown", reason: "no festival-kind stay recorded to depart from" });
+  it("is unknown when no event-kind stay is recorded yet", () => {
+    const result = findEventDeparture({ eventStayLocationId: null, movements: [] });
+    expect(result).toEqual({ status: "unknown", reason: "no event-kind stay recorded to depart from" });
   });
 
   it("is unknown when the departure location has no time zone recorded yet", () => {
-    const result = findFestivalDeparture({
-      festivalStayLocationId: "Thornmere",
+    const result = findEventDeparture({
+      eventStayLocationId: "Thornmere",
       movements: [{ sequence: 1, fromLocationId: "Thornmere", fromZone: null, departDate: "2027-07-10", departTime: "09:00:00" }],
     });
     expect(result).toEqual({ status: "unknown", reason: "the departure location has no time zone recorded yet" });
   });
 
-  it("is unknown when the movement chain never leaves the festival stay's location", () => {
-    const result = findFestivalDeparture({
-      festivalStayLocationId: "Thornmere",
+  it("is unknown when the movement chain never leaves the event stay's location", () => {
+    const result = findEventDeparture({
+      eventStayLocationId: "Thornmere",
       movements: [{ sequence: 1, fromLocationId: "Home", fromZone: null, departDate: "2027-07-01", departTime: "08:00:00" }],
     });
-    expect(result).toEqual({ status: "unknown", reason: "the movement chain never leaves the festival stay's location" });
+    expect(result).toEqual({ status: "unknown", reason: "the movement chain never leaves the event stay's location" });
   });
 });

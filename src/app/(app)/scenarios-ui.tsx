@@ -2,10 +2,10 @@
 
 import { useActionState, useEffect, useId, useState } from "react";
 
-import type { Competition, Scenario, Source, Trip } from "@/lib/data/types";
+import type { TripEvent, Scenario, Source, Trip } from "@/lib/data/types";
 import type { InfoState } from "@/lib/domain/types";
 
-import { CompetitionSelect } from "./bootstrap-forms";
+import { EventSelect } from "./bootstrap-forms";
 import { initialFormActionState } from "./form-action-state";
 import { buttonClass, FormError, inputClass, labelClass, secondaryButtonClass } from "./form-styles";
 import { INFO_STATE_LABELS, INFO_STATE_ORDER } from "./info-state-labels";
@@ -13,7 +13,7 @@ import {
   clearScenarioTravelWindow,
   deleteScenario,
   deleteScenarioCascade,
-  updateCompetition,
+  updateEvent,
   updateScenario,
   updateScenarioTravelWindow,
   updateTripTravelWindow,
@@ -38,11 +38,11 @@ export type ScenarioCascadeCounts = {
 // a form is open inside it.
 export function ScenarioRowActions({
   scenario,
-  competitions,
+  events,
   cascadeCounts,
 }: {
   scenario: Scenario;
-  competitions: Competition[];
+  events: TripEvent[];
   cascadeCounts: ScenarioCascadeCounts;
 }) {
   const [mode, setMode] = useState<"view" | "edit" | "delete" | "destroy">("view");
@@ -55,7 +55,7 @@ export function ScenarioRowActions({
 
   if (mode === "edit") {
     return (
-      <EditScenarioForm key={attempt} scenario={scenario} competitions={competitions} onDone={() => setMode("view")} />
+      <EditScenarioForm key={attempt} scenario={scenario} events={events} onDone={() => setMode("view")} />
     );
   }
   if (mode === "delete") {
@@ -93,11 +93,11 @@ export function ScenarioRowActions({
 
 function EditScenarioForm({
   scenario,
-  competitions,
+  events,
   onDone,
 }: {
   scenario: Scenario;
-  competitions: Competition[];
+  events: TripEvent[];
   onDone: () => void;
 }) {
   const [state, formAction, pending] = useActionState(updateScenario, initialFormActionState);
@@ -128,13 +128,13 @@ function EditScenarioForm({
         <input id={`${formId}-name`} name="name" required defaultValue={scenario.name} className={inputClass} />
       </div>
       <div className="space-y-1.5">
-        <label htmlFor={`${formId}-competition`} className={labelClass}>
-          Competition
+        <label htmlFor={`${formId}-event`} className={labelClass}>
+          Event
         </label>
-        <CompetitionSelect
-          id={`${formId}-competition`}
-          competitions={competitions}
-          defaultValue={scenario.competitionId ?? ""}
+        <EventSelect
+          id={`${formId}-event`}
+          events={events}
+          defaultValue={scenario.eventId ?? ""}
         />
       </div>
       <div className="space-y-1.5">
@@ -240,18 +240,18 @@ function DeleteScenarioCascadeForm({
   );
 }
 
-// Competitions have no delete here: decisions, open items and scenarios
+// Events have no delete here: decisions, open items and scenarios
 // can all reference one, and nothing in the plan calls for removing a
 // candidate yet -- unlinking it from every scenario is enough.
-export function CompetitionRowActions({ competition, sources }: { competition: Competition; sources: Source[] }) {
+export function EventRowActions({ event, sources }: { event: TripEvent; sources: Source[] }) {
   const [editing, setEditing] = useState(false);
   const [attempt, setAttempt] = useState(0);
 
   if (editing) {
     return (
-      <EditCompetitionForm
+      <EditEventForm
         key={attempt}
-        competition={competition}
+        event={event}
         sources={sources}
         onDone={() => setEditing(false)}
       />
@@ -274,28 +274,28 @@ export function CompetitionRowActions({ competition, sources }: { competition: C
   );
 }
 
-function EditCompetitionForm({
-  competition,
+function EditEventForm({
+  event: tripEvent,
   sources,
   onDone,
 }: {
-  competition: Competition;
+  event: TripEvent;
   sources: Source[];
   onDone: () => void;
 }) {
-  const [state, formAction, pending] = useActionState(updateCompetition, initialFormActionState);
+  const [state, formAction, pending] = useActionState(updateEvent, initialFormActionState);
   const formId = useId();
   const fieldId = (field: string) => `${formId}-${field}`;
 
-  const [datesState, setDatesState] = useState<InfoState>(competition.datesState);
-  const [datesSourceChoice, setDatesSourceChoice] = useState(competition.datesSourceId ?? "");
+  const [datesState, setDatesState] = useState<InfoState>(tripEvent.datesState);
+  const [datesSourceChoice, setDatesSourceChoice] = useState(tripEvent.datesSourceId ?? "");
   const [clientError, setClientError] = useState<string | null>(null);
 
   useEffect(() => {
     if (state.status === "success") onDone();
   }, [state, onDone]);
 
-  // Mirrors competitions_dates_confirmed_needs_source -- checked here too
+  // Mirrors events_dates_confirmed_needs_source -- checked here too
   // so the form refuses before a round trip, same as the payment and
   // budget-line edit forms. The other date rules (both-or-neither, end
   // after start) come back from the server action's own validation.
@@ -310,19 +310,19 @@ function EditCompetitionForm({
 
   return (
     <form action={formAction} onSubmit={handleSubmit} className="mt-2 space-y-2.5">
-      <input type="hidden" name="id" value={competition.id} />
+      <input type="hidden" name="id" value={tripEvent.id} />
       <div className="space-y-1.5">
         <label htmlFor={fieldId("name")} className={labelClass}>
           New name
         </label>
-        <input id={fieldId("name")} name="name" required defaultValue={competition.name} className={inputClass} />
+        <input id={fieldId("name")} name="name" required defaultValue={tripEvent.name} className={inputClass} />
       </div>
       <div className="grid grid-cols-2 gap-2.5">
         <div className="space-y-1.5">
           <label htmlFor={fieldId("city")} className={labelClass}>
             City (optional)
           </label>
-          <input id={fieldId("city")} name="city" defaultValue={competition.city ?? ""} className={inputClass} />
+          <input id={fieldId("city")} name="city" defaultValue={tripEvent.city ?? ""} className={inputClass} />
         </div>
         <div className="space-y-1.5">
           <label htmlFor={fieldId("country")} className={labelClass}>
@@ -331,7 +331,7 @@ function EditCompetitionForm({
           <input
             id={fieldId("country")}
             name="country"
-            defaultValue={competition.country ?? ""}
+            defaultValue={tripEvent.country ?? ""}
             className={inputClass}
           />
         </div>
@@ -340,30 +340,30 @@ function EditCompetitionForm({
         <label htmlFor={fieldId("venue")} className={labelClass}>
           Venue (optional)
         </label>
-        <input id={fieldId("venue")} name="venue" defaultValue={competition.venue ?? ""} className={inputClass} />
+        <input id={fieldId("venue")} name="venue" defaultValue={tripEvent.venue ?? ""} className={inputClass} />
       </div>
       <div className="grid grid-cols-2 gap-2.5">
         <div className="space-y-1.5">
           <label htmlFor={fieldId("start")} className={labelClass}>
-            Official festival dates: first day
+            Official event dates: first day
           </label>
           <input
             id={fieldId("start")}
             name="startDate"
             type="date"
-            defaultValue={competition.startDate ?? ""}
+            defaultValue={tripEvent.startDate ?? ""}
             className={inputClass}
           />
         </div>
         <div className="space-y-1.5">
           <label htmlFor={fieldId("end")} className={labelClass}>
-            Official festival dates: final day
+            Official event dates: final day
           </label>
           <input
             id={fieldId("end")}
             name="endDate"
             type="date"
-            defaultValue={competition.endDate ?? ""}
+            defaultValue={tripEvent.endDate ?? ""}
             className={inputClass}
           />
         </div>
@@ -375,14 +375,14 @@ function EditCompetitionForm({
         <input
           id={fieldId("timezone")}
           name="timezone"
-          defaultValue={competition.timezone ?? ""}
+          defaultValue={tripEvent.timezone ?? ""}
           placeholder="Europe/London"
           className={inputClass}
         />
       </div>
       <div className="space-y-1.5">
         <label htmlFor={fieldId("dates-state")} className={labelClass}>
-          Information state (festival dates)
+          Information state (event dates)
         </label>
         <select
           id={fieldId("dates-state")}
@@ -400,7 +400,7 @@ function EditCompetitionForm({
       </div>
       <SourcePicker
         name="datesSource"
-        label="Source (festival dates)"
+        label="Source (event dates)"
         sources={sources}
         required={false}
         value={datesSourceChoice}
@@ -467,7 +467,7 @@ function EditTravelWindowForm({ trip, sources, onDone }: { trip: Trip; sources: 
   }, [state, onDone]);
 
   // Mirrors trips_travel_dates_confirmed_needs_source, same as the
-  // competition form; the date rules come back from the server action.
+  // event form; the date rules come back from the server action.
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     if (datesState === "confirmed" && sourceChoice === "") {
       event.preventDefault();
@@ -631,7 +631,7 @@ function EditScenarioTravelWindowForm({
     <form action={formAction} onSubmit={handleSubmit} className="mt-2 space-y-2.5">
       <input type="hidden" name="id" value={scenario.id} />
       <input type="hidden" name="name" value={scenario.name} />
-      {scenario.competitionId && <input type="hidden" name="competitionId" value={scenario.competitionId} />}
+      {scenario.eventId && <input type="hidden" name="eventId" value={scenario.eventId} />}
       <div className="grid grid-cols-2 gap-2.5">
         <div className="space-y-1.5">
           <label htmlFor={fieldId("departure")} className={labelClass}>
@@ -722,7 +722,7 @@ function RevertScenarioTravelWindowForm({ scenario, onDone }: { scenario: Scenar
     <form action={formAction} className="mt-2 space-y-2.5">
       <input type="hidden" name="id" value={scenario.id} />
       <input type="hidden" name="name" value={scenario.name} />
-      {scenario.competitionId && <input type="hidden" name="competitionId" value={scenario.competitionId} />}
+      {scenario.eventId && <input type="hidden" name="eventId" value={scenario.eventId} />}
       <p className="text-sm">
         Go back to the trip&apos;s own travel window? This scenario&apos;s own departure and return date will be
         cleared.

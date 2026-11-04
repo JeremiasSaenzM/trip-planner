@@ -1,6 +1,6 @@
-# Choir Competition Travel Planner — App
+# Trip Planner — App
 
-A personal web app (phone and desktop) for planning my trips to international choral competitions: budget, savings, payments, deadlines, competition candidates, and later flights and itinerary. One user: me.
+A personal web app (phone and desktop) for planning my trips abroad -- right now, international choir competitions my choir's director has us attending. Budget, savings, payments, deadlines, event candidates, and later flights and itinerary. One user: me.
 
 It is the frontend for an existing planning system that currently lives as Markdown files in a claude.ai Project. **Until Phase 6 is done, those Project files remain the source of truth.** This app must never become a second, drifting copy of the truth.
 
@@ -65,7 +65,7 @@ These come from the planning system. Encode them in the schema and in tested fun
 
 **Hard constraints (apply before cost):**
 1. No itinerary may stop in the United States or Canada (connections, technical/refueling stops, same-flight-number stops; US territories such as Puerto Rico count as US). Overflight is fine. Every other country is acceptable; their transit requirements are not evaluated.
-2. Be at the destination (landing plus onward travel) before the first official festival day begins, and depart only after the final official festival day has ended. Activities inside the festival are irrelevant to this check.
+2. Be at the destination (landing plus onward travel) before the first official event day begins, and depart only after the final official event day has ended. Activities inside the event are irrelevant to this check.
 3. The fare must allow my baggage: one checked suitcase, ~23 kg.
 
 **Descriptive only, never ranking or scoring criteria:** flight duration, number of connections, which cities/airports a route connects through, other countries' transit requirements.
@@ -74,14 +74,14 @@ These come from the planning system. Encode them in the schema and in tested fun
 - Effective Flight Cost = fare + required baggage + mandatory fees.
 - Total Itinerary Cost = Effective Flight Cost + unavoidable route-caused costs (ground transport, forced extra nights).
 - Total trip cost = all budget categories. Each expense belongs to exactly one category, counted once:
-  A Competition · B International transport · C Accommodation · D Local/intercity transport · E Food · F Activities · G Connectivity · H Insurance · I Pre-trip · J Contingency.
+  A Event fees · B International transport · C Accommodation · D Local/intercity transport · E Food · F Activities · G Connectivity · H Insurance · I Pre-trip · J Contingency.
 - Every budget line has Minimum / Target / Conservative values. Target is the planning reference; Conservative is the financial-safety test.
 - Keep the original currency of every expense. Base currency is USD. Conversions record the rate and its date.
 
 **Savings.** The app tells me the **required** monthly saving (target and conservative): remaining amount ÷ the income dates left before the deadline (`incomeDatesBetween()`: whole paydays after today, up to and including the deadline — never fractional months), per deadline. It never asks for or plans around my "savings capacity". If I record money already set aside, it recalculates what's left.
 
 **Departure rule (savings deadlines).** Every payment must be saved for by the day I leave, because money spent during the trip can't be saved from income earned during the trip.
-- "The day I leave" is the resolved travel window's own `departure_date` (`resolveTravelWindow()`: a scenario's own window when it has set one, otherwise the trip's), otherwise the competition's first official day (`resolveDepartureDate()`).
+- "The day I leave" is the resolved travel window's own `departure_date` (`resolveTravelWindow()`: a scenario's own window when it has set one, otherwise the trip's), otherwise the event's first official day (`resolveDepartureDate()`).
 - A payment due after departure (a hotel paid at the property, local transport bought on arrival) is moved to the departure date.
 - A payment with no due date, and the part of a budget line no payment covers yet, are assumed due at departure: the latest date they could still be saved by.
 - Moving is never silent: every savings pot lists its payments with their own amount, currency and real due date, and says which were moved or undated (`buildDeadlinePots()`). A line's uncovered remainder says whether it has no payment at all or payments that don't cover all of it, and is left out entirely where it's $0 at the selected basis.
@@ -93,7 +93,7 @@ These come from the planning system. Encode them in the schema and in tested fun
 **Payment timing matters as much as cost.** Track for each obligation: total, paid now, due later, due date, cancellation deadline, timing type (paid now, due on date, pay before arrival, pay at property, unknown, optional).
 
 **Scope boundaries.**
-- The app plans MY trip. It does not track or evaluate the choir's composition, categories, eligibility, or participation decisions. The choir director chooses the competition.
+- The app plans MY trip. It does not decide whether to attend an event, and does not track or evaluate the decisions of whoever does -- for now, my choir's director, who chooses which competition we go to.
 - No airport, hub, or airline is pre-selected or ranked in advance.
 - Every change to plan data is recorded in an audit log (what, when, previous value, new value, reason).
 
@@ -105,33 +105,37 @@ Each phase ends with something working, committed, and pushed.
 1. ✅ **Auth** — Supabase project linked; magic-link login for my email only; protected app shell; mobile-first layout.
    - Uses Supabase's default Magic Link email template (PKCE `?code=` flow via `/auth/callback`): links must be opened in the same browser that requested them. Built-in email sender is rate-limited (~2/hour).
    - Optional later upgrade: free custom SMTP (e.g. Resend) + Magic Link template using `{{ .RedirectTo }}?token_hash={{ .TokenHash }}&type=email` for cross-device links. `/auth/callback` already handles `token_hash`, so only the template changes.
-2. ✅ **Data model** — Migrations for: trips, competitions, sources, scenarios, budget_lines, payments, savings_entries, fx_rates, decisions, open_items, flight_options/flight_segments, change_log. Enums for information states and budget categories. RLS on everything. Fake seed data. Migrations pushed to the hosted project (seed data never did — hosted tables are empty, RLS confirmed enabled on all 13).
-3. ✅ **Rules as code** — Tested pure functions in `src/lib/domain/`, run in CI with Vitest: savings requirement, US/Canada stop check (including territories), festival-period arrival/departure check, baggage check, Effective Flight Cost, cost roll-ups by scenario (handling shared lines), currency conversion (with planning-rate kinds).
+2. ✅ **Data model** — Migrations for: trips, events, sources, scenarios, budget_lines, payments, savings_entries, fx_rates, decisions, open_items, flight_options/flight_segments, change_log. Enums for information states and budget categories. RLS on everything. Fake seed data. Migrations pushed to the hosted project (seed data never did — hosted tables are empty, RLS confirmed enabled on all 13).
+3. ✅ **Rules as code** — Tested pure functions in `src/lib/domain/`, run in CI with Vitest: savings requirement, US/Canada stop check (including territories), event-period arrival/departure check, baggage check, Effective Flight Cost, cost roll-ups by scenario (handling shared lines), currency conversion (with planning-rate kinds).
 4. ✅ **Read-only dashboard** — Built only on top of those domain functions. Required monthly saving, trip cost range, payment timeline, deadlines and open items; scenario and target/conservative toggles; charts.
 5. ✅ **My inputs** — Record money set aside, mark payments done, edit budget lines with information state and source; audit log writes; data export (export includes `change_log`; importing/restoring from an export is future work — a backup is only half useful without a way back in).
 6. **Claude bridge** — Supabase MCP (project-scoped) so research sessions can update data; migrate real numbers from the Project files; the Project's budget file then points to the database.
    - ✅ Claude reads the database through a read-only connector; it never writes directly.
    - ✅ Import proposals (`/import`): a research session's results are pasted as one JSON block (`src/lib/proposals/schema.ts`) and reviewed item by item. Approving runs the same write a form would (`approve_proposal()`), logged in change_log as actor `claude` with the proposal's reason. Rejecting records its reason; nothing is deleted. An update carries the `from` value it saw and is refused if the row has moved since. Actor `claude` is never exempt from the reason requirement, inserts included.
 6.4. **Scenario identity: stays and movements** — Added from using the app, not part of the original plan: night counts used to live only as prose inside budget-line descriptions, where a mismatch between the plan's assumed trip length and what's actually scheduled stayed invisible.
-   - `stays` (location, start date, nights, kind — festival/independent/transit — optional budget line, information state and source) and `movements` (a chain of legs, home to home, each with its own sequence, from/to location, depart and arrive dates/times, mode, optional budget line, booking reference, information state and source). Movements are stored, not derived from stays, so a routing choice is visible as something other than a differently-named budget line, and so Phase 6.5's hard-constraint checks have real legs to apply to.
-   - Five checks, surfaced on Scenario Overview as warnings, never blocks: stay nights add up to the trip's travel window; a festival-kind stay covers the night before the first festival day through the final night; the movement chain is continuous (each leg's from-location matches the previous leg's to-location); every night away is either crossed by a movement or covered by a stay at the right location; every movement has a budget line.
+   - `stays` (location, start date, nights, kind — event/independent/transit — optional budget line, information state and source) and `movements` (a chain of legs, home to home, each with its own sequence, from/to location, depart and arrive dates/times, mode, optional budget line, booking reference, information state and source). Movements are stored, not derived from stays, so a routing choice is visible as something other than a differently-named budget line, and so Phase 6.5's hard-constraint checks have real legs to apply to.
+   - Five checks, surfaced on Scenario Overview as warnings, never blocks: stay nights add up to the trip's travel window; an event-kind stay covers the night before the first event day through the final night; the movement chain is continuous (each leg's from-location matches the previous leg's to-location); every night away is either crossed by a movement or covered by a stay at the right location; every movement has a budget line.
    - A night-by-night strip on Scenario Overview is generated from the movement chain, never typed in, alongside a days-on-the-ground count to eyeball the food budget against.
-6.5. **Flights** — Record flight options and their segments, with a source for every fare. Run the existing domain checks against each option and show the result: no US/Canada stop (territories count as US), at the destination before the first official festival day begins, departure only after the final festival day ends, baggage allows one checked bag of about 23 kg. Show Effective Flight Cost and Total Itinerary Cost. Never rank or score by flight duration, number of connections, or which cities/airports a route passes through — those stay descriptive only.
+6.5. **Flights** — Record flight options and their segments, with a source for every fare. Run the existing domain checks against each option and show the result: no US/Canada stop (territories count as US), at the destination before the first official event day begins, departure only after the final event day ends, baggage allows one checked bag of about 23 kg. Show Effective Flight Cost and Total Itinerary Cost. Never rank or score by flight duration, number of connections, or which cities/airports a route passes through — those stay descriptive only.
    - Open question to solve first: there is no automated source of real fares available to this project. Fares are entered by hand from research until that changes.
    - Booked itinerary: once a ticket exists, record what was actually booked, not only the candidates — flight numbers, dates, times, airports, booking reference.
-   - Deferred, not forgotten: "catches the flight" — does the traveller reach the departure airport in time to board this specific candidate's return flight. Real question, but not hard constraint 2 (that's leaving the festival location on time, independent of any flight — see `findFestivalDeparture`) — would be its own warning-tier check, not a block. `resolveFlightOptionTiming`'s `returnDepartureAt` already derives the figure it would need.
+   - Deferred, not forgotten: "catches the flight" — does the traveller reach the departure airport in time to board this specific candidate's return flight. Real question, but not hard constraint 2 (that's leaving the event location on time, independent of any flight — see `findEventDeparture`) — would be its own warning-tier check, not a block. `resolveFlightOptionTiming`'s `returnDepartureAt` already derives the figure it would need.
 6.6. **Accommodation** — Same shape as 6.5: candidates first, then what was booked.
    - Candidate stays: name, city, price in its own currency, source, cancellation terms, payment timing, nights covered. One candidate can be marked as the one feeding its budget line.
    - Booked stay: name, address, check-in and check-out dates, confirmation number, contact details.
-   - The festival-period arrangement is flagged as choir-organised, with my individual cost possibly pending. The app records it; it does not plan the choir's arrangements (see Scope boundaries).
+   - The event-period arrangement is flagged as choir-organised, with my individual cost possibly pending. The app records it; it does not plan the choir's arrangements (see Scope boundaries).
    - Never rank on descriptive attributes. The hard constraints and cost rules (planning-system files 04 and 07, restated under Domain rules above) apply as they do elsewhere.
 6.7. **Scenario travel windows** — Added from using the app, not part of the original plan: the travel window lived only on the trip, so two scenarios could never differ in *when* the trip happens -- exactly the comparison the app exists for (a fare for 2-25 July vs. 5-20 July).
    - Each scenario can set its own `departure_date`/`return_date`/`travel_dates_state`/`travel_dates_source_id`, nullable, all-or-nothing together. Null means it inherits the trip's window -- `resolveTravelWindow()` is the one place that decides which wins, and every reader (the savings clamp, the travel-window check, stay-nights and budget-line-nights checks, the Scenario Overview and Scenarios pages) goes through it or its result, never `trips`/`scenarios`' own dates directly.
    - Clearing an override is a separate, explicit action ("Revert to the trip's window"), never a blank field in the regular edit form -- same reasoning as the rest of this app's full-row-replace writes.
+6.9. ✅ **The app plans trips, not competitions** — Generalised `competitions` into `events`: zero or more things at a place, on dates, that I must be present for (a competition, a wedding, a conference). A rename and a nullability change, not a new engine -- no `kind` field, no scoring by event type.
+   - Dropped `acceptance_status`/`acceptance_decided_on`/`acceptance_source_id` entirely, not just their display: D-015 says the app doesn't track or evaluate whoever decides to attend an event's participation decisions, and whether an event "accepted" me was exactly that -- a leftover of the acceptance safeguard this phase finishes generalising past (#61).
+   - `checkEventPresence`'s input carries the event as one nullable object instead of flattened optional fields, so it can tell "no event" apart from "event exists, dates not published" -- two different `not_applicable` reasons where before they collapsed into the same missing fields.
+   - Budget category A renamed "Event fees" (was "Competition").
 7. **Reports and polish** — Printable budget summary, payment calendar, README with screenshots and the story of the project.
    - Printable trip sheet, readable on a phone: where I sleep each night, how I get between places, flight and booking references, emergency contacts.
    - Saving-method selector: choose flat / one phase at a time / one pot per payment; show only that chart, and make the headline number follow the choice (e.g. "Amount to save during current phase = X").
 
 ## Current phase
 
-Phase 6.7 — Scenario travel windows.
+Phase 6.9 — The app plans trips, not competitions.

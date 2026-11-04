@@ -24,7 +24,7 @@ insert into locations (id, owner_id, name) values
   ('13000000-0000-0000-0000-00000000000a', '10000000-0000-0000-0000-000000000001', 'Testville');
 insert into stays (id, owner_id, scenario_id, location_id, start_date, nights, kind, information_state) values (
   '13000000-0000-0000-0000-000000000004', '10000000-0000-0000-0000-000000000001',
-  '13000000-0000-0000-0000-000000000002', '13000000-0000-0000-0000-00000000000a', '2027-07-01', 5, 'festival', 'estimate'
+  '13000000-0000-0000-0000-000000000002', '13000000-0000-0000-0000-00000000000a', '2027-07-01', 5, 'event', 'estimate'
 );
 insert into accommodation_options (id, owner_id, stay_id, label, property_name, rate_amount, rate_unit, nights, currency, source_id, observed_on) values (
   '13000000-0000-0000-0000-000000000005', '10000000-0000-0000-0000-000000000001',

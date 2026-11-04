@@ -1,11 +1,16 @@
 import type { ConstraintStatus } from "@/lib/domain/types";
 
-// Three visually distinct states for the three hard-constraint checks
-// (US/Canada stop, festival arrival/departure, baggage) -- never colour
-// alone, so "unknown" can't be mistaken for "pass" by a colour-blind
-// reading or a black-and-white printout. Each pairs its own icon, text
-// label, and border style (solid vs. dashed) with its colour: a solid
-// emerald check, a solid red cross, or a dashed zinc question mark.
+// Four visually distinct states for the three hard-constraint checks
+// (US/Canada stop, event presence, baggage) -- never colour alone, so
+// "unknown" can't be mistaken for "pass" by a colour-blind reading or a
+// black-and-white printout. Each pairs its own icon, text label, and
+// border style with its colour: a solid emerald check, a solid red
+// cross, a dashed zinc question mark for "unknown" (a fact is missing,
+// could still resolve either way), or a solid zinc dash for
+// "not_applicable" (nothing to resolve -- settled, not missing, so it
+// gets a solid border like pass/fail rather than unknown's dashed one,
+// while staying the same neutral colour as unknown so it never reads as
+// a problem).
 const TONE: Record<ConstraintStatus, { icon: string; label: string; className: string }> = {
   pass: {
     icon: "✓",
@@ -23,6 +28,12 @@ const TONE: Record<ConstraintStatus, { icon: string; label: string; className: s
     label: "Unknown",
     className:
       "border-dashed border-zinc-400 bg-zinc-50 text-zinc-700 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-300",
+  },
+  not_applicable: {
+    icon: "–",
+    label: "Not applicable",
+    className:
+      "border-zinc-300 bg-zinc-50 text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400",
   },
 };
 

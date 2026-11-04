@@ -12,7 +12,7 @@ import { resolveSourceId } from "./source-actions";
 
 // Server Actions behind /budget-lines' budget-line section (see
 // budget-line-write-ui.tsx). Creating a line is a plain insert, same
-// reasoning as createCompetition/createScenario -- unlike create_payment
+// reasoning as createEvent/createScenario -- unlike create_payment
 // it never touches a second table, so no RPC is needed just for
 // atomicity. Editing and deleting both go through RPCs that set
 // app.change_reason (20261015110000_budget_lines_fx_rates_writes.sql).

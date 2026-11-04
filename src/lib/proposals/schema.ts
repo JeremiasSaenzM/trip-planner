@@ -27,12 +27,12 @@ export const MAX_PROPOSAL_ITEMS = 200;
 
 export const PROPOSAL_OPS = [
   "create_source",
-  "create_competition",
+  "create_event",
   "create_scenario",
   "create_budget_line",
   "create_payment",
   "create_fx_rate",
-  "update_competition",
+  "update_event",
   "update_scenario",
   "update_budget_line",
   "update_payment",
@@ -63,7 +63,7 @@ export function isUpdateOp(op: ProposalOp): op is UpdateOp {
 // again at approval).
 export type ReferenceKind =
   | "source"
-  | "competition"
+  | "event"
   | "scenario"
   | "budget_line"
   | "flight_option"
@@ -72,13 +72,13 @@ export type ReferenceKind =
 
 export const REFERENCE_FIELDS: Record<ProposalOp, Record<string, ReferenceKind>> = {
   create_source: {},
-  create_competition: { datesSource: "source" },
-  create_scenario: { competition: "competition", travelDatesSource: "source" },
+  create_event: { datesSource: "source" },
+  create_scenario: { event: "event", travelDatesSource: "source" },
   create_budget_line: { scenario: "scenario", source: "source" },
   create_payment: { scenario: "scenario", budgetLine: "budget_line" },
   create_fx_rate: { source: "source" },
-  update_competition: { datesSource: "source" },
-  update_scenario: { competition: "competition", travelDatesSource: "source" },
+  update_event: { datesSource: "source" },
+  update_scenario: { event: "event", travelDatesSource: "source" },
   update_budget_line: { source: "source" },
   update_payment: { datesSource: "source", source: "source" },
   update_fx_rate: { source: "source" },
@@ -171,7 +171,7 @@ export const CREATE_DATA = {
     applicablePeriodEnd: isoDate.optional(),
     notes: freeText.optional(),
   }),
-  create_competition: z.strictObject({
+  create_event: z.strictObject({
     name,
     city: name.optional(),
     country: name.optional(),
@@ -184,7 +184,7 @@ export const CREATE_DATA = {
   }),
   create_scenario: z.strictObject({
     name,
-    competition: reference.optional(),
+    event: reference.optional(),
     includesExtension: z.boolean().optional(),
     notes: freeText.optional(),
     // Absent = inherit the trip's window, the normal case. Together
@@ -316,7 +316,7 @@ export const CREATE_DATA = {
 // makes a stale proposal detectable: approval refuses if the row no
 // longer holds it. Optional fields can be cleared with null.
 export const UPDATE_CHANGES = {
-  update_competition: z
+  update_event: z
     .strictObject({
       name: change(name).optional(),
       city: change(name.nullable()).optional(),
@@ -332,7 +332,7 @@ export const UPDATE_CHANGES = {
   update_scenario: z
     .strictObject({
       name: change(name).optional(),
-      competition: referenceChange.optional(),
+      event: referenceChange.optional(),
       departureDate: change(isoDate.nullable()).optional(),
       returnDate: change(isoDate.nullable()).optional(),
       travelDatesState: change(infoState).optional(),
@@ -482,12 +482,12 @@ function updateItem<Op extends UpdateOp>(op: Op) {
 
 export const pastedItem = z.discriminatedUnion("op", [
   createItem("create_source"),
-  createItem("create_competition"),
+  createItem("create_event"),
   createItem("create_scenario"),
   createItem("create_budget_line"),
   createItem("create_payment"),
   createItem("create_fx_rate"),
-  updateItem("update_competition"),
+  updateItem("update_event"),
   updateItem("update_scenario"),
   updateItem("update_budget_line"),
   updateItem("update_payment"),

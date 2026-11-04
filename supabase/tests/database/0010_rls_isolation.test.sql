@@ -22,7 +22,7 @@ select set_config('request.jwt.claim.sub', '10000000-0000-0000-0000-000000000002
 
 select is((select count(*) from trips)::int, 0, 'second user sees no trips');
 select is((select count(*) from sources)::int, 0, 'second user sees no sources');
-select is((select count(*) from competitions)::int, 0, 'second user sees no competitions');
+select is((select count(*) from events)::int, 0, 'second user sees no events');
 select is((select count(*) from scenarios)::int, 0, 'second user sees no scenarios');
 select is((select count(*) from decisions)::int, 0, 'second user sees no decisions');
 select is((select count(*) from budget_lines)::int, 0, 'second user sees no budget_lines');

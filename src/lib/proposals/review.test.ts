@@ -10,7 +10,7 @@ const TRIP_ID = "20000000-0000-0000-0000-000000000001";
 
 const rows: ReviewRows = {
   sources: fixtures.sources,
-  competitions: fixtures.competitions,
+  events: fixtures.events,
   scenarios: fixtures.scenarios,
   budgetLines: fixtures.budgetLines,
   payments: fixtures.payments,

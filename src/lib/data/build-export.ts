@@ -1,7 +1,7 @@
 import type {
   BudgetLine,
   ChangeLogEntry,
-  Competition,
+  TripEvent,
   Decision,
   FlightOption,
   FlightSegment,
@@ -23,7 +23,7 @@ import type {
 // future import (not built yet -- see CLAUDE.md's Phase 5 note) knows
 // whether it's reading something it understands.
 //   2 -- budget lines gained confidence
-//   3 -- a competition's city, country, dates and time zone can be null
+//   3 -- an event's city, country, dates and time zone can be null
 //   4 -- proposalBatches and proposalItems (imported research)
 //   5 -- trips gained a travel window (departureDate, returnDate, travelDatesState, travelDatesSourceId)
 //   6 -- stays and movements (Phase 6.4)
@@ -32,14 +32,16 @@ import type {
 //   8 -- scenarios gained their own travel window override (departureDate,
 //        returnDate, travelDatesState, travelDatesSourceId), same shape as
 //        trips' own (Phase 6.7)
-export const EXPORT_SCHEMA_VERSION = 8;
+//   9 -- competitions renamed to events, with acceptanceStatus/
+//        acceptanceDecidedOn/acceptanceSourceId dropped (Phase 6.9)
+export const EXPORT_SCHEMA_VERSION = 9;
 
 export type ExportPayload = {
   exportedAt: string;
   schemaVersion: number;
   data: {
     trips: Trip[];
-    competitions: Competition[];
+    events: TripEvent[];
     scenarios: Scenario[];
     sources: Source[];
     budgetLines: BudgetLine[];

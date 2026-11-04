@@ -1,5 +1,6 @@
--- Optional competition fields, update_competition, update_scenario and
--- delete_scenario (20261019090000_manage_competitions_scenarios.sql).
+-- Optional event fields, update_event, update_scenario and
+-- delete_scenario (20261019090000_manage_competitions_scenarios.sql,
+-- renamed by 20261104090000_rename_competitions_to_events.sql).
 begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
@@ -7,11 +8,11 @@ select plan(40);
 
 -- Optional columns
 
-select col_is_null('competitions', 'city', 'competitions.city is nullable');
-select col_is_null('competitions', 'country', 'competitions.country is nullable');
-select col_is_null('competitions', 'start_date', 'competitions.start_date is nullable');
-select col_is_null('competitions', 'end_date', 'competitions.end_date is nullable');
-select col_is_null('competitions', 'timezone', 'competitions.timezone is nullable');
+select col_is_null('events', 'city', 'events.city is nullable');
+select col_is_null('events', 'country', 'events.country is nullable');
+select col_is_null('events', 'start_date', 'events.start_date is nullable');
+select col_is_null('events', 'end_date', 'events.end_date is nullable');
+select col_is_null('events', 'timezone', 'events.timezone is nullable');
 
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '10000000-0000-0000-0000-000000000001', true);
@@ -25,116 +26,116 @@ insert into sources (id, owner_id, provider, tier, observed_on) values (
 );
 
 select lives_ok(
-  $$ insert into competitions (id, trip_id, name) values (
+  $$ insert into events (id, trip_id, name) values (
        'a1000000-0000-0000-0000-000000000003', 'a1000000-0000-0000-0000-000000000001', 'Host not announced yet'
      ) $$,
-  'a competition with only a name (no city, country, dates or time zone) can be created'
+  'an event with only a name (no city, country, dates or time zone) can be created'
 );
 
 -- The dates check: both or neither.
 
 select throws_like(
-  $$ insert into competitions (trip_id, name, start_date) values (
+  $$ insert into events (trip_id, name, start_date) values (
        'a1000000-0000-0000-0000-000000000001', 'Start only', '2028-07-01'
      ) $$,
-  '%competitions_dates_together%',
+  '%events_dates_together%',
   'a start date with no end date is refused'
 );
 
 select throws_like(
-  $$ insert into competitions (trip_id, name, end_date) values (
+  $$ insert into events (trip_id, name, end_date) values (
        'a1000000-0000-0000-0000-000000000001', 'End only', '2028-07-07'
      ) $$,
-  '%competitions_dates_together%',
+  '%events_dates_together%',
   'an end date with no start date is refused'
 );
 
 select throws_like(
-  $$ insert into competitions (trip_id, name, dates_state, dates_source_id) values (
+  $$ insert into events (trip_id, name, dates_state, dates_source_id) values (
        'a1000000-0000-0000-0000-000000000001', 'Confirmed nothing', 'confirmed', 'a1000000-0000-0000-0000-000000000002'
      ) $$,
-  '%competitions_confirmed_dates_need_dates%',
+  '%events_confirmed_dates_need_dates%',
   'confirmed dates with no dates are refused, even with a source'
 );
 
 select throws_like(
-  $$ insert into competitions (trip_id, name, start_date, end_date) values (
+  $$ insert into events (trip_id, name, start_date, end_date) values (
        'a1000000-0000-0000-0000-000000000001', 'Backwards', '2028-07-07', '2028-07-01'
      ) $$,
-  '%competitions_end_after_start%',
+  '%events_end_after_start%',
   'end before start is still refused when both dates are set'
 );
 
--- An accepted competition, for the update_scenario safeguard test below.
-insert into competitions (
-  id, trip_id, name, city, country, start_date, end_date, timezone, acceptance_status
+-- An event with full dates, for the update_scenario linking tests below.
+insert into events (
+  id, trip_id, name, city, country, start_date, end_date, timezone
 ) values (
   'a1000000-0000-0000-0000-000000000004', 'a1000000-0000-0000-0000-000000000001',
-  'Accepted competition', 'Fontvieux', 'France', '2027-07-05', '2027-07-11', 'Europe/Paris', 'accepted'
+  'Fully dated event', 'Fontvieux', 'France', '2027-07-05', '2027-07-11', 'Europe/Paris'
 );
 
--- update_competition
+-- update_event
 
 select throws_like(
-  $$ select update_competition(
+  $$ select update_event(
        'a1000000-0000-0000-0000-000000000003', 'Renamed', null, null, null, null, null, null, 'pending', null, ''
      ) $$,
   '%reason is required%',
-  'update_competition rejects a blank reason'
+  'update_event rejects a blank reason'
 );
 
 select throws_like(
-  $$ select update_competition(
+  $$ select update_event(
        'a1000000-0000-0000-0000-000000000003', 'Renamed', null, null, null, '2028-07-01', null, null, 'pending', null,
        'pgTAP: half a period'
      ) $$,
-  '%competitions_dates_together%',
-  'update_competition still enforces both-or-neither dates'
+  '%events_dates_together%',
+  'update_event still enforces both-or-neither dates'
 );
 
 select throws_like(
-  $$ select update_competition(
+  $$ select update_event(
        'a1000000-0000-0000-0000-000000000003', 'Renamed', null, null, null, '2028-07-01', '2028-07-07', null,
        'confirmed', null, 'pgTAP: confirmed with no source'
      ) $$,
-  '%competitions_dates_confirmed_needs_source%',
-  'update_competition still enforces confirmed dates need a source'
+  '%events_dates_confirmed_needs_source%',
+  'update_event still enforces confirmed dates need a source'
 );
 
 select lives_ok(
-  $$ select update_competition(
-       'a1000000-0000-0000-0000-000000000003', 'Verenna festival', 'Verenna', 'Italy', null, '2028-07-01',
+  $$ select update_event(
+       'a1000000-0000-0000-0000-000000000003', 'Verenna event', 'Verenna', 'Italy', null, '2028-07-01',
        '2028-07-07', 'Europe/Rome', 'confirmed', 'a1000000-0000-0000-0000-000000000002', 'pgTAP: host announced'
      ) $$,
-  'update_competition succeeds with dates, a source and a reason'
+  'update_event succeeds with dates, a source and a reason'
 );
 
 select results_eq(
-  $$ select name, city, start_date, end_date, dates_state::text, acceptance_status::text
-     from competitions where id = 'a1000000-0000-0000-0000-000000000003' $$,
-  $$ values ('Verenna festival'::text, 'Verenna'::text, '2028-07-01'::date, '2028-07-07'::date,
-             'confirmed'::text, 'pending'::text) $$,
-  'the competition was updated, and acceptance_status was left alone'
+  $$ select name, city, start_date, end_date, dates_state::text
+     from events where id = 'a1000000-0000-0000-0000-000000000003' $$,
+  $$ values ('Verenna event'::text, 'Verenna'::text, '2028-07-01'::date, '2028-07-07'::date,
+             'confirmed'::text) $$,
+  'the event was updated'
 );
 
 select is(
   (select reason from change_log
-   where table_name = 'competitions' and row_id = 'a1000000-0000-0000-0000-000000000003' and action = 'update'),
+   where table_name = 'events' and row_id = 'a1000000-0000-0000-0000-000000000003' and action = 'update'),
   'pgTAP: host announced',
   'the edit is in change_log with its reason'
 );
 
 select lives_ok(
-  $$ select update_competition(
-       'a1000000-0000-0000-0000-000000000003', 'Verenna festival', 'Verenna', 'Italy', null, null, null,
+  $$ select update_event(
+       'a1000000-0000-0000-0000-000000000003', 'Verenna event', 'Verenna', 'Italy', null, null, null,
        'Europe/Rome', 'pending', null, 'pgTAP: dates withdrawn'
      ) $$,
-  'update_competition can clear both dates again'
+  'update_event can clear both dates again'
 );
 
 -- Scenarios: one empty, one with a budget line, one with a payment
 -- attached directly, one with a flight option.
-insert into scenarios (id, trip_id, name, competition_id) values
+insert into scenarios (id, trip_id, name, event_id) values
   ('a1000000-0000-0000-0000-000000000011', 'a1000000-0000-0000-0000-000000000001', 'Empty', null),
   ('a1000000-0000-0000-0000-000000000012', 'a1000000-0000-0000-0000-000000000001', 'Has a line',
    'a1000000-0000-0000-0000-000000000004'),
@@ -177,13 +178,13 @@ select throws_like(
 select lives_ok(
   $$ select update_scenario(
        'a1000000-0000-0000-0000-000000000011', 'Host TBA', 'a1000000-0000-0000-0000-000000000003',
-       null, null, 'pending', null, 'pgTAP: linking a competition'
+       null, null, 'pending', null, 'pgTAP: linking an event'
      ) $$,
-  'update_scenario renames and links a competition to a scenario that had none'
+  'update_scenario renames and links an event to a scenario that had none'
 );
 
 select results_eq(
-  $$ select name, competition_id from scenarios where id = 'a1000000-0000-0000-0000-000000000011' $$,
+  $$ select name, event_id from scenarios where id = 'a1000000-0000-0000-0000-000000000011' $$,
   $$ values ('Host TBA'::text, 'a1000000-0000-0000-0000-000000000003'::uuid) $$,
   'the scenario was renamed and linked'
 );
@@ -192,7 +193,7 @@ select lives_ok(
   $$ select update_scenario(
        'a1000000-0000-0000-0000-000000000011', 'Host TBA', null, null, null, 'pending', null, 'pgTAP: unlinking'
      ) $$,
-  'update_scenario can unlink the competition again'
+  'update_scenario can unlink the event again'
 );
 
 select lives_ok(
@@ -200,7 +201,7 @@ select lives_ok(
        'a1000000-0000-0000-0000-000000000012', 'Has a line (renamed)', 'a1000000-0000-0000-0000-000000000004',
        null, null, 'pending', null, 'pgTAP: renaming only'
      ) $$,
-  'update_scenario still allows renaming that scenario while keeping its competition'
+  'update_scenario still allows renaming that scenario while keeping its event'
 );
 
 select throws_like(
@@ -209,7 +210,7 @@ select throws_like(
        null, null, 'pending', null, 'pgTAP: bad id'
      ) $$,
   '%not found%',
-  'update_scenario refuses a competition id that does not exist'
+  'update_scenario refuses an event id that does not exist'
 );
 
 -- delete_scenario
@@ -266,11 +267,11 @@ select is(
 select set_config('request.jwt.claim.sub', '10000000-0000-0000-0000-000000000002', true);
 
 select throws_like(
-  $$ select update_competition(
+  $$ select update_event(
        'a1000000-0000-0000-0000-000000000003', 'x', null, null, null, null, null, null, 'pending', null, 'not mine'
      ) $$,
   '%not found%',
-  'a second account updating my competition gets "not found"'
+  'a second account updating my event gets "not found"'
 );
 
 select throws_like(
@@ -289,11 +290,11 @@ select set_config('request.jwt.claim.sub', '10000000-0000-0000-0000-000000000001
 
 -- Grants: authenticated can call every RPC here, anon can't.
 select ok(has_function_privilege('authenticated',
-  'update_competition(uuid, text, text, text, text, date, date, text, info_state, uuid, text)', 'EXECUTE'),
-  'authenticated can execute update_competition');
+  'update_event(uuid, text, text, text, text, date, date, text, info_state, uuid, text)', 'EXECUTE'),
+  'authenticated can execute update_event');
 select ok(not has_function_privilege('anon',
-  'update_competition(uuid, text, text, text, text, date, date, text, info_state, uuid, text)', 'EXECUTE'),
-  'anon cannot execute update_competition');
+  'update_event(uuid, text, text, text, text, date, date, text, info_state, uuid, text)', 'EXECUTE'),
+  'anon cannot execute update_event');
 select ok(has_function_privilege(
   'authenticated', 'update_scenario(uuid, text, uuid, date, date, info_state, uuid, text)', 'EXECUTE'
 ), 'authenticated can execute update_scenario');

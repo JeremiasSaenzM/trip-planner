@@ -12,8 +12,8 @@ select plan(72);
 select has_table('proposal_batches', 'proposal_batches exists');
 select has_table('proposal_items', 'proposal_items exists');
 select enum_has_labels('proposal_op', array[
-  'create_source', 'create_competition', 'create_scenario', 'create_budget_line', 'create_payment', 'create_fx_rate',
-  'update_competition', 'update_scenario', 'update_budget_line', 'update_payment', 'update_fx_rate', 'update_savings_entry',
+  'create_source', 'create_event', 'create_scenario', 'create_budget_line', 'create_payment', 'create_fx_rate',
+  'update_event', 'update_scenario', 'update_budget_line', 'update_payment', 'update_fx_rate', 'update_savings_entry',
   'create_stay', 'create_movement', 'update_stay', 'update_movement',
   'create_flight_option', 'create_flight_segment', 'update_flight_option',
   'create_location', 'update_location',
@@ -38,9 +38,9 @@ insert into trips (id, owner_id, name, status) values
 insert into sources (id, owner_id, provider, tier, observed_on) values (
   'b2000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000001', 'pgTAP fare source', 2, '2026-10-01'
 );
-insert into competitions (id, trip_id, name) values
-  ('b2000000-0000-0000-0000-000000000003', 'b2000000-0000-0000-0000-000000000001', 'pgTAP existing competition');
-insert into scenarios (id, trip_id, name, competition_id) values (
+insert into events (id, trip_id, name) values
+  ('b2000000-0000-0000-0000-000000000003', 'b2000000-0000-0000-0000-000000000001', 'pgTAP existing event');
+insert into scenarios (id, trip_id, name, event_id) values (
   'b2000000-0000-0000-0000-000000000004', 'b2000000-0000-0000-0000-000000000001', 'pgTAP existing scenario',
   'b2000000-0000-0000-0000-000000000003'
 );
@@ -77,10 +77,10 @@ select lives_ok(
   $$ select create_proposal_batch(
        'b2000000-0000-0000-0000-000000000001', 'pgTAP batch one', '{"raw": "as pasted"}',
        '[
-         {"position": 0, "ref": "b1-comp", "op": "create_competition", "reason": "pgTAP: festival announced",
-          "payload": {"data": {"name": "Proposed Festival", "datesState": "pending"}}, "dependsOn": []},
+         {"position": 0, "ref": "b1-event", "op": "create_event", "reason": "pgTAP: event announced",
+          "payload": {"data": {"name": "Proposed Event", "datesState": "pending"}}, "dependsOn": []},
          {"position": 1, "ref": "b1-scn", "op": "create_scenario", "reason": "pgTAP: a scenario for it",
-          "payload": {"data": {"name": "Proposed scenario", "competition": {"item": 0}}}, "dependsOn": [0]},
+          "payload": {"data": {"name": "Proposed scenario", "event": {"item": 0}}}, "dependsOn": [0]},
          {"position": 2, "ref": "b1-line", "op": "create_budget_line", "reason": "pgTAP: fare research",
           "payload": {"data": {"scenario": {"item": 1}, "category": "B", "description": "Proposed flights",
             "amountMin": 900, "amountTarget": 1000, "amountConservative": 1200, "currency": "EUR",
@@ -163,7 +163,7 @@ select throws_like(
 select throws_like(
   $$ select create_proposal_batch('b2000000-0000-0000-0000-000000000001', null, '{}',
        '[{"position": 0, "op": "create_scenario", "reason": "x", "payload": {"data": {}}, "dependsOn": [1]},
-         {"position": 1, "op": "create_competition", "reason": "x", "payload": {"data": {}}}]'::jsonb) $$,
+         {"position": 1, "op": "create_event", "reason": "x", "payload": {"data": {}}}]'::jsonb) $$,
   '%can only depend on items before it%',
   'a forward dependency is refused'
 );
@@ -184,42 +184,42 @@ select throws_like(
 );
 
 select lives_ok(
-  $$ select approve_proposal((select id from proposal_items where ref = 'b1-comp')) $$,
-  'approving the competition create succeeds'
+  $$ select approve_proposal((select id from proposal_items where ref = 'b1-event')) $$,
+  'approving the event create succeeds'
 );
 
 select results_eq(
-  $$ select status::text, result_id = (select id from competitions where name = 'Proposed Festival')
-     from proposal_items where ref = 'b1-comp' $$,
+  $$ select status::text, result_id = (select id from events where name = 'Proposed Event')
+     from proposal_items where ref = 'b1-event' $$,
   $$ values ('approved'::text, true) $$,
-  'the item is approved and points at the competition it created'
+  'the item is approved and points at the event it created'
 );
 
 select results_eq(
   $$ select actor, reason, changed_by from change_log
-     where table_name = 'competitions' and action = 'insert'
-       and row_id = (select result_id from proposal_items where ref = 'b1-comp') $$,
-  $$ values ('claude'::text, 'pgTAP: festival announced'::text, '10000000-0000-0000-0000-000000000001'::uuid) $$,
+     where table_name = 'events' and action = 'insert'
+       and row_id = (select result_id from proposal_items where ref = 'b1-event') $$,
+  $$ values ('claude'::text, 'pgTAP: event announced'::text, '10000000-0000-0000-0000-000000000001'::uuid) $$,
   'change_log records the write as Claude''s, with the proposal''s reason, approved by you'
 );
 
 select results_eq(
   $$ select actor, reason from change_log
      where table_name = 'proposal_items' and action = 'update'
-       and row_id = (select id from proposal_items where ref = 'b1-comp') $$,
-  $$ values ('app'::text, 'Approved proposal: pgTAP: festival announced'::text) $$,
+       and row_id = (select id from proposal_items where ref = 'b1-event') $$,
+  $$ values ('app'::text, 'Approved proposal: pgTAP: event announced'::text) $$,
   'marking the proposal approved is logged as your own decision'
 );
 
 select throws_like(
-  $$ select approve_proposal((select id from proposal_items where ref = 'b1-comp')) $$,
+  $$ select approve_proposal((select id from proposal_items where ref = 'b1-event')) $$,
   '%was already approved%',
   'an item can''t be approved twice'
 );
 
 select lives_ok(
   $$ select approve_proposal((select id from proposal_items where ref = 'b1-scn')) $$,
-  'the scenario can be approved once its competition is'
+  'the scenario can be approved once its event is'
 );
 
 select lives_ok(
@@ -229,8 +229,8 @@ select lives_ok(
 
 select results_eq(
   $$ select scenario_id = (select result_id from proposal_items where ref = 'b1-scn'),
-            (select competition_id from scenarios where id = budget_lines.scenario_id)
-              = (select result_id from proposal_items where ref = 'b1-comp'),
+            (select event_id from scenarios where id = budget_lines.scenario_id)
+              = (select result_id from proposal_items where ref = 'b1-event'),
             source_id
      from budget_lines where description = 'Proposed flights' $$,
   $$ values (true, true, 'b2000000-0000-0000-0000-000000000002'::uuid) $$,

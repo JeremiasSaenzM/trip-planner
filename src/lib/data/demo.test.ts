@@ -47,7 +47,7 @@ describe("demoDataSource writes", () => {
 
     await expect(demoDataSource.createTrip({ name: "Test" })).rejects.toThrow(/disabled in demo mode/);
     await expect(
-      demoDataSource.createCompetition({
+      demoDataSource.createEvent({
         tripId: "20000000-0000-0000-0000-000000000001",
         name: "Test",
         city: "Test",

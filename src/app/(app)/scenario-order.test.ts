@@ -9,7 +9,7 @@ function scenario(id: string, createdAt: string): Scenario {
     id,
     tripId: "trip",
     name: id,
-    competitionId: null,
+    eventId: null,
     includesExtension: false,
     notes: null,
     departureDate: null,

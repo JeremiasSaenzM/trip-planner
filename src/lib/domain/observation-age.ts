@@ -9,7 +9,7 @@ export const RATE_STALENESS_DAYS = 14;
 
 // The generic sources list (scenario-evidence.ts's "What this is built
 // on") has no context on what a given source backs -- a hotel rate, a
-// published festival fee, a venue policy -- so it can't reuse
+// published event fee, a venue policy -- so it can't reuse
 // RATE_STALENESS_DAYS without guessing. Most of what lands there is
 // slower-moving than a market price, so a longer default avoids crying
 // wolf on a tier-1 page that hasn't changed in months.

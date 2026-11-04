@@ -15,10 +15,10 @@ select set_config('request.jwt.claim.sub', '10000000-0000-0000-0000-000000000001
 
 insert into trips (id, owner_id, name, status) values
   ('12000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', 'pgTAP fixture trip', 'planning');
-insert into competitions (id, trip_id, name) values (
-  '12000000-0000-0000-0000-000000000002', '12000000-0000-0000-0000-000000000001', 'pgTAP fixture competition'
+insert into events (id, trip_id, name) values (
+  '12000000-0000-0000-0000-000000000002', '12000000-0000-0000-0000-000000000001', 'pgTAP fixture event'
 );
-insert into scenarios (id, owner_id, trip_id, name, competition_id) values (
+insert into scenarios (id, owner_id, trip_id, name, event_id) values (
   '12000000-0000-0000-0000-000000000003', '10000000-0000-0000-0000-000000000001',
   '12000000-0000-0000-0000-000000000001', 'pgTAP fixture scenario', '12000000-0000-0000-0000-000000000002'
 );
@@ -30,7 +30,7 @@ insert into locations (id, owner_id, name) values
   ('12000000-0000-0000-0000-00000000000b', '10000000-0000-0000-0000-000000000001', 'Home');
 insert into stays (id, owner_id, scenario_id, location_id, start_date, nights, kind, information_state) values (
   '12000000-0000-0000-0000-000000000005', '10000000-0000-0000-0000-000000000001',
-  '12000000-0000-0000-0000-000000000003', '12000000-0000-0000-0000-00000000000a', '2027-07-01', 5, 'festival', 'estimate'
+  '12000000-0000-0000-0000-000000000003', '12000000-0000-0000-0000-00000000000a', '2027-07-01', 5, 'event', 'estimate'
 );
 insert into movements (id, owner_id, scenario_id, sequence, from_location_id, to_location_id, depart_date, arrive_date, mode, information_state) values (
   '12000000-0000-0000-0000-000000000006', '10000000-0000-0000-0000-000000000001',
@@ -148,7 +148,7 @@ select is(
 
 select lives_ok(
   $$ select update_stay(
-       '12000000-0000-0000-0000-000000000005', '12000000-0000-0000-0000-00000000000a', '2027-07-01', 5, 'festival',
+       '12000000-0000-0000-0000-000000000005', '12000000-0000-0000-0000-00000000000a', '2027-07-01', 5, 'event',
        null, 'estimate', null, null, '12000000-0000-0000-0000-000000000007', 'pgTAP: linking the flight'
      ) $$,
   'update_stay accepts a flight_option_id'

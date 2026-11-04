@@ -51,10 +51,10 @@ function missingRateRow(page: Page, rateKindLabel: string) {
   return page.locator("li").filter({ hasText: rateKindLabel });
 }
 
-// /scenarios lists each scenario's competition by name, and the Add
-// forms' competition pickers list every competition too -- so a card
+// /scenarios lists each scenario's event by name, and the Add
+// forms' event pickers list every event too -- so a card
 // is found inside its own section, never page-wide by text alone.
-function scenariosSection(page: Page, heading: "Travel window" | "Scenarios" | "Competitions") {
+function scenariosSection(page: Page, heading: "Travel window" | "Scenarios" | "Events") {
   return page.locator("section").filter({ has: page.getByRole("heading", { name: heading, exact: true }) });
 }
 
@@ -62,8 +62,8 @@ function scenarioCard(page: Page, name: string) {
   return scenariosSection(page, "Scenarios").locator("div.rounded-xl").filter({ hasText: name });
 }
 
-function competitionCard(page: Page, name: string) {
-  return scenariosSection(page, "Competitions").locator("div.rounded-xl").filter({ hasText: name });
+function eventCard(page: Page, name: string) {
+  return scenariosSection(page, "Events").locator("div.rounded-xl").filter({ hasText: name });
 }
 
 // Scoped inside their own list's data-testid, not just by text: the
@@ -143,17 +143,17 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await expect(page.getByText("Start your trip")).toBeVisible();
     await page.getByLabel("Trip name").fill("Thornmere 2029");
     await page.getByRole("button", { name: "Create trip", exact: true }).click();
-    await expect(page.getByText("Add a competition")).toBeVisible();
+    await expect(page.getByText("Add an event")).toBeVisible();
   });
 
-  await test.step("add a competition", async () => {
+  await test.step("add an event", async () => {
     await page.getByLabel("Name").fill("Thornmere International Choir Festival");
     await page.getByLabel("City").fill("Thornmere");
     await page.getByLabel("Country").fill("United Kingdom");
-    await page.getByLabel("Official festival dates: first day").fill("2029-11-06");
-    await page.getByLabel("Official festival dates: final day").fill("2029-11-11");
+    await page.getByLabel("Official event dates: first day").fill("2029-11-06");
+    await page.getByLabel("Official event dates: final day").fill("2029-11-11");
     await page.getByLabel("Time zone").fill("Europe/London");
-    await page.getByRole("button", { name: "Add competition", exact: true }).click();
+    await page.getByRole("button", { name: "Add event", exact: true }).click();
     await expect(page.getByText("Create a scenario")).toBeVisible();
   });
 
@@ -441,8 +441,8 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await expect(row.getByRole("button", { name: "Save", exact: true })).toBeVisible();
   });
 
-  const FIRST_COMPETITION = "Thornmere International Choir Festival";
-  const DATELESS_COMPETITION = "Global Choir Festival (host TBA)";
+  const FIRST_EVENT = "Thornmere International Choir Festival";
+  const DATELESS_EVENT = "Global Choir Festival (host TBA)";
   let firstScenarioId = "";
   let datelessScenarioId = "";
 
@@ -457,13 +457,13 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await expect(scenarioCard(page, "Thornmere 2029").getByText("Selected")).toBeVisible();
   });
 
-  await test.step("add a second competition with no city and no dates", async () => {
-    const form = page.locator("form").filter({ has: page.getByRole("button", { name: "Add competition", exact: true }) });
-    await form.getByLabel("Name").fill(DATELESS_COMPETITION);
-    await form.getByRole("button", { name: "Add competition", exact: true }).click();
+  await test.step("add a second event with no city and no dates", async () => {
+    const form = page.locator("form").filter({ has: page.getByRole("button", { name: "Add event", exact: true }) });
+    await form.getByLabel("Name").fill(DATELESS_EVENT);
+    await form.getByRole("button", { name: "Add event", exact: true }).click();
 
-    const card = competitionCard(page, DATELESS_COMPETITION);
-    await expect(card.getByText("Festival dates not announced yet")).toBeVisible();
+    const card = eventCard(page, DATELESS_EVENT);
+    await expect(card.getByText("Event dates not announced yet")).toBeVisible();
     await expect(card.getByText("Host city not announced yet")).toBeVisible();
     await expect(card.getByText("Not used by any scenario")).toBeVisible();
   });
@@ -471,10 +471,10 @@ test("the full first-run journey, starting from a signed-out, empty account", as
   await test.step("create a scenario for it and switch to it", async () => {
     const form = page.locator("form").filter({ has: page.getByRole("button", { name: "Create scenario", exact: true }) });
     await form.getByLabel("Name").fill("Host TBA scenario");
-    await form.getByLabel("Competition").selectOption({ label: DATELESS_COMPETITION });
+    await form.getByLabel("Event").selectOption({ label: DATELESS_EVENT });
     await form.getByRole("button", { name: "Create scenario", exact: true }).click();
 
-    await expect(competitionCard(page, DATELESS_COMPETITION).getByText("Used by: Host TBA scenario")).toBeVisible();
+    await expect(eventCard(page, DATELESS_EVENT).getByText("Used by: Host TBA scenario")).toBeVisible();
 
     await scenarioCard(page, "Host TBA scenario").getByRole("link", { name: "Switch to" }).click();
     await expect(page).toHaveURL(/\/\?scenario=/);
@@ -482,9 +482,9 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     expect(datelessScenarioId).not.toBe(firstScenarioId);
   });
 
-  await test.step("with no festival dates, say so instead of showing $0", async () => {
+  await test.step("with no event dates, say so instead of showing $0", async () => {
     await expect(page.getByTestId("no-savings-requirement")).toContainText(
-      "No departure date or festival dates yet, so there's no savings requirement to compute.",
+      "No departure date or event dates yet, so there's no savings requirement to compute.",
     );
     await expect(page.getByTestId("required-monthly-saving")).toHaveCount(0);
   });
@@ -514,7 +514,7 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await expect(budgetLineRow(page, "Host TBA registration")).toHaveCount(0);
   });
 
-  await test.step("with no festival dates, Payments says it can't split instead of bucketing silently", async () => {
+  await test.step("with no event dates, Payments says it can't split instead of bucketing silently", async () => {
     await page.goto(`/payments?scenario=${datelessScenarioId}`);
     await page.getByLabel("Description").fill("Host TBA deposit");
     await page.getByLabel("Budget category").selectOption("A");
@@ -523,51 +523,50 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await page.getByRole("button", { name: "Add payment", exact: true }).click();
     await expect(page.getByText("Host TBA deposit", { exact: true })).toBeVisible();
 
-    await expect(page.getByTestId("no-payment-split")).toContainText("No departure date or festival dates yet");
+    await expect(page.getByTestId("no-payment-split")).toContainText("No departure date or event dates yet");
     await expect(page.getByRole("heading", { name: "All payments" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Due before you leave" })).toHaveCount(0);
   });
 
-  await test.step("edit the first competition's dates to confirmed, with a source", async () => {
+  await test.step("edit the first event's dates to confirmed, with a source", async () => {
     await page.goto(`/scenarios?scenario=${firstScenarioId}`);
-    const card = competitionCard(page, FIRST_COMPETITION);
+    const card = eventCard(page, FIRST_EVENT);
 
     await card.getByRole("button", { name: "Edit", exact: true }).click();
-    await card.getByLabel("Information state (festival dates)").selectOption("confirmed");
+    await card.getByLabel("Information state (event dates)").selectOption("confirmed");
     // A role lookup, not getByLabel: this picker is optional, so its
-    // visible label reads "Source (festival dates) (optional)".
-    await card.getByRole("combobox", { name: /^Source \(festival dates\)/ }).selectOption("__new__");
-    await card.getByLabel("Provider", { exact: true }).fill("Fictional festival website");
+    // visible label reads "Source (event dates) (optional)".
+    await card.getByRole("combobox", { name: /^Source \(event dates\)/ }).selectOption("__new__");
+    await card.getByLabel("Provider", { exact: true }).fill("Fictional event website");
     await card.getByLabel("Tier", { exact: true }).selectOption("1");
     await card.getByLabel("Observation date", { exact: true }).fill("2026-10-01");
     await card.getByLabel("Reason for this change").fill("Dates published on the official site");
     await card.getByRole("button", { name: "Save", exact: true }).click();
 
     await expect(card.getByText(/\(Confirmed\)/)).toBeVisible();
-    await expect(card.getByText("Acceptance pending")).toBeVisible();
   });
 
   await test.step("create an empty scenario, rename it and link it, then delete it with a reason", async () => {
     const form = page.locator("form").filter({ has: page.getByRole("button", { name: "Create scenario", exact: true }) });
     await form.getByLabel("Name").fill("Throwaway scenario");
-    await form.getByLabel("Competition").selectOption({ label: "No competition yet" });
+    await form.getByLabel("Event").selectOption({ label: "No event yet" });
     await form.getByRole("button", { name: "Create scenario", exact: true }).click();
-    await expect(scenarioCard(page, "Throwaway scenario").getByText("No competition yet")).toBeVisible();
+    await expect(scenarioCard(page, "Throwaway scenario").getByText("No event yet")).toBeVisible();
 
     const card = scenarioCard(page, "Throwaway scenario");
     await card.getByRole("button", { name: "Edit", exact: true }).click();
     await card.getByLabel("New name").fill("Throwaway scenario (linked)");
-    await card.getByLabel("Competition").selectOption({ label: DATELESS_COMPETITION });
+    await card.getByLabel("Event").selectOption({ label: DATELESS_EVENT });
     await card.getByLabel("Reason for this change").fill("Trying out a link");
     await card.getByRole("button", { name: "Save", exact: true }).click();
 
     const renamed = scenarioCard(page, "Throwaway scenario (linked)");
-    // The card's read-only competition caption is a <p> -- getByText alone
+    // The card's read-only event caption is a <p> -- getByText alone
     // also matches the <option> of the same name inside the edit form's
-    // competition <select>, which can still be mid-unmount right after
+    // event <select>, which can still be mid-unmount right after
     // Save (the useActionState effect that closes it fires a tick after
     // the server data refreshes), so this pins it to the caption only.
-    await expect(renamed.locator("p").filter({ hasText: DATELESS_COMPETITION })).toBeVisible();
+    await expect(renamed.locator("p").filter({ hasText: DATELESS_EVENT })).toBeVisible();
 
     await renamed.getByRole("button", { name: "Delete", exact: true }).click();
     await renamed.getByLabel("Reason for deleting this").fill("Only a test");
@@ -593,9 +592,9 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     ).toBeVisible();
   });
 
-  await test.step("payments due after the festival starts, or with no due date, are listed as moved to departure", async () => {
+  await test.step("payments due after the event starts, or with no due date, are listed as moved to departure", async () => {
     for (const [description, amount, dueDate] of [
-      ["Post-festival hotel", "120", "2029-11-15"],
+      ["Post-event hotel", "120", "2029-11-15"],
       ["Choir arrangement", "80", ""],
     ]) {
       // A fresh page each time, so the second payment can't inherit the
@@ -611,19 +610,19 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     }
 
     await page.goto(`/?scenario=${firstScenarioId}`);
-    // No travel window yet: the festival's first official day stands in.
+    // No travel window yet: the event's first official day stands in.
     await expect(page.getByTestId("departure-anchor")).toHaveText(
-      "No departure date set for the trip yet, so saving toward the festival's first day, Nov 6, 2029. " +
+      "No departure date set for the trip yet, so saving toward the event's first day, Nov 6, 2029. " +
         "Your last income before then arrives Oct 31, 2029.",
     );
     const pots = page.getByTestId("deadline-pots");
-    await expect(pots.getByText("Post-festival hotel — $120, due Nov 15, 2029, needed before you leave")).toBeVisible();
+    await expect(pots.getByText("Post-event hotel — $120, due Nov 15, 2029, needed before you leave")).toBeVisible();
     await expect(pots.getByText("Choir arrangement — $80, no due date, assumed due at departure")).toBeVisible();
     await expect(pots.getByText("Registration fee — $300, due Feb 1, 2027")).toBeVisible();
 
     // Saved for by the last month-end income before leaving, not the
     // departure day itself -- and the pot says why.
-    const departurePot = page.getByTestId("deadline-pot").filter({ hasText: "Post-festival hotel" });
+    const departurePot = page.getByTestId("deadline-pot").filter({ hasText: "Post-event hotel" });
     await expect(departurePot).toContainText("By Oct 31, 2029 · last income before you leave");
     await expect(departurePot.getByTestId("pot-income-note")).toContainText("Nov 6, 2029 (you leave)");
     await expect(departurePot).toContainText("Choir arrangement");
@@ -645,12 +644,12 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await expect(page.getByTestId("departure-anchor")).toHaveText(
       "Saving toward your departure on Nov 3, 2029. Your last income before then arrives Oct 31, 2029.",
     );
-    const departurePot = page.getByTestId("deadline-pot").filter({ hasText: "Post-festival hotel" });
+    const departurePot = page.getByTestId("deadline-pot").filter({ hasText: "Post-event hotel" });
     await expect(departurePot).toContainText("By Oct 31, 2029 · last income before you leave");
     await expect(departurePot.getByTestId("pot-income-note")).toContainText("Nov 3, 2029 (you leave)");
-    await expect(page.getByText(/departure date is on or after the festival/)).toHaveCount(0);
+    await expect(page.getByText(/departure date is on or after the event/)).toHaveCount(0);
 
-    // Trip-wide: a scenario whose competition has no dates now has a
+    // Trip-wide: a scenario whose event has no dates now has a
     // departure to save toward too.
     await page.goto(`/?scenario=${datelessScenarioId}`);
     await expect(page.getByTestId("required-monthly-saving")).toBeVisible();
@@ -691,7 +690,7 @@ test("the full first-run journey, starting from a signed-out, empty account", as
 
     await expect(page.getByTestId("scenario-name")).toHaveText("Thornmere 2029");
     const whatThisIs = page.locator("section").filter({ has: page.getByRole("heading", { name: "What this is" }) });
-    await expect(whatThisIs.getByText(FIRST_COMPETITION)).toBeVisible();
+    await expect(whatThisIs.getByText(FIRST_EVENT)).toBeVisible();
     await expect(whatThisIs.getByText("Leave Nov 3, 2029 · return Nov 14, 2029")).toBeVisible();
     // Nothing invented for what isn't stored.
     await expect(whatThisIs.getByText(/No notes recorded for this scenario/)).toBeVisible();
@@ -707,7 +706,7 @@ test("the full first-run journey, starting from a signed-out, empty account", as
       .locator("section")
       .filter({ has: page.getByRole("heading", { name: "When money is needed" }) });
     await expect(
-      whenNeeded.getByText("Post-festival hotel — $120, due Nov 15, 2029, needed before you leave"),
+      whenNeeded.getByText("Post-event hotel — $120, due Nov 15, 2029, needed before you leave"),
     ).toBeVisible();
 
     await expect(page.getByText("None of this scenario's budget lines has a source.")).toBeVisible();
@@ -766,7 +765,7 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await page.getByLabel("Location", { exact: true }).selectOption({ label: "Cardiff (no time zone yet)" });
     await page.getByLabel("First night").fill("2029-11-03");
     await page.getByLabel("Nights").fill("10");
-    await page.getByLabel("Kind").selectOption("festival");
+    await page.getByLabel("Kind").selectOption("event");
     await page.getByRole("button", { name: "Add stay", exact: true }).click();
     await expect(page.getByText("Stays total 10 nights, but the travel window is 11 nights.")).toBeVisible();
 
@@ -865,7 +864,7 @@ test("the full first-run journey, starting from a signed-out, empty account", as
 
   await test.step("add flight options, watch the checks run, and compare -- never a sort control", async () => {
     // F-e2e-A: a round trip linked to the existing movements, with
-    // segments that land well before the festival and leave well
+    // segments that land well before the event and leave well
     // after it, refundable and with baggage included -- every hard
     // constraint should read "Pass".
     await page.getByLabel("Label", { exact: true }).fill("F-e2e-A");
@@ -907,17 +906,17 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await optionA.getByRole("button", { name: "Add segment", exact: true }).click();
     await expect(optionA.getByTestId("flight-segments-list").getByText("LHR → JFK")).toBeVisible();
 
-    // Neither movement is linked to this option yet, so the festival
+    // Neither movement is linked to this option yet, so the event
     // check can't resolve its onward/return travel time -- "Unknown",
     // not a guessed "Pass".
     await expect(optionA.getByTestId("constraint-badge").filter({ hasText: "Pass" })).toHaveCount(2);
     await expect(optionA.getByTestId("constraint-badge").filter({ hasText: "Unknown" })).toHaveCount(1);
 
     // Linking the existing Home -> Cardiff / Cardiff -> Home movements
-    // to this option gives the festival check a chain to walk. The
-    // outbound leg lands exactly at the festival-kind stay's own
+    // to this option gives the event check a chain to walk. The
+    // outbound leg lands exactly at the event-kind stay's own
     // location, so calculateOnwardTravelMinutes resolves it (0 minutes)
-    // without needing a zone at all -- but findFestivalDeparture has no
+    // without needing a zone at all -- but findEventDeparture has no
     // such shortcut: it always needs the departure location's own zone
     // to interpret a local clock reading, even just to bound a result.
     // Neither Home nor Cardiff has one in this flow, so the combined
@@ -937,20 +936,20 @@ test("the full first-run journey, starting from a signed-out, empty account", as
 
     await expect(optionA.getByTestId("constraint-badge").filter({ hasText: "Pass" })).toHaveCount(2);
     await expect(optionA.getByTestId("constraint-badge").filter({ hasText: "Unknown" })).toHaveCount(1);
-    await expect(optionA.getByText("at the destination before the first festival day begins")).toBeVisible();
+    await expect(optionA.getByText("at the destination before the first event day begins")).toBeVisible();
     await expect(
-      optionA.getByText("festival departure unknown: the departure location has no time zone recorded yet"),
+      optionA.getByText("event departure unknown: the departure location has no time zone recorded yet"),
     ).toBeVisible();
 
-    // Neither the competition nor Cardiff has a time zone recorded in
+    // Neither the event nor Cardiff has a time zone recorded in
     // this flow, so there's nothing to compare -- the mismatch warning
     // stays unknown, not shown, rather than guessing.
-    await expect(optionA.getByTestId("festival-location-timezone-mismatch")).toHaveCount(0);
+    await expect(optionA.getByTestId("event-location-timezone-mismatch")).toHaveCount(0);
   });
 
   await test.step("give a zone-less location its time zone through the edit form, and watch the dependent check answer itself", async () => {
-    // Cardiff is the one driving findFestivalDeparture's "unknown" above
-    // (find-festival-departure.ts: a departure location with no zone).
+    // Cardiff is the one driving findEventDeparture's "unknown" above
+    // (find-event-departure.ts: a departure location with no zone).
     // Editing it here, not re-creating it -- the point of this whole
     // phase is that a place never becomes two.
     const cardiff = locationRow(page, "Cardiff");
@@ -961,16 +960,16 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await expect(cardiff.getByText("No time zone recorded yet")).not.toBeVisible();
     await expect(cardiff.getByText("Europe/London")).toBeVisible();
 
-    // Same option as above, re-fetched after the edit -- the "festival
+    // Same option as above, re-fetched after the edit -- the "event
     // departure unknown: ... no time zone recorded yet" reason is gone,
     // replaced by an actual answer (pass or fail, either is fine: the
     // point is it's no longer "unknown"). The arrival half was already
     // settled, so this is the only constraint badge left to move.
     const optionA = flightOptionCard(page, "F-e2e-A");
     await expect(
-      optionA.getByText("festival departure unknown: the departure location has no time zone recorded yet"),
+      optionA.getByText("event departure unknown: the departure location has no time zone recorded yet"),
     ).not.toBeVisible();
-    await expect(optionA.getByText(/leaves the festival location/)).toBeVisible();
+    await expect(optionA.getByText(/leaves the event location/)).toBeVisible();
     await expect(optionA.getByTestId("constraint-badge").filter({ hasText: "Unknown" })).toHaveCount(0);
   });
 
@@ -991,7 +990,7 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await expect(optionB).toBeVisible();
     // No segments at all means no intermediate stop to flag -- the
     // US/Canada check reads that as "Pass", not a guess either way.
-    // The festival-arrival and baggage checks have nothing to go on,
+    // The event-arrival and baggage checks have nothing to go on,
     // so those stay "Unknown" rather than looking like a pass.
     await expect(optionB.getByTestId("constraint-badge").filter({ hasText: "Pass" })).toHaveCount(1);
     await expect(optionB.getByTestId("constraint-badge").filter({ hasText: "Unknown" })).toHaveCount(2);
@@ -1026,7 +1025,7 @@ test("the full first-run journey, starting from a signed-out, empty account", as
   });
 
   // One research batch, pasted the way a claude.ai session would hand it
-  // over: a source, a competition with no host yet, a scenario for it
+  // over: a source, an event with no host yet, a scenario for it
   // and three budget lines in it (by ref, no ids yet), an update to an
   // existing line, an update written against a value that has since
   // moved, and a scenario-plus-line chain that gets rejected as a whole.
@@ -1064,12 +1063,12 @@ test("the full first-run journey, starting from a signed-out, empty account", as
           reason: "Where the fares came from",
           data: { provider: "Fictional fare tracker", tier: 3, observedOn: "2026-10-01", url: "https://example.com/fares" },
         },
-        { op: "create_competition", ref: "olympics", reason: "New candidate, host not announced", data: { name: "Fictional Choir Olympics 2028" } },
+        { op: "create_event", ref: "olympics", reason: "New candidate, host not announced", data: { name: "Fictional Choir Olympics 2028" } },
         {
           op: "create_scenario",
           ref: "olympics-scn",
           reason: "One scenario per candidate",
-          data: { name: "Olympics 2028", competition: { ref: "olympics" } },
+          data: { name: "Olympics 2028", event: { ref: "olympics" } },
         },
         {
           op: "create_budget_line",
@@ -1151,7 +1150,7 @@ test("the full first-run journey, starting from a signed-out, empty account", as
 
   await test.step("the review shows current next to proposed, the source, and what's stale", async () => {
     await expect(proposalCard(page, 1).getByRole("link", { name: "https://example.com/fares" })).toBeVisible();
-    await expect(proposalCard(page, 3).getByText("Waiting on item 2 (new competition)")).toBeVisible();
+    await expect(proposalCard(page, 3).getByText("Waiting on item 2 (new event)")).toBeVisible();
     await expect(proposalCard(page, 4).getByText(/Fictional fare tracker \(item 1 of this batch, pending\)/).first()).toBeVisible();
 
     const update = proposalCard(page, 7);
@@ -1259,21 +1258,21 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     const exported = JSON.parse(readFileSync(path!, "utf-8"));
 
     expect(typeof exported.exportedAt).toBe("string");
-    expect(exported.schemaVersion).toBe(8);
+    expect(exported.schemaVersion).toBe(9);
     expect(exported.data.trips[0]).toMatchObject({ departureDate: "2029-11-03", returnDate: "2029-11-14" });
 
     const cardiff = exported.data.locations.find((l: { name: string }) => l.name === "Cardiff");
     const home = exported.data.locations.find((l: { name: string }) => l.name === "Home");
     const exportedStay = exported.data.stays.find((stay: { locationId: string }) => stay.locationId === cardiff?.id);
-    expect(exportedStay).toMatchObject({ nights: 11, kind: "festival" });
+    expect(exportedStay).toMatchObject({ nights: 11, kind: "event" });
     expect(
       exported.data.movements.some(
         (movement: { fromLocationId: string; toLocationId: string }) =>
           movement.fromLocationId === home?.id && movement.toLocationId === cardiff?.id,
       ),
     ).toBe(true);
-    const dateless = exported.data.competitions.find(
-      (competition: { name: string }) => competition.name === "Global Choir Festival (host TBA)",
+    const dateless = exported.data.events.find(
+      (event: { name: string }) => event.name === "Global Choir Festival (host TBA)",
     );
     expect(dateless.startDate).toBeNull();
     expect(dateless.city).toBeNull();

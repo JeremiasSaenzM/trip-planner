@@ -3,7 +3,7 @@ import type { z } from "zod";
 import type {
   AccommodationOption,
   BudgetLine,
-  Competition,
+  TripEvent,
   FlightOption,
   FlightSegment,
   FxRate,
@@ -17,7 +17,7 @@ import type {
 } from "@/lib/data/types";
 import { createAccommodationOptionInput, updateAccommodationOptionInput } from "@/lib/validation/accommodation-options";
 import { createBudgetLineInput, updateBudgetLineInput } from "@/lib/validation/budget-lines";
-import { createCompetitionInput, updateCompetitionInput } from "@/lib/validation/competitions";
+import { createEventInput, updateEventInput } from "@/lib/validation/events";
 import { createFlightOptionInput, updateFlightOptionInput } from "@/lib/validation/flight-options";
 import { createFlightSegmentInput } from "@/lib/validation/flight-segments";
 import { createFxRateInput, updateFxRateInput } from "@/lib/validation/fx-rates";
@@ -41,7 +41,7 @@ import {
 } from "./schema";
 
 export type CurrentRows = {
-  competitions: Competition[];
+  events: TripEvent[];
   scenarios: Scenario[];
   budgetLines: BudgetLine[];
   payments: Payment[];
@@ -72,8 +72,8 @@ export function readPayload(op: ProposalOp, payload: unknown): StoredPayload | n
  */
 export function currentFields(op: UpdateOp, targetId: string, rows: CurrentRows): Record<string, unknown> | null {
   switch (op) {
-    case "update_competition": {
-      const row = rows.competitions.find((c) => c.id === targetId);
+    case "update_event": {
+      const row = rows.events.find((c) => c.id === targetId);
       return row
         ? {
             name: row.name,
@@ -93,7 +93,7 @@ export function currentFields(op: UpdateOp, targetId: string, rows: CurrentRows)
       return row
         ? {
             name: row.name,
-            competition: row.competitionId,
+            event: row.eventId,
             departureDate: row.departureDate,
             returnDate: row.returnDate,
             travelDatesState: row.travelDatesState,
@@ -314,17 +314,17 @@ function checkCreate(
   switch (op) {
     case "create_source":
       return result(createSourceInput.safeParse(data as CreateData<"create_source">));
-    case "create_competition": {
-      const { datesSource, ...rest } = data as CreateData<"create_competition">;
-      return result(createCompetitionInput.safeParse({ ...rest, tripId, datesSourceId: ref(datesSource) }));
+    case "create_event": {
+      const { datesSource, ...rest } = data as CreateData<"create_event">;
+      return result(createEventInput.safeParse({ ...rest, tripId, datesSourceId: ref(datesSource) }));
     }
     case "create_scenario": {
-      const { competition, travelDatesSource, ...rest } = data as CreateData<"create_scenario">;
+      const { event, travelDatesSource, ...rest } = data as CreateData<"create_scenario">;
       return result(
         createScenarioInput.safeParse({
           ...rest,
           tripId,
-          competitionId: ref(competition),
+          eventId: ref(event),
           travelDatesSourceId: ref(travelDatesSource),
         }),
       );
@@ -392,9 +392,9 @@ function checkCreate(
 
 function checkUpdate(op: UpdateOp, id: string, merged: Record<string, unknown>, reason: string): FormCheck {
   switch (op) {
-    case "update_competition":
+    case "update_event":
       return result(
-        updateCompetitionInput.safeParse({
+        updateEventInput.safeParse({
           id,
           name: merged.name,
           city: absent(merged.city),
@@ -413,7 +413,7 @@ function checkUpdate(op: UpdateOp, id: string, merged: Record<string, unknown>, 
         updateScenarioInput.safeParse({
           id,
           name: merged.name,
-          competitionId: absent(merged.competition),
+          eventId: absent(merged.event),
           departureDate: absent(merged.departureDate),
           returnDate: absent(merged.returnDate),
           travelDatesState: merged.travelDatesState,

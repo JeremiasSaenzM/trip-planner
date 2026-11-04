@@ -4,7 +4,7 @@ import { dataSource } from "@/lib/data";
 import type {
   AccommodationOption,
   BudgetLine,
-  Competition,
+  TripEvent,
   FlightOption,
   FlightSegment,
   FxRate,
@@ -36,7 +36,7 @@ import {
   checkBudgetLineNightsAddUp,
   type BudgetLineNightsCheckResult,
 } from "@/lib/domain/check-budget-line-nights-add-up";
-import { checkFestivalStayCoverage, type FestivalStayCoverageResult } from "@/lib/domain/check-festival-stay-coverage";
+import { checkEventStayCoverage, type EventStayCoverageResult } from "@/lib/domain/check-event-stay-coverage";
 import { checkStayNightsMatchWindow, type StayNightsCheckResult } from "@/lib/domain/check-stay-nights-match-window";
 import { checkTravelWindow, type TravelWindowIssue } from "@/lib/domain/check-travel-window";
 import { findMissingFxRates, type MissingFxRate } from "@/lib/domain/find-missing-fx-rates";
@@ -59,13 +59,13 @@ export type { Basis };
 
 export type DashboardData =
   | { status: "no_trip" }
-  | { status: "no_scenario"; trip: Trip; competitions: Competition[] }
+  | { status: "no_scenario"; trip: Trip; events: TripEvent[] }
   | {
       status: "ready";
       trip: Trip;
       scenario: Scenario;
       scenarios: Scenario[];
-      competition: Competition | null;
+      event: TripEvent | null;
       basis: Basis;
       asOfDate: string;
       rollup: RollUpBudgetByScenarioResult;
@@ -75,7 +75,7 @@ export type DashboardData =
        * never trip.departureDate/returnDate directly. */
       travelWindow: ResolvedTravelWindow;
       /** The date every savings deadline is measured against: travelWindow's
-       * own departure date, else the competition's first official day
+       * own departure date, else the event's first official day
        * (resolveDepartureDate()). null when neither exists. */
       departure: ResolvedDeparture | null;
       /** The traveller's last income date on or before departure -- the
@@ -83,12 +83,12 @@ export type DashboardData =
        * null when departure is. */
       departureSaveBy: string | null;
       /** The trip's travel window checked against this scenario's
-       * festival period -- empty when it fits, or when there's nothing to
+       * event period -- empty when it fits, or when there's nothing to
        * compare yet. */
       travelWindowIssues: TravelWindowIssue[];
       /** null when noDepartureDate. */
       savings: CalculateRequiredSavingsResult | null;
-      /** No departure date and no festival dates -- there's no deadline
+      /** No departure date and no event dates -- there's no deadline
        * to save toward, so no savings requirement can be computed. Pages
        * must say so in words, never show it as $0. */
       noDepartureDate: boolean;
@@ -146,7 +146,7 @@ export type DashboardData =
       itineraryTimeline: ItineraryDay<Movement>[];
       /** Phase 6.4's five itinerary checks -- warnings, not blocks. */
       stayNightsCheck: StayNightsCheckResult;
-      festivalStayCoverage: FestivalStayCoverageResult;
+      eventStayCoverage: EventStayCoverageResult;
       pathContinuityIssues: PathContinuityIssue[];
       unaccountedNights: UnaccountedNight[];
       movementsMissingBudgetLine: MovementMissingBudgetLine[];
@@ -187,7 +187,7 @@ export async function loadDashboardData(params: {
   const [
     trips,
     scenarios,
-    competitions,
+    events,
     budgetLines,
     payments,
     savingsEntries,
@@ -203,7 +203,7 @@ export async function loadDashboardData(params: {
   ] = await Promise.all([
     dataSource.getTrips(),
     dataSource.getScenarios(),
-    dataSource.getCompetitions(),
+    dataSource.getEvents(),
     dataSource.getBudgetLines(),
     dataSource.getPayments(),
     dataSource.getSavingsEntries(),
@@ -221,11 +221,11 @@ export async function loadDashboardData(params: {
   const trip = trips[0];
   if (!trip) return { status: "no_trip" };
 
-  const tripCompetitions = competitions.filter((c) => c.tripId === trip.id);
+  const tripEvents = events.filter((e) => e.tripId === trip.id);
 
   const tripScenarios = sortScenarios(scenarios.filter((s) => s.tripId === trip.id));
   const scenario = tripScenarios.find((s) => s.id === params.scenarioId) ?? tripScenarios[0];
-  if (!scenario) return { status: "no_scenario", trip, competitions: tripCompetitions };
+  if (!scenario) return { status: "no_scenario", trip, events: tripEvents };
 
   const basis = parseBasis(params.basis);
   const asOfDate = new Date().toISOString().slice(0, 10);
@@ -259,23 +259,21 @@ export async function loadDashboardData(params: {
     rates,
   });
 
-  const competition = scenario.competitionId
-    ? competitions.find((c) => c.id === scenario.competitionId) ?? null
-    : null;
+  const event = scenario.eventId ? events.find((e) => e.id === scenario.eventId) ?? null : null;
 
   const travelWindow = resolveTravelWindow(scenario, trip);
   const departure = resolveDepartureDate({
     windowDepartureDate: travelWindow.departureDate,
     windowTravelDatesState: travelWindow.travelDatesState,
     windowOrigin: travelWindow.origin,
-    competitionStartDate: competition?.startDate ?? null,
-    competitionDatesState: competition?.datesState ?? null,
+    eventStartDate: event?.startDate ?? null,
+    eventDatesState: event?.datesState ?? null,
   });
   const travelWindowIssues = checkTravelWindow({
     departureDate: travelWindow.departureDate,
     returnDate: travelWindow.returnDate,
-    festivalStartDate: competition?.startDate ?? null,
-    festivalEndDate: competition?.endDate ?? null,
+    eventStartDate: event?.startDate ?? null,
+    eventEndDate: event?.endDate ?? null,
   });
 
   const scenarioStays = stays.filter((stay) => stay.scenarioId === scenario.id);
@@ -297,10 +295,10 @@ export async function loadDashboardData(params: {
     departureDate: travelWindow.departureDate,
     returnDate: travelWindow.returnDate,
   });
-  const festivalStayCoverage = checkFestivalStayCoverage({
+  const eventStayCoverage = checkEventStayCoverage({
     stays: scenarioStays,
-    festivalStartDate: competition?.startDate ?? null,
-    festivalEndDate: competition?.endDate ?? null,
+    eventStartDate: event?.startDate ?? null,
+    eventEndDate: event?.endDate ?? null,
   });
   const pathContinuityIssues = checkPathContinuity(scenarioMovements);
   const unaccountedNights = checkNightsAccountedFor(scenarioMovements, scenarioStays);
@@ -330,7 +328,7 @@ export async function loadDashboardData(params: {
     evaluateFlightOption({
       option,
       segments: scenarioFlightSegments.filter((segment) => segment.flightOptionId === option.id),
-      competition,
+      event,
       movements: scenarioMovements,
       stays: scenarioStays,
       locations,
@@ -377,7 +375,7 @@ export async function loadDashboardData(params: {
       trip,
       scenario,
       scenarios: tripScenarios,
-      competition,
+      event,
       basis,
       asOfDate,
       rollup,
@@ -406,7 +404,7 @@ export async function loadDashboardData(params: {
       locations,
       itineraryTimeline,
       stayNightsCheck,
-      festivalStayCoverage,
+      eventStayCoverage,
       pathContinuityIssues,
       unaccountedNights,
       movementsMissingBudgetLine,
@@ -450,7 +448,7 @@ export async function loadDashboardData(params: {
     trip,
     scenario,
     scenarios: tripScenarios,
-    competition,
+    event,
     basis,
     asOfDate,
     rollup,
@@ -479,7 +477,7 @@ export async function loadDashboardData(params: {
     locations,
     itineraryTimeline,
     stayNightsCheck,
-    festivalStayCoverage,
+    eventStayCoverage,
     pathContinuityIssues,
     unaccountedNights,
     movementsMissingBudgetLine,

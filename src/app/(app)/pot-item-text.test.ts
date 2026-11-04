@@ -33,8 +33,8 @@ describe("potItemText", () => {
   });
 
   it("says an undated payment has no due date and is assumed due at departure", () => {
-    expect(potItemText(item({ description: "Competition fee", originalAmount: 50, timing: "undated" }))).toBe(
-      "Competition fee — $50, no due date, assumed due at departure",
+    expect(potItemText(item({ description: "Event fee", originalAmount: 50, timing: "undated" }))).toBe(
+      "Event fee — $50, no due date, assumed due at departure",
     );
   });
 
@@ -64,9 +64,9 @@ describe("departureAnchorText", () => {
     );
   });
 
-  it("says the festival's first day is a stand-in when the trip has no departure date", () => {
-    expect(departureAnchorText({ date: "2028-07-05", source: "competition", confirmed: true }, "2028-07-05")).toBe(
-      "No departure date set for the trip yet, so saving toward the festival's first day, Jul 5, 2028.",
+  it("says the event's first day is a stand-in when the trip has no departure date", () => {
+    expect(departureAnchorText({ date: "2028-07-05", source: "event", confirmed: true }, "2028-07-05")).toBe(
+      "No departure date set for the trip yet, so saving toward the event's first day, Jul 5, 2028.",
     );
   });
 

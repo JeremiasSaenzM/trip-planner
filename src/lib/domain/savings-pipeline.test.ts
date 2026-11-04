@@ -16,11 +16,11 @@ import { BASES } from "./types";
 // the plan.
 //
 // Fictional amounts, shaped like a routing with money moving after the
-// festival starts: an arrival city a few days early, a stay after the
-// festival, and two payments with no due date at all.
+// event starts: an arrival city a few days early, a stay after the
+// event, and two payments with no due date at all.
 
 const AS_OF = "2026-10-20";
-const FESTIVAL_START = "2028-07-05";
+const EVENT_START = "2028-07-05";
 const TRIP_DEPARTURE = "2028-07-02";
 // Month-end income: the last income date before TRIP_DEPARTURE, and so
 // the saving deadline for everything owed at departure.
@@ -57,9 +57,9 @@ const PAYMENTS: PaymentForObligations[] = [
   payment("flights", "Flights", 1500, "USD", "2028-01-31"),
   payment("insurance", "Insurance", 100, "USD", "2028-04-30"),
   payment("arrival-night", "Arrival night", 80, "USD", "2028-07-01"),
-  payment("festival-stay", "Festival stay (choir arrangement)", 300, "GBP", null),
-  payment("competition-fee", "Competition fee", 40, "USD", null),
-  payment("city-nights", "City nights after the festival", 900, "USD", "2028-07-10"),
+  payment("event-stay", "Event stay (choir arrangement)", 300, "GBP", null),
+  payment("event-fee", "Event fee", 40, "USD", null),
+  payment("city-nights", "City nights after the event", 900, "USD", "2028-07-10"),
   payment("city-transport", "City transport", 80, "EUR", "2028-07-12"),
   payment("deposit", "Deposit, part paid", 200, "USD", "2027-06-01", { paidAmount: 50, status: "committed" }),
   payment("cancelled", "Cancelled booking", 120, "USD", "2028-03-01", { status: "cancelled" }),
@@ -203,7 +203,7 @@ describe("payments due after departure, and payments with no due date", () => {
       }),
     );
     expect(departurePot.items).toContainEqual(
-      expect.objectContaining({ description: "City nights after the festival", timing: "moved_to_departure" }),
+      expect.objectContaining({ description: "City nights after the event", timing: "moved_to_departure" }),
     );
   });
 
@@ -214,7 +214,7 @@ describe("payments due after departure, and payments with no due date", () => {
 
     expect(departurePot.items).toContainEqual(
       expect.objectContaining({
-        description: "Festival stay (choir arrangement)",
+        description: "Event stay (choir arrangement)",
         originalAmount: 300,
         originalCurrency: "GBP",
         originalDueDate: null,
@@ -246,29 +246,29 @@ describe("payments due after departure, and payments with no due date", () => {
     );
   });
 
-  it("anchors on the trip's departure date when it's earlier than the festival start", () => {
+  it("anchors on the trip's departure date when it's earlier than the event start", () => {
     const departure = resolveDepartureDate({
       windowDepartureDate: TRIP_DEPARTURE,
       windowTravelDatesState: "estimate",
       windowOrigin: "trip",
-      competitionStartDate: FESTIVAL_START,
-      competitionDatesState: "pending",
+      eventStartDate: EVENT_START,
+      eventDatesState: "pending",
     })!;
     const fromTrip = runPipeline(departure.date);
-    const fromFestival = runPipeline(FESTIVAL_START);
+    const fromEvent = runPipeline(EVENT_START);
 
     // Owed on the trip's own date; both dates fall after the 30 June
     // income, so both save toward it.
     const undated = (run: typeof fromTrip) => run.result.obligations.find((o) => o.isEstimatedDueDate)!;
     expect(undated(fromTrip).owedDate).toBe(TRIP_DEPARTURE);
-    expect(undated(fromFestival).owedDate).toBe(FESTIVAL_START);
+    expect(undated(fromEvent).owedDate).toBe(EVENT_START);
     expect(fromTrip.savings.schedule.at(-1)!.dueDate).toBe(DEPARTURE_SAVE_BY);
     // Same money, never more time to save it in: never a lower requirement.
     expect(fromTrip.savings.bindingRequirement.target).toBeGreaterThanOrEqual(
-      fromFestival.savings.bindingRequirement.target,
+      fromEvent.savings.bindingRequirement.target,
     );
     expect(cumulativeAt(fromTrip.savings.schedule.at(-1)!, "target")).toBeCloseTo(
-      cumulativeAt(fromFestival.savings.schedule.at(-1)!, "target"),
+      cumulativeAt(fromEvent.savings.schedule.at(-1)!, "target"),
       6,
     );
   });

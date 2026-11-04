@@ -10,7 +10,6 @@ import type {
 } from "@/lib/domain/types";
 
 export type TripStatus = "planning" | "confirmed" | "completed" | "cancelled";
-export type AcceptanceStatus = "pending" | "accepted" | "declined";
 export type DecidedBy = "traveler" | "choir_director" | "other";
 export type PaymentTiming =
   | "paid_now"
@@ -60,7 +59,7 @@ export type Source = {
   createdAt: string;
 };
 
-export type Competition = {
+export type TripEvent = {
   id: string;
   tripId: string;
   name: string;
@@ -68,16 +67,13 @@ export type Competition = {
   city: string | null;
   country: string | null;
   venue: string | null;
-  /** First and final official festival days. Both null, or both set
-   * (competitions_dates_together) -- a festival period needs both ends. */
+  /** First and final official event days. Both null, or both set
+   * (events_dates_together) -- an event period needs both ends. */
   startDate: string | null;
   endDate: string | null;
   timezone: string | null;
   datesState: InfoState;
   datesSourceId: string | null;
-  acceptanceStatus: AcceptanceStatus;
-  acceptanceDecidedOn: string | null;
-  acceptanceSourceId: string | null;
   isSelected: boolean;
   createdAt: string;
   updatedAt: string;
@@ -87,7 +83,7 @@ export type Scenario = {
   id: string;
   tripId: string;
   name: string;
-  competitionId: string | null;
+  eventId: string | null;
   includesExtension: boolean;
   notes: string | null;
   /** This scenario's own travel window override -- null means it inherits
@@ -104,7 +100,7 @@ export type Scenario = {
 export type Decision = {
   id: string;
   tripId: string;
-  competitionId: string | null;
+  eventId: string | null;
   title: string;
   rationale: string | null;
   decidedOn: string;
@@ -190,7 +186,7 @@ export type FxRate = {
 export type OpenItem = {
   id: string;
   tripId: string;
-  competitionId: string | null;
+  eventId: string | null;
   title: string;
   description: string | null;
   dueDate: string | null;
@@ -342,7 +338,7 @@ export type AccommodationOption = {
    * figure. */
   conditionalRate: boolean;
   undiscountedAmount: number | null;
-  /** Hostels aren't eligible during the festival (check 4) -- a plain
+  /** Hostels aren't eligible during the event (check 4) -- a plain
    * fact, not a lodging taxonomy. */
   isHostel: boolean;
   sourceId: string;
@@ -375,12 +371,12 @@ export type ChangeLogEntry = {
 // of research results, each item approved or rejected on its own.
 export type ProposalOp =
   | "create_source"
-  | "create_competition"
+  | "create_event"
   | "create_scenario"
   | "create_budget_line"
   | "create_payment"
   | "create_fx_rate"
-  | "update_competition"
+  | "update_event"
   | "update_scenario"
   | "update_budget_line"
   | "update_payment"
@@ -449,7 +445,7 @@ export type UpdateTripTravelWindowWrite = {
   reason: string;
 };
 
-type CompetitionFieldsWrite = {
+type TripEventFieldsWrite = {
   name: string;
   city?: string;
   country?: string;
@@ -461,15 +457,13 @@ type CompetitionFieldsWrite = {
   datesSourceId?: string;
 };
 
-export type CreateCompetitionWrite = CompetitionFieldsWrite & { tripId: string };
-// acceptanceStatus is deliberately absent -- see update_competition's
-// own comment (20261019090000_manage_competitions_scenarios.sql).
-export type UpdateCompetitionWrite = CompetitionFieldsWrite & { id: string; reason: string };
+export type CreateEventWrite = TripEventFieldsWrite & { tripId: string };
+export type UpdateEventWrite = TripEventFieldsWrite & { id: string; reason: string };
 
 export type CreateScenarioWrite = {
   tripId: string;
   name: string;
-  competitionId?: string;
+  eventId?: string;
   includesExtension: boolean;
   notes?: string;
   /** Absent = inherit the trip's window, the normal case -- a new
@@ -480,7 +474,7 @@ export type CreateScenarioWrite = {
   returnDate?: string;
   travelDatesSourceId?: string;
 };
-// competitionId absent = unlink (a scenario with no competition yet).
+// eventId absent = unlink (a scenario with no event yet).
 // departureDate/returnDate absent = inherit the trip's window -- never
 // sent as an accidental blank from the regular edit form (both date
 // inputs are required there); clearing an override is its own, separate
@@ -488,7 +482,7 @@ export type CreateScenarioWrite = {
 export type UpdateScenarioWrite = {
   id: string;
   name: string;
-  competitionId?: string;
+  eventId?: string;
   departureDate?: string;
   returnDate?: string;
   travelDatesState: InfoState;
@@ -740,7 +734,7 @@ export type CloseProposalBatchWrite = { batchId: string; reason: string };
 // and never know which implementation answered.
 //
 // Phase 5 is adding write methods here one at a time: the bootstrap flow
-// (create a trip, a competition, a scenario), then savings entries.
+// (create a trip, an event, a scenario), then savings entries.
 // Every one of them MUST call assertWritesAllowed() (src/lib/demo-mode.ts)
 // as its first line, so a form submitted while DEMO_MODE is on throws
 // instead of silently doing nothing, or worse, writing fixture-derived
@@ -748,7 +742,7 @@ export type CloseProposalBatchWrite = { batchId: string; reason: string };
 export type DataSource = {
   getTrips(): Promise<Trip[]>;
   getSources(): Promise<Source[]>;
-  getCompetitions(): Promise<Competition[]>;
+  getEvents(): Promise<TripEvent[]>;
   getScenarios(): Promise<Scenario[]>;
   getDecisions(): Promise<Decision[]>;
   getBudgetLines(): Promise<BudgetLine[]>;
@@ -767,8 +761,8 @@ export type DataSource = {
   getProposalItems(): Promise<ProposalItem[]>;
   createTrip(input: CreateTripWrite): Promise<Trip>;
   updateTripTravelWindow(input: UpdateTripTravelWindowWrite): Promise<Trip>;
-  createCompetition(input: CreateCompetitionWrite): Promise<Competition>;
-  updateCompetition(input: UpdateCompetitionWrite): Promise<Competition>;
+  createEvent(input: CreateEventWrite): Promise<TripEvent>;
+  updateEvent(input: UpdateEventWrite): Promise<TripEvent>;
   createScenario(input: CreateScenarioWrite): Promise<Scenario>;
   updateScenario(input: UpdateScenarioWrite): Promise<Scenario>;
   deleteScenario(input: DeleteScenarioWrite): Promise<void>;

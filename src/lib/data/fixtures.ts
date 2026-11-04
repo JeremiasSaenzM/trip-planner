@@ -2,7 +2,7 @@ import type {
   AccommodationOption,
   BudgetLine,
   ChangeLogEntry,
-  Competition,
+  TripEvent,
   Decision,
   FlightOption,
   FlightSegment,
@@ -33,7 +33,7 @@ export const trips: Trip[] = [
     name: "Fictional 2027 choir trip",
     status: "planning",
     // Left unset on purpose: demo mode shows the fallback to the
-    // competition's first official day.
+    // event's first official day.
     departureDate: null,
     returnDate: null,
     travelDatesState: "pending",
@@ -106,7 +106,7 @@ export const sources: Source[] = [
   },
 ];
 
-export const competitions: Competition[] = [
+export const events: TripEvent[] = [
   {
     id: "40000000-0000-0000-0000-000000000001",
     tripId: "20000000-0000-0000-0000-000000000001",
@@ -119,9 +119,6 @@ export const competitions: Competition[] = [
     timezone: "Europe/Rome",
     datesState: "estimate",
     datesSourceId: null,
-    acceptanceStatus: "pending",
-    acceptanceDecidedOn: null,
-    acceptanceSourceId: null,
     isSelected: false,
     createdAt: "2026-09-10T00:00:00Z",
     updatedAt: "2026-09-10T00:00:00Z",
@@ -138,14 +135,11 @@ export const competitions: Competition[] = [
     timezone: "Europe/Paris",
     datesState: "confirmed",
     datesSourceId: "30000000-0000-0000-0000-000000000001",
-    acceptanceStatus: "accepted",
-    acceptanceDecidedOn: "2026-09-01",
-    acceptanceSourceId: "30000000-0000-0000-0000-000000000001",
     isSelected: true,
     createdAt: "2026-09-01T00:00:00Z",
     updatedAt: "2026-09-01T00:00:00Z",
   },
-  // A candidate whose host and festival dates aren't announced yet --
+  // A candidate whose host and event dates aren't announced yet --
   // shows the "no dates, so no savings requirement" states in Preview.
   {
     id: "40000000-0000-0000-0000-000000000003",
@@ -159,9 +153,6 @@ export const competitions: Competition[] = [
     timezone: null,
     datesState: "pending",
     datesSourceId: null,
-    acceptanceStatus: "pending",
-    acceptanceDecidedOn: null,
-    acceptanceSourceId: null,
     isSelected: false,
     createdAt: "2026-10-05T00:00:00Z",
     updatedAt: "2026-10-05T00:00:00Z",
@@ -173,7 +164,7 @@ export const scenarios: Scenario[] = [
     id: "50000000-0000-0000-0000-000000000001",
     tripId: "20000000-0000-0000-0000-000000000001",
     name: "Candidate A — direct trip",
-    competitionId: "40000000-0000-0000-0000-000000000002",
+    eventId: "40000000-0000-0000-0000-000000000002",
     includesExtension: false,
     notes: null,
     departureDate: null,
@@ -187,7 +178,7 @@ export const scenarios: Scenario[] = [
     id: "50000000-0000-0000-0000-000000000002",
     tripId: "20000000-0000-0000-0000-000000000001",
     name: "Candidate A — with extension",
-    competitionId: "40000000-0000-0000-0000-000000000002",
+    eventId: "40000000-0000-0000-0000-000000000002",
     includesExtension: true,
     notes: "Fictional example: a few extra days in Paris after the festival.",
     // Fictional example: this candidate's own longer window, overriding
@@ -203,7 +194,7 @@ export const scenarios: Scenario[] = [
     id: "50000000-0000-0000-0000-000000000003",
     tripId: "20000000-0000-0000-0000-000000000001",
     name: "Global Choir Festival — host TBA",
-    competitionId: "40000000-0000-0000-0000-000000000003",
+    eventId: "40000000-0000-0000-0000-000000000003",
     includesExtension: false,
     notes: null,
     departureDate: null,
@@ -219,7 +210,7 @@ export const decisions: Decision[] = [
   {
     id: "60000000-0000-0000-0000-000000000001",
     tripId: "20000000-0000-0000-0000-000000000001",
-    competitionId: "40000000-0000-0000-0000-000000000001",
+    eventId: "40000000-0000-0000-0000-000000000001",
     title: "Decided to hold a rehearsal-space deposit for Candidate B",
     rationale: "Fictional example: holding a rehearsal-space deposit for the still-pending candidate.",
     decidedOn: "2026-10-01",
@@ -241,7 +232,7 @@ export const budgetLines: BudgetLine[] = [
     tripId: "20000000-0000-0000-0000-000000000001",
     scenarioId: "50000000-0000-0000-0000-000000000001",
     category: "A",
-    description: "Competition registration fee",
+    description: "Event registration fee",
     amountMin: 150,
     amountTarget: 180,
     amountConservative: 220,
@@ -614,7 +605,7 @@ export const openItems: OpenItem[] = [
   {
     id: "b0000000-0000-0000-0000-000000000001",
     tripId: "20000000-0000-0000-0000-000000000001",
-    competitionId: "40000000-0000-0000-0000-000000000002",
+    eventId: "40000000-0000-0000-0000-000000000002",
     title: "Pay hotel deposit",
     description: "Fictional example deadline.",
     dueDate: "2031-01-15",
@@ -630,7 +621,7 @@ export const openItems: OpenItem[] = [
   {
     id: "b0000000-0000-0000-0000-000000000002",
     tripId: "20000000-0000-0000-0000-000000000001",
-    competitionId: null,
+    eventId: null,
     title: "Research travel insurance options",
     description: null,
     dueDate: null,
@@ -646,7 +637,7 @@ export const openItems: OpenItem[] = [
   {
     id: "b0000000-0000-0000-0000-000000000003",
     tripId: "20000000-0000-0000-0000-000000000001",
-    competitionId: "40000000-0000-0000-0000-000000000001",
+    eventId: "40000000-0000-0000-0000-000000000001",
     title: "Will Candidate B confirm festival dates?",
     description: "Fictional example open question.",
     dueDate: "2026-11-30",
@@ -823,9 +814,9 @@ export const flightSegments: FlightSegment[] = [
 ];
 
 // Every place Candidate A's stays/movements below refer to, each with
-// a real IANA zone -- Fontvieux's matches competitions[1].timezone
+// a real IANA zone -- Fontvieux's matches events[1].timezone
 // (Europe/Paris) exactly, so demo mode doesn't spuriously trip the
-// festival-location/competition time-zone consistency check.
+// event-location/event time-zone consistency check.
 export const locations: Location[] = [
   {
     id: "f4000000-0000-0000-0000-000000000001",
@@ -847,10 +838,10 @@ export const locations: Location[] = [
   },
 ];
 
-// Candidate A's itinerary: one festival stay in Fontvieux (matching the
-// accepted festival dates, 2031-03-05 to 2031-03-11 -- the stay starts
+// Candidate A's itinerary: one event stay in Fontvieux (matching the
+// confirmed event dates, 2031-03-05 to 2031-03-11 -- the stay starts
 // the night before and covers through the final night, satisfying the
-// festival-coverage check) and the two legs of flightOptions[0]'s clean
+// event-coverage check) and the two legs of flightOptions[0]'s clean
 // route either side of it. The night of the return (an overnight
 // flight, landing the next day) has no stay -- a live example of the
 // "every night is accounted for" check not requiring a bed for a night
@@ -864,7 +855,7 @@ export const stays: Stay[] = [
     locationId: "f4000000-0000-0000-0000-000000000002",
     startDate: "2031-03-04",
     nights: 8,
-    kind: "festival",
+    kind: "event",
     budgetLineId: "70000000-0000-0000-0000-000000000003",
     informationState: "estimate",
     sourceId: null,
@@ -875,7 +866,7 @@ export const stays: Stay[] = [
   },
 ];
 
-// Two candidates for the one festival stay above: a plain one, and a
+// Two candidates for the one event stay above: a plain one, and a
 // conditional-rate one (mobile-app discount) so the undiscounted-amount
 // path has fixture coverage -- the same reasoning fo2 (fails check 1)
 // gives flightOptions.

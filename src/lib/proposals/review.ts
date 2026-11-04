@@ -144,8 +144,8 @@ function resultStillExists(item: ProposalItem, rows: ReviewRows): boolean {
   switch (item.op as CreateOp) {
     case "create_source":
       return rows.sources.some((s) => s.id === item.resultId);
-    case "create_competition":
-      return rows.competitions.some((c) => c.id === item.resultId);
+    case "create_event":
+      return rows.events.some((e) => e.id === item.resultId);
     case "create_scenario":
       return rows.scenarios.some((s) => s.id === item.resultId);
     case "create_budget_line":
@@ -255,8 +255,8 @@ export function unknownReferences(
     const exists =
       kind === "source"
         ? rows.sources.some((s) => s.id === value.id)
-        : kind === "competition"
-          ? rows.competitions.some((c) => c.id === value.id && c.tripId === tripId)
+        : kind === "event"
+          ? rows.events.some((e) => e.id === value.id && e.tripId === tripId)
           : kind === "scenario"
             ? rows.scenarios.some((s) => s.id === value.id && s.tripId === tripId)
             : kind === "flight_option"
@@ -280,8 +280,8 @@ function existingName(id: string, kind: ReferenceKind, rows: ReviewRows): string
       const source = rows.sources.find((s) => s.id === id);
       return source ? `${source.provider} (tier ${source.tier}, observed ${source.observedOn})` : null;
     }
-    case "competition":
-      return rows.competitions.find((c) => c.id === id)?.name ?? null;
+    case "event":
+      return rows.events.find((e) => e.id === id)?.name ?? null;
     case "scenario":
       return rows.scenarios.find((s) => s.id === id)?.name ?? null;
     case "budget_line":
@@ -299,8 +299,8 @@ function existingName(id: string, kind: ReferenceKind, rows: ReviewRows): string
 
 function describeTarget(op: ProposalItem["op"], id: string, rows: ReviewRows): string | null {
   switch (op) {
-    case "update_competition":
-      return rows.competitions.find((c) => c.id === id)?.name ?? null;
+    case "update_event":
+      return rows.events.find((e) => e.id === id)?.name ?? null;
     case "update_scenario":
       return rows.scenarios.find((s) => s.id === id)?.name ?? null;
     case "update_budget_line":
@@ -363,9 +363,9 @@ function duplicateWarning(
       );
       return match ? `A budget line called "${match.description}" already exists here.` : null;
     }
-    case "create_competition": {
-      const match = rows.competitions.find((c) => same(c.name, data.name));
-      return match ? `A competition called "${match.name}" already exists.` : null;
+    case "create_event": {
+      const match = rows.events.find((e) => same(e.name, data.name));
+      return match ? `An event called "${match.name}" already exists.` : null;
     }
     case "create_scenario": {
       const match = rows.scenarios.find((s) => same(s.name, data.name));

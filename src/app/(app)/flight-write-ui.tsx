@@ -245,24 +245,24 @@ function FlightOptionCard({
               Hard constraints
             </p>
             <ConstraintRow label="No US/Canada stop" result={evaluation.usCanadaStop} />
-            <ConstraintRow label="At the festival on time" result={evaluation.festivalArrivalDeparture} />
-            {evaluation.festivalLocationTimezone.status === "mismatch" && (
+            <ConstraintRow label="At the event on time" result={evaluation.eventPresence} />
+            {evaluation.eventLocationTimezone.status === "mismatch" && (
               <p
                 className="rounded-md bg-amber-50 p-2 text-xs text-amber-800 dark:bg-amber-950/40 dark:text-amber-300"
-                data-testid="festival-location-timezone-mismatch"
+                data-testid="event-location-timezone-mismatch"
               >
-                The festival stay&apos;s location ({evaluation.festivalLocationTimezone.festivalStayTimezone}) and the
-                competition ({evaluation.festivalLocationTimezone.competitionTimezone}) don&apos;t agree on a time zone --
+                The event stay&apos;s location ({evaluation.eventLocationTimezone.eventStayTimezone}) and the
+                event ({evaluation.eventLocationTimezone.eventTimezone}) don&apos;t agree on a time zone --
                 worth checking which one is wrong.
               </p>
             )}
             <ConstraintRow label="Checked baggage allowed" result={evaluation.baggage} />
-            {[...evaluation.usCanadaStop.reasons, ...evaluation.festivalArrivalDeparture.reasons, ...evaluation.baggage.reasons].length >
+            {[...evaluation.usCanadaStop.reasons, ...evaluation.eventPresence.reasons, ...evaluation.baggage.reasons].length >
               0 && (
               <ReasonsList
                 reasons={[
                   ...evaluation.usCanadaStop.reasons,
-                  ...evaluation.festivalArrivalDeparture.reasons,
+                  ...evaluation.eventPresence.reasons,
                   ...evaluation.baggage.reasons,
                 ]}
               />
@@ -330,7 +330,7 @@ function FlightOptionCard({
   );
 }
 
-function ConstraintRow({ label, result }: { label: string; result: { status: "pass" | "fail" | "unknown" } }) {
+function ConstraintRow({ label, result }: { label: string; result: { status: "pass" | "fail" | "unknown" | "not_applicable" } }) {
   return (
     <div className="flex items-start justify-between gap-2">
       <span>{label}</span>
@@ -775,7 +775,7 @@ export function FlightOptionComparisonTable({ evaluations }: { evaluations: Flig
           <tr className="border-b border-zinc-200 dark:border-zinc-800">
             <th className="py-1.5 pr-3 font-medium">Option</th>
             <th className="py-1.5 pr-3 font-medium">No US/Canada stop</th>
-            <th className="py-1.5 pr-3 font-medium">At the festival on time</th>
+            <th className="py-1.5 pr-3 font-medium">At the event on time</th>
             <th className="py-1.5 pr-3 font-medium">Baggage</th>
             <th className="py-1.5 pr-3 font-medium">Effective Flight Cost</th>
             <th className="py-1.5 pr-3 font-medium">Total Itinerary Cost</th>
@@ -796,7 +796,7 @@ export function FlightOptionComparisonTable({ evaluations }: { evaluations: Flig
                 <ConstraintBadge status={evaluation.usCanadaStop.status} />
               </td>
               <td className="py-1.5 pr-3">
-                <ConstraintBadge status={evaluation.festivalArrivalDeparture.status} />
+                <ConstraintBadge status={evaluation.eventPresence.status} />
               </td>
               <td className="py-1.5 pr-3">
                 <ConstraintBadge status={evaluation.baggage.status} />

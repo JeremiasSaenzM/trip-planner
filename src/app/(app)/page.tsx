@@ -5,7 +5,7 @@ import { Suspense } from "react";
 import { getCurrentUser } from "@/lib/auth";
 import { dataSource } from "@/lib/data";
 
-import { AddCompetitionForm, CreateScenarioForm, CreateTripForm } from "./bootstrap-forms";
+import { AddEventForm, CreateScenarioForm, CreateTripForm } from "./bootstrap-forms";
 import { BudgetByCategoryChart, SavingsScheduleChart } from "./charts";
 import { DashboardControls } from "./dashboard-controls";
 import { loadDashboardData } from "./dashboard-data";
@@ -47,10 +47,10 @@ async function Overview({ searchParams }: { searchParams: PageProps<"/">["search
     return <CreateTripForm />;
   }
   if (data.status === "no_scenario") {
-    return data.competitions.length === 0 ? (
-      <AddCompetitionForm tripId={data.trip.id} />
+    return data.events.length === 0 ? (
+      <AddEventForm tripId={data.trip.id} />
     ) : (
-      <CreateScenarioForm tripId={data.trip.id} competitions={data.competitions} />
+      <CreateScenarioForm tripId={data.trip.id} events={data.events} />
     );
   }
 
@@ -62,7 +62,7 @@ async function Overview({ searchParams }: { searchParams: PageProps<"/">["search
     availableUsd,
     obligations,
     parallelPlan,
-    competition,
+    event,
     savingsEntries,
     departure,
     travelWindowIssues,
@@ -102,19 +102,19 @@ async function Overview({ searchParams }: { searchParams: PageProps<"/">["search
         <Caveat>
           {departure.source === "trip"
             ? "Your departure date isn't confirmed yet"
-            : "The festival dates for this scenario aren't confirmed yet"}
+            : "The event dates for this scenario aren't confirmed yet"}
           , so every savings figure below is provisional.
         </Caveat>
       )}
 
       {travelWindowIssues.includes("leaves_too_late") && (
         <Caveat tone="danger">
-          Your departure date is on or after the festival&apos;s first day -- you need to be there before it begins.
+          Your departure date is on or after the event&apos;s first day -- you need to be there before it begins.
         </Caveat>
       )}
       {travelWindowIssues.includes("returns_too_early") && (
         <Caveat tone="danger">
-          Your return date is on or before the festival&apos;s final day -- you can only leave once it has ended.
+          Your return date is on or before the event&apos;s final day -- you can only leave once it has ended.
         </Caveat>
       )}
 
@@ -138,7 +138,7 @@ async function Overview({ searchParams }: { searchParams: PageProps<"/">["search
           // Never $0 here: that would read as "nothing to save", when the
           // truth is "can't say yet".
           <p data-testid="no-savings-requirement" className="mt-1 text-base text-zinc-600 dark:text-zinc-400">
-            {noDepartureReason(competition)}, so there&apos;s no savings requirement to compute.{" "}
+            {noDepartureReason(event)}, so there&apos;s no savings requirement to compute.{" "}
             <Link href={`/scenarios?scenario=${data.scenario.id}&basis=${data.basis}`} className="underline">
               Set the trip&apos;s travel window
             </Link>
