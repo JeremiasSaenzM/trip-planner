@@ -2,6 +2,7 @@ import type { DeadlinePot } from "@/lib/domain/build-deadline-pots";
 import type { ResolvedDeparture } from "@/lib/domain/resolve-departure-date";
 
 import type { Basis } from "./dashboard-data";
+import { UnconfirmedMarker } from "./dashboard-ui";
 import { formatDate, formatUsd } from "./format";
 import { potIncomeNote, potItemText } from "./pot-item-text";
 
@@ -18,10 +19,17 @@ export function DeadlinePotList({
   pots,
   departure,
   basis,
+  showUnconfirmedMarkers = false,
 }: {
   pots: DeadlinePot[];
   departure: ResolvedDeparture;
   basis: Basis;
+  /** Default false, and only ever passed true from the Scenario
+   * Overview page -- this list is also rendered on Overview, which
+   * phase-6.8-provisional-dates.md's own tests require to show no
+   * marker at all, so the opt-in is explicit rather than inferred from
+   * departure.confirmed alone. */
+  showUnconfirmedMarkers?: boolean;
 }) {
   if (pots.length === 0) {
     return <p className="text-sm text-zinc-500 dark:text-zinc-400">Nothing left to save for.</p>;
@@ -69,6 +77,9 @@ export function DeadlinePotList({
                 {pot.items.map((item, i) => (
                   <li key={i} data-timing={item.timing}>
                     {potItemText(item)}
+                    {showUnconfirmedMarkers && item.timing !== "on_date" && !departure.confirmed && (
+                      <UnconfirmedMarker />
+                    )}
                   </li>
                 ))}
               </ul>
