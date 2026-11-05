@@ -101,8 +101,10 @@ test("the full first-run journey, starting from a signed-out, empty account", as
   // One long journey on purpose (each step builds on the last), so it
   // gets more than Playwright's default 30 s for the whole test. Phase
   // 6.5b added more steps (a location round-trip, an extra proposal
-  // item) than the previous budget had headroom for.
-  test.setTimeout(180_000);
+  // item) than the previous budget had headroom for. Phase 6.8 added a
+  // dozen more page navigations (the banner/marker checks, and the
+  // pending-then-confirmed-again round trip) than 180 s had left.
+  test.setTimeout(300_000);
 
   await test.step("log in via the magic link", async () => {
     await page.goto("/login");
@@ -528,6 +530,37 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await expect(page.getByRole("heading", { name: "Due before you leave" })).toHaveCount(0);
   });
 
+  await test.step("the Scenario Overview names the event's unpublished dates, with a marker on the figure that rests on them", async () => {
+    // No travel window set yet, so the departure date the savings plan
+    // uses fell back to the event's own (still pending) first day --
+    // one merged statement (build-unconfirmed-date-facts.ts), not two.
+    await page.goto(`/scenario?scenario=${firstScenarioId}`);
+    const banner = page.getByTestId("unconfirmed-dates-banner");
+    await expect(banner).toContainText(FIRST_EVENT);
+    await expect(banner).toContainText("are not published");
+    // The bad example from phase-6.8-provisional-dates.md itself --
+    // this must name the fact, never say this.
+    await expect(banner).not.toContainText("some values are provisional");
+
+    await expect(
+      page.getByTestId("scenario-required-saving").getByTestId("unconfirmed-date-marker"),
+    ).toBeVisible();
+  });
+
+  await test.step("attempting to confirm the event's dates without a source is refused", async () => {
+    await page.goto(`/scenarios?scenario=${firstScenarioId}`);
+    const card = eventCard(page, FIRST_EVENT);
+
+    await card.getByRole("button", { name: "Edit", exact: true }).click();
+    await card.getByLabel("Information state (event dates)").selectOption("confirmed");
+    await card.getByLabel("Reason for this change").fill("Trying to confirm with no source");
+    await card.getByRole("button", { name: "Save", exact: true }).click();
+
+    await expect(card.getByText("A confirmed date needs a source")).toBeVisible();
+    // Refused client-side -- still showing the edit form, never submitted.
+    await expect(card.getByRole("button", { name: "Save", exact: true })).toBeVisible();
+  });
+
   await test.step("edit the first event's dates to confirmed, with a source", async () => {
     await page.goto(`/scenarios?scenario=${firstScenarioId}`);
     const card = eventCard(page, FIRST_EVENT);
@@ -544,6 +577,18 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await card.getByRole("button", { name: "Save", exact: true }).click();
 
     await expect(card.getByText(/\(Confirmed\)/)).toBeVisible();
+  });
+
+  await test.step("confirming with a source clears the banner and its marker", async () => {
+    await page.goto(`/scenario?scenario=${firstScenarioId}`);
+    await expect(page.getByTestId("unconfirmed-dates-banner")).toHaveCount(0);
+    await expect(page.getByTestId("unconfirmed-date-marker")).toHaveCount(0);
+
+    // Leave the page where the next step finds it: it has no goto of
+    // its own, the same way the budget-line steps around the earlier
+    // "confirmed needs a source" check work on /budget-lines without
+    // navigating.
+    await page.goto(`/scenarios?scenario=${firstScenarioId}`);
   });
 
   await test.step("create an empty scenario, rename it and link it, then delete it with a reason", async () => {
@@ -656,6 +701,14 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await expect(page.getByTestId("no-savings-requirement")).toHaveCount(0);
   });
 
+  await test.step("a scenario whose event has no dates still reports the trip window's pending state, naming no event", async () => {
+    await page.goto(`/scenario?scenario=${datelessScenarioId}`);
+    const banner = page.getByTestId("unconfirmed-dates-banner");
+    await expect(banner).toContainText("trip's travel window");
+    await expect(banner).not.toContainText(DATELESS_EVENT);
+    await expect(banner).not.toContainText("are not published");
+  });
+
   await test.step("a scenario can override the trip's travel window, and revert to it", async () => {
     await page.goto(`/scenarios?scenario=${firstScenarioId}`);
     const card = scenarioCard(page, "Thornmere 2029");
@@ -675,12 +728,24 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await expect(whatThisIs.getByText("Leave Oct 28, 2029 · return Nov 10, 2029")).toBeVisible();
     await expect(whatThisIs.getByText("this scenario's own")).toBeVisible();
 
+    // The override's own state was never set to confirmed above (it
+    // kept its pending default), and the event's dates are already
+    // confirmed by now -- so the one fact left is this scenario's own
+    // window, named as such, not the trip's.
+    await expect(page.getByTestId("unconfirmed-dates-banner")).toContainText("scenario's own travel window");
+
     await page.goto(`/scenarios?scenario=${firstScenarioId}`);
     await scenarioCard(page, "Thornmere 2029").getByRole("button", { name: "Revert to the trip's window" }).click();
     await scenarioCard(page, "Thornmere 2029").getByLabel("Reason for this change").fill("Back to the trip's plan");
     await scenarioCard(page, "Thornmere 2029").getByRole("button", { name: "Revert", exact: true }).click();
     await expect(scenarioCard(page, "Thornmere 2029")).toContainText("Nov 3, 2029 – Nov 14, 2029");
     await expect(scenarioCard(page, "Thornmere 2029")).toContainText("from the trip");
+
+    // Back to inheriting the trip's own (still pending) window -- the
+    // fact now names the trip, not "this scenario's own".
+    await page.goto(`/scenario?scenario=${firstScenarioId}`);
+    await expect(page.getByTestId("unconfirmed-dates-banner")).toContainText("trip's travel window");
+    await expect(page.getByTestId("unconfirmed-dates-banner")).not.toContainText("scenario's own");
   });
 
   await test.step("the Scenario Overview explains what this scenario is, and says what isn't stored", async () => {
@@ -1009,6 +1074,66 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await expect(page.getByRole("button", { name: sortish })).toHaveCount(0);
     await expect(page.getByRole("combobox", { name: sortish })).toHaveCount(0);
     await expect(page.getByRole("columnheader", { name: sortish })).toHaveCount(0);
+  });
+
+  await test.step("the flight option, the payments and the savings figure all carry the marker while something they rest on is unconfirmed -- and nowhere outside this page", async () => {
+    // The trip's own travel window has been pending since "set the
+    // trip's travel window" above and was never confirmed -- so its
+    // own fact, and the markers on the payments and the savings figure
+    // it drives, are already showing before this step touches the
+    // event at all. Only the flight option's marker, and the event's
+    // own name in the banner, are this step's own to add and remove.
+    await page.goto(`/scenario?scenario=${firstScenarioId}`);
+    await expect(page.getByTestId("unconfirmed-dates-banner")).toContainText("trip's travel window");
+    await expect(page.getByTestId("unconfirmed-dates-banner")).not.toContainText(FIRST_EVENT);
+    await expect(flightOptionCard(page, "F-e2e-A").getByTestId("unconfirmed-date-marker")).toHaveCount(0);
+
+    await page.goto(`/scenarios?scenario=${firstScenarioId}`);
+    const card = eventCard(page, FIRST_EVENT);
+    await card.getByRole("button", { name: "Edit", exact: true }).click();
+    await card.getByLabel("Information state (event dates)").selectOption("pending");
+    await card.getByLabel("Reason for this change").fill("Simulating the dates going back to provisional");
+    await card.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(card.getByText(/\(Pending\)/)).toBeVisible();
+
+    await page.goto(`/scenario?scenario=${firstScenarioId}`);
+    await expect(page.getByTestId("unconfirmed-dates-banner")).toContainText(FIRST_EVENT);
+
+    // The marker sits beside the row's label, never inside
+    // ConstraintBadge -- still exactly three constraint results.
+    const optionA = flightOptionCard(page, "F-e2e-A");
+    await expect(optionA.getByTestId("constraint-badge")).toHaveCount(3);
+    await expect(optionA.getByTestId("unconfirmed-date-marker")).toHaveCount(1);
+
+    const pots = page.getByTestId("deadline-pots");
+    const postEventHotelItem = pots.locator("li[data-timing]").filter({ hasText: "Post-event hotel" });
+    await expect(postEventHotelItem).toHaveAttribute("data-timing", "moved_to_departure");
+    await expect(postEventHotelItem.getByTestId("unconfirmed-date-marker")).toBeVisible();
+
+    await expect(page.getByTestId("scenario-required-saving").getByTestId("unconfirmed-date-marker")).toBeVisible();
+
+    // phase-6.8-provisional-dates.md's own scope: nowhere outside the
+    // scenario page, even while every marker above is actively showing.
+    await page.goto(`/?scenario=${firstScenarioId}`);
+    await expect(page.getByTestId("unconfirmed-date-marker")).toHaveCount(0);
+    await page.goto(`/payments?scenario=${firstScenarioId}`);
+    await expect(page.getByTestId("unconfirmed-date-marker")).toHaveCount(0);
+
+    // Restore: the source from the earlier confirm step is still on
+    // the event, so confirming again needs no new one. Only the
+    // event-side fact and the flight marker clear -- the trip window's
+    // own, independent fact rests on its own terms and persists.
+    await page.goto(`/scenarios?scenario=${firstScenarioId}`);
+    await card.getByRole("button", { name: "Edit", exact: true }).click();
+    await card.getByLabel("Information state (event dates)").selectOption("confirmed");
+    await card.getByLabel("Reason for this change").fill("Restoring the confirmed dates");
+    await card.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(card.getByText(/\(Confirmed\)/)).toBeVisible();
+
+    await page.goto(`/scenario?scenario=${firstScenarioId}`);
+    await expect(page.getByTestId("unconfirmed-dates-banner")).not.toContainText(FIRST_EVENT);
+    await expect(page.getByTestId("unconfirmed-dates-banner")).toContainText("trip's travel window");
+    await expect(flightOptionCard(page, "F-e2e-A").getByTestId("unconfirmed-date-marker")).toHaveCount(0);
   });
 
   // The journey's only savings entry so far was recorded, edited, and

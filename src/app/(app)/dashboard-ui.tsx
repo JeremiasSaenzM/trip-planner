@@ -63,6 +63,24 @@ export function Caveat({ children, tone = "neutral" }: { children: React.ReactNo
   );
 }
 
+// A quiet mark, not a badge: distinct from the four ConstraintBadge
+// tones (flight-constraint-badge.tsx) so it can never read as a fourth
+// one. Amber, the same colour already used elsewhere on this page for
+// "worth double-checking, not broken" (a stale source, an incomplete
+// cost) -- never the red/emerald/zinc vocabulary of pass/fail/unknown/
+// not_applicable. See phase-6.8-provisional-dates.md.
+export function UnconfirmedMarker() {
+  return (
+    <span
+      data-testid="unconfirmed-date-marker"
+      aria-label="rests on a date that isn't confirmed yet -- see the note at the top of this page"
+      className="ml-0.5 text-amber-600 dark:text-amber-400"
+    >
+      *
+    </span>
+  );
+}
+
 export function EmptyState({ children }: { children: React.ReactNode }) {
   return (
     <div className="rounded-xl border border-dashed border-zinc-300 p-6 text-sm text-zinc-600 dark:border-zinc-700 dark:text-zinc-400">

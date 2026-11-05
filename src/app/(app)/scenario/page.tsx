@@ -7,6 +7,7 @@ import type { BudgetLine, TripEvent, Location, Movement } from "@/lib/data/types
 import type { InfoState } from "@/lib/domain/types";
 
 import { countDaysOnGround, type ItineraryDay } from "@/lib/domain/build-itinerary-timeline";
+import { buildUnconfirmedDateFacts, type UnconfirmedDateFact } from "@/lib/domain/build-unconfirmed-date-facts";
 import { observationAgeDays, SOURCE_STALENESS_DAYS } from "@/lib/domain/observation-age";
 import type { ResolvedTravelWindow } from "@/lib/domain/resolve-travel-window";
 
@@ -14,7 +15,7 @@ import { CATEGORY_LABELS } from "../category-labels";
 import { CONFIDENCE_LABELS, CONFIDENCE_NOT_ASSESSED } from "../confidence-labels";
 import { BASIS_LABELS, DashboardControls } from "../dashboard-controls";
 import { loadDashboardData, type DashboardData } from "../dashboard-data";
-import { Card, CardLabel, Caveat, EmptyState, noDepartureReason, RangeFigure } from "../dashboard-ui";
+import { Card, CardLabel, Caveat, EmptyState, noDepartureReason, RangeFigure, UnconfirmedMarker } from "../dashboard-ui";
 import { DeadlinePotList } from "../deadline-pots-ui";
 import { AddFlightOptionForm, FlightOptionComparisonTable, FlightOptionList } from "../flight-write-ui";
 import { formatDate, formatObservationAge, formatUsd } from "../format";
@@ -58,6 +59,10 @@ async function ScenarioOverview({ searchParams }: { searchParams: PageProps<"/sc
     data;
   const binding = savings?.bindingRequirement[data.basis] ?? null;
   const evidence = summarizeBudgetEvidence(budgetLines, sources);
+  const unconfirmedDateFacts = buildUnconfirmedDateFacts({
+    event: event ? { name: event.name, startDate: event.startDate, datesState: event.datesState } : null,
+    departure: departure ? { source: departure.source, confirmed: departure.confirmed } : null,
+  });
 
   return (
     <div className="space-y-6">
@@ -67,6 +72,8 @@ async function ScenarioOverview({ searchParams }: { searchParams: PageProps<"/sc
         activeScenarioId={scenario.id}
         basis={data.basis}
       />
+
+      <UnconfirmedDatesBanner facts={unconfirmedDateFacts} />
 
       <section aria-labelledby="what-this-is" className="space-y-2">
         <h2 id="what-this-is" className="text-lg font-semibold">
@@ -231,12 +238,12 @@ async function ScenarioOverview({ searchParams }: { searchParams: PageProps<"/sc
             ) : (
               <p data-testid="scenario-required-saving" className="text-2xl font-semibold tracking-tight">
                 {formatUsd(binding)}
+                {data.provisional && <UnconfirmedMarker />}
                 <span className="ml-1 text-sm font-normal text-zinc-500 dark:text-zinc-400">/month</span>
               </p>
             )}
             <p data-testid="selected-basis" className="text-xs text-zinc-500 dark:text-zinc-400">
               Showing the {BASIS_LABELS[data.basis]} basis.
-              {data.provisional ? " Provisional: the departure date isn't confirmed." : ""}
             </p>
           </div>
         </Card>
@@ -250,7 +257,7 @@ async function ScenarioOverview({ searchParams }: { searchParams: PageProps<"/sc
           {pots && departure ? (
             <>
               <p className="mb-3 text-sm text-zinc-600 dark:text-zinc-400">{departureAnchorText(departure, data.departureSaveBy)}</p>
-              <DeadlinePotList pots={pots} departure={departure} basis={data.basis} />
+              <DeadlinePotList pots={pots} departure={departure} basis={data.basis} showUnconfirmedMarkers />
             </>
           ) : (
             <Missing>
@@ -372,6 +379,36 @@ async function ScenarioOverview({ searchParams }: { searchParams: PageProps<"/sc
       </section>
     </div>
   );
+}
+
+// The one unmissable statement phase-6.8-provisional-dates.md asks
+// for, naming the specific unconfirmed fact -- not a badge, not inside
+// any Card, so it reads as a running disclosure rather than a per-
+// section warning. Each fact also says which figures below carry its
+// own marker, so the amber "*" means the same thing whether a reader
+// notices it first here or down on a figure (sighted readers; the
+// marker's own aria-label makes the same connection for screen readers).
+function UnconfirmedDatesBanner({ facts }: { facts: UnconfirmedDateFact[] }) {
+  if (facts.length === 0) return null;
+  return (
+    <div data-testid="unconfirmed-dates-banner" className="space-y-2">
+      {facts.map((fact, index) => (
+        <Caveat key={index}>
+          {fact.statement} {touchedFiguresText(fact)}
+        </Caveat>
+      ))}
+    </div>
+  );
+}
+
+function touchedFiguresText(fact: UnconfirmedDateFact): string {
+  const touched: string[] = [];
+  if (fact.touchesFlightOptions) touched.push("the flight option");
+  if (fact.touchesPayments) touched.push("the payment due dates");
+  if (fact.touchesSavingsDeadline) touched.push("the savings deadline");
+  if (touched.length === 0) return "";
+  const list = touched.length === 1 ? touched[0] : `${touched.slice(0, -1).join(", ")} and ${touched.at(-1)}`;
+  return `Below, ${list} ${touched.length === 1 ? "is" : "are"} marked with *.`;
 }
 
 function lineName(line: BudgetLine): string {

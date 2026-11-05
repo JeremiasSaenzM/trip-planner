@@ -13,6 +13,7 @@ import {
   deleteFlightSegment,
   updateFlightOption,
 } from "./flight-actions";
+import { UnconfirmedMarker } from "./dashboard-ui";
 import { ConstraintBadge } from "./flight-constraint-badge";
 import { FLIGHT_BAGGAGE_LABELS, FLIGHT_OPTION_STATUS_LABELS } from "./flight-labels";
 import { formatAmount, formatDate, formatObservationAge } from "./format";
@@ -245,7 +246,11 @@ function FlightOptionCard({
               Hard constraints
             </p>
             <ConstraintRow label="No US/Canada stop" result={evaluation.usCanadaStop} />
-            <ConstraintRow label="At the event on time" result={evaluation.eventPresence} />
+            <ConstraintRow
+              label="At the event on time"
+              result={evaluation.eventPresence}
+              provisional={evaluation.eventPresence.provisional}
+            />
             {evaluation.eventLocationTimezone.status === "mismatch" && (
               <p
                 className="rounded-md bg-amber-50 p-2 text-xs text-amber-800 dark:bg-amber-950/40 dark:text-amber-300"
@@ -330,10 +335,25 @@ function FlightOptionCard({
   );
 }
 
-function ConstraintRow({ label, result }: { label: string; result: { status: "pass" | "fail" | "unknown" | "not_applicable" } }) {
+function ConstraintRow({
+  label,
+  result,
+  provisional,
+}: {
+  label: string;
+  result: { status: "pass" | "fail" | "unknown" | "not_applicable" };
+  /** Never read by ConstraintBadge or folded into result.status -- a
+   * sibling mark next to the label, not a fourth badge tone. Only
+   * "At the event on time" ever passes this (checkEventPresence is the
+   * only hard constraint provisional applies to). */
+  provisional?: boolean;
+}) {
   return (
     <div className="flex items-start justify-between gap-2">
-      <span>{label}</span>
+      <span>
+        {label}
+        {provisional && <UnconfirmedMarker />}
+      </span>
       <ConstraintBadge status={result.status} />
     </div>
   );
@@ -797,6 +817,7 @@ export function FlightOptionComparisonTable({ evaluations }: { evaluations: Flig
               </td>
               <td className="py-1.5 pr-3">
                 <ConstraintBadge status={evaluation.eventPresence.status} />
+                {evaluation.eventPresence.provisional && <UnconfirmedMarker />}
               </td>
               <td className="py-1.5 pr-3">
                 <ConstraintBadge status={evaluation.baggage.status} />
