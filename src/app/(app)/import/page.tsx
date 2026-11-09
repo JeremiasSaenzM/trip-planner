@@ -6,8 +6,9 @@ import { getCurrentUser } from "@/lib/auth";
 import { dataSource } from "@/lib/data";
 import type { ProposalItem } from "@/lib/data/types";
 
-import { Card, EmptyState } from "../dashboard-ui";
+import { Card, Caveat, EmptyState } from "../dashboard-ui";
 import { PasteProposalsForm } from "../import-ui";
+import { sortTrips } from "../trip-order";
 
 export const metadata: Metadata = { title: "Import research" };
 
@@ -32,13 +33,24 @@ async function ImportScreen() {
     dataSource.getProposalItems(),
   ]);
 
-  if (!trips[0]) return <EmptyState>No trip yet. Start one from Overview.</EmptyState>;
+  const trip = sortTrips(trips)[0];
+  if (!trip) return <EmptyState>No trip yet. Start one from Overview.</EmptyState>;
 
   const newestFirst = [...batches].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 
   return (
     <div className="space-y-8">
       <section className="space-y-3">
+        {/* There's no trip selector here (Phase 6.10 deliberately
+            doesn't add one -- see the trips[0]/sortTrips() gap this
+            replaces) -- a pasted batch always attaches to this one
+            trip, so it has to be named before anyone pastes, not
+            discovered after create_scenario has already run against
+            the wrong trip. */}
+        <Caveat>
+          This batch will be attached to <strong>{trip.name}</strong>.
+          {trips.length > 1 && " With more than one trip, double-check that's the one this research is about."}
+        </Caveat>
         <p className="text-sm text-zinc-600 dark:text-zinc-400">
           Paste the proposals block from a research session. Nothing is written to your plan until you approve
           it, item by item -- each one goes through the same checks as entering it by hand.
