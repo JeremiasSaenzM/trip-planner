@@ -1575,7 +1575,11 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await expect(update.getByText("Planning → Confirmed")).toBeVisible();
 
     await page.getByRole("button", { name: /Approve all ready/ }).click();
-    await expect(page.getByRole("status")).toHaveText("Approved 2 items.");
+    // Not the status banner: both items approve and nothing is left
+    // pending, so (same as the earlier chain-approval step's own note)
+    // the whole form -- banner included -- unmounts on the next render.
+    await expect(proposalCard(page, 1).getByText("Approved -- written to your plan.")).toBeVisible();
+    await expect(proposalCard(page, 2).getByText("Approved -- written to your plan.")).toBeVisible();
   });
 
   await test.step("the imported trip and status change are both in the plan", async () => {
