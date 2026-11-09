@@ -1492,7 +1492,7 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     ).searchParams.get("trip")!;
 
     await page.getByRole("link", { name: "Manage trips" }).click();
-    await expect(page).toHaveURL("/trips");
+    await expect(page).toHaveURL(new RegExp(`/trips\\?trip=${firstTripId}`));
     await expect(page.getByText("Thornmere 2029").first()).toBeVisible();
 
     await page.getByLabel("Trip name").fill("Second trip 2030");
