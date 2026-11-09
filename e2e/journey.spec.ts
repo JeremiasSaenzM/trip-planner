@@ -103,8 +103,9 @@ test("the full first-run journey, starting from a signed-out, empty account", as
   // 6.5b added more steps (a location round-trip, an extra proposal
   // item) than the previous budget had headroom for. Phase 6.8 added a
   // dozen more page navigations (the banner/marker checks, and the
-  // pending-then-confirmed-again round trip) than 180 s had left.
-  test.setTimeout(300_000);
+  // pending-then-confirmed-again round trip) than 180 s had left. Phase
+  // 6.10 added the second-trip and trip-import steps at the end.
+  test.setTimeout(360_000);
 
   await test.step("log in via the magic link", async () => {
     await page.goto("/login");
@@ -1469,5 +1470,119 @@ test("the full first-run journey, starting from a signed-out, empty account", as
       "Rejected with item 9, which it depends on: Dropping this idea",
     );
     expect(exported.data.proposalBatches[0].note).toBe("Olympics research session");
+  });
+
+  // Phase 6.10: more than one trip. Run last, after every earlier step
+  // that assumed a single trip (including the export check above, which
+  // reads exported.data.trips[0] and would stop being Thornmere 2029
+  // once a second trip's own row order became a factor) -- the trip
+  // pill this adds to every later page would also collide by name with
+  // the "Thornmere 2029" scenario pill visible since the Olympics batch
+  // above, so nothing here clicks a pill by that text; it navigates by
+  // URL/nav link instead, the same way a trip id is captured everywhere
+  // else in this file.
+  let firstTripId: string;
+  let secondTripId: string;
+
+  await test.step("create a second trip from /trips, and the selection survives a nav click", async () => {
+    await page.goto("/");
+    firstTripId = new URL(
+      (await page.getByRole("link", { name: "Manage trips" }).getAttribute("href"))!,
+      "http://x",
+    ).searchParams.get("trip")!;
+
+    await page.getByRole("link", { name: "Manage trips" }).click();
+    await expect(page).toHaveURL("/trips");
+    await expect(page.getByText("Thornmere 2029").first()).toBeVisible();
+
+    await page.getByLabel("Trip name").fill("Second trip 2030");
+    await page.getByRole("button", { name: "Create trip", exact: true }).click();
+    const secondTripCard = page.locator("div.rounded-xl").filter({ hasText: "Second trip 2030" });
+    await expect(secondTripCard).toBeVisible();
+
+    await secondTripCard.getByRole("link", { name: "Go to trip" }).click();
+    await expect(page.getByText("Add an event")).toBeVisible();
+    secondTripId = new URL(page.url()).searchParams.get("trip")!;
+    expect(secondTripId).not.toBe(firstTripId);
+
+    // Also waits for the nav to hydrate: its prerendered fallback has no
+    // query, and clicking that one would drop the selection.
+    const paymentsLink = page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Payments" });
+    await expect(paymentsLink).toHaveAttribute("href", new RegExp(`trip=${secondTripId}`));
+    await paymentsLink.click();
+    await expect(page).toHaveURL(new RegExp(`/payments\\?trip=${secondTripId}`));
+
+    // Switching trips drops the stale scenario id: this trip has none of
+    // its own, so going back resolves Thornmere 2029's first scenario,
+    // not an error and not the new trip's (empty) one.
+    await page.goto(`/?trip=${firstTripId}`);
+    await expect(page.getByText("Required monthly saving")).toBeVisible();
+  });
+
+  await test.step("rename and confirm the second trip, with a reason", async () => {
+    await page.goto("/trips");
+    const secondTripCard = page.locator("div.rounded-xl").filter({ hasText: "Second trip 2030" });
+    await secondTripCard.getByRole("button", { name: "Edit", exact: true }).click();
+    await secondTripCard.getByLabel("New name").fill("Second trip, renamed");
+    await secondTripCard.getByLabel("Status").selectOption({ label: "Confirmed" });
+    await secondTripCard.getByLabel("Reason for this change").fill("Choir confirmed we're going");
+    await secondTripCard.getByRole("button", { name: "Save", exact: true }).click();
+
+    await expect(page.locator("div.rounded-xl").filter({ hasText: "Second trip, renamed" })).toBeVisible();
+    await expect(page.locator("div.rounded-xl").filter({ hasText: "Second trip, renamed" }).getByText("Confirmed")).toBeVisible();
+  });
+
+  await test.step("propose a new trip and a status change for it through /import", async () => {
+    const before = await (await page.request.get("/export/download")).json();
+    const firstTrip = before.data.trips.find((t: { id: string }) => t.id === firstTripId);
+    expect(firstTrip.status).toBe("planning");
+
+    const batch = {
+      format: "trip-planner-proposals",
+      version: 1,
+      note: "A third trip, proposed",
+      items: [
+        {
+          op: "create_trip",
+          ref: "third-trip",
+          reason: "Another candidate the choir is weighing",
+          data: { name: "Imported trip 2031" },
+        },
+        {
+          op: "update_trip",
+          target: firstTripId,
+          reason: "Thornmere is on",
+          changes: { status: { from: "planning", to: "confirmed" } },
+        },
+      ],
+    };
+
+    // This batch attaches to whichever trip sortTrips() puts first --
+    // Thornmere 2029, the only one with a departure date -- not
+    // whichever trip was created most recently, which import/page.tsx's
+    // own banner is what lets you check before pasting.
+    await page.goto("/import");
+    await expect(page.getByText("This batch will be attached to")).toBeVisible();
+    await expect(page.getByText("Thornmere 2029").first()).toBeVisible();
+
+    await page.getByLabel("Proposals to review").fill(JSON.stringify(batch, null, 2));
+    await page.getByRole("button", { name: "Review proposals", exact: true }).click();
+    await expect(page).toHaveURL(/\/import\/[0-9a-f-]{36}$/);
+
+    await expect(proposalCard(page, 1).getByText("New trip")).toBeVisible();
+    const update = proposalCard(page, 2);
+    await expect(update.getByText("Change trip: Thornmere 2029")).toBeVisible();
+    await expect(update.getByText("Planning → Confirmed")).toBeVisible();
+
+    await page.getByRole("button", { name: /Approve all ready/ }).click();
+    await expect(page.getByRole("status")).toHaveText("Approved 2 items.");
+  });
+
+  await test.step("the imported trip and status change are both in the plan", async () => {
+    await page.goto("/trips");
+    await expect(page.locator("div.rounded-xl").filter({ hasText: "Imported trip 2031" })).toBeVisible();
+    await expect(
+      page.locator("div.rounded-xl").filter({ hasText: "Thornmere 2029" }).getByText("Confirmed"),
+    ).toBeVisible();
   });
 });
