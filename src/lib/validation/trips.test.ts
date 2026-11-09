@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { createTripInput, updateTripTravelWindowInput } from "./trips";
+import { createTripInput, updateTripInput, updateTripTravelWindowInput } from "./trips";
 
 describe("createTripInput", () => {
   it("accepts a named trip", () => {
@@ -9,6 +9,31 @@ describe("createTripInput", () => {
 
   it("rejects a blank name", () => {
     expect(createTripInput.safeParse({ name: "  " }).success).toBe(false);
+  });
+});
+
+describe("updateTripInput", () => {
+  const VALID = {
+    id: "11111111-1111-4111-8111-111111111111",
+    name: "Thornmere 2029",
+    status: "confirmed",
+    reason: "Booked the flights",
+  };
+
+  it("accepts a rename and status change together", () => {
+    expect(updateTripInput.safeParse(VALID).success).toBe(true);
+  });
+
+  it("rejects a blank name", () => {
+    expect(updateTripInput.safeParse({ ...VALID, name: "  " }).success).toBe(false);
+  });
+
+  it("rejects an unknown status", () => {
+    expect(updateTripInput.safeParse({ ...VALID, status: "booked" }).success).toBe(false);
+  });
+
+  it("rejects a blank reason", () => {
+    expect(updateTripInput.safeParse({ ...VALID, reason: "" }).success).toBe(false);
   });
 });
 

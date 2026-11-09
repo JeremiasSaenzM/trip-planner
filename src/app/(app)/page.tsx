@@ -7,7 +7,7 @@ import { dataSource } from "@/lib/data";
 
 import { AddEventForm, CreateScenarioForm, CreateTripForm } from "./bootstrap-forms";
 import { BudgetByCategoryChart, SavingsScheduleChart } from "./charts";
-import { DashboardControls } from "./dashboard-controls";
+import { DashboardControls, TripSwitcher } from "./dashboard-controls";
 import { loadDashboardData } from "./dashboard-data";
 import { Card, CardLabel, Caveat, noDepartureReason, RangeFigure } from "./dashboard-ui";
 import { DeadlinePotList } from "./deadline-pots-ui";
@@ -33,9 +33,10 @@ export default function OverviewPage({ searchParams }: PageProps<"/">) {
 
 async function Overview({ searchParams }: { searchParams: PageProps<"/">["searchParams"] }) {
   await getCurrentUser();
-  const { scenario: scenarioId, basis } = await searchParams;
+  const { trip: tripId, scenario: scenarioId, basis } = await searchParams;
   const [data, proposalItems] = await Promise.all([
     loadDashboardData({
+      tripId: typeof tripId === "string" ? tripId : undefined,
       scenarioId: typeof scenarioId === "string" ? scenarioId : undefined,
       basis: typeof basis === "string" ? basis : undefined,
     }),
@@ -47,10 +48,15 @@ async function Overview({ searchParams }: { searchParams: PageProps<"/">["search
     return <CreateTripForm />;
   }
   if (data.status === "no_scenario") {
-    return data.events.length === 0 ? (
-      <AddEventForm tripId={data.trip.id} />
-    ) : (
-      <CreateScenarioForm tripId={data.trip.id} events={data.events} />
+    return (
+      <div className="space-y-4">
+        <TripSwitcher basePath="/" trips={data.trips} activeTripId={data.trip.id} />
+        {data.events.length === 0 ? (
+          <AddEventForm tripId={data.trip.id} />
+        ) : (
+          <CreateScenarioForm tripId={data.trip.id} events={data.events} />
+        )}
+      </div>
     );
   }
 
@@ -83,6 +89,8 @@ async function Overview({ searchParams }: { searchParams: PageProps<"/">["search
 
       <DashboardControls
         basePath="/"
+        trips={data.trips}
+        activeTripId={data.trip.id}
         scenarios={data.scenarios}
         activeScenarioId={data.scenario.id}
         basis={data.basis}
@@ -139,7 +147,10 @@ async function Overview({ searchParams }: { searchParams: PageProps<"/">["search
           // truth is "can't say yet".
           <p data-testid="no-savings-requirement" className="mt-1 text-base text-zinc-600 dark:text-zinc-400">
             {noDepartureReason(event)}, so there&apos;s no savings requirement to compute.{" "}
-            <Link href={`/scenarios?scenario=${data.scenario.id}&basis=${data.basis}`} className="underline">
+            <Link
+              href={`/scenarios?trip=${data.trip.id}&scenario=${data.scenario.id}&basis=${data.basis}`}
+              className="underline"
+            >
               Set the trip&apos;s travel window
             </Link>
           </p>

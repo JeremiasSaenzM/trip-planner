@@ -6,18 +6,19 @@ import { dataSource } from "@/lib/data";
 import { translatePostgresError } from "@/lib/data/error-messages";
 import { createEventInput } from "@/lib/validation/events";
 import { createScenarioInput } from "@/lib/validation/scenarios";
-import { createTripInput } from "@/lib/validation/trips";
+import { createTripInput, updateTripInput } from "@/lib/validation/trips";
 
 import { initialFormActionState, type FormActionState } from "./form-action-state";
 import { firstIssueMessage, optionalText } from "./server-action-helpers";
 
 // Server Actions for the Overview page's "no_trip"/"no_scenario" empty
-// states (see bootstrap-forms.tsx). The hosted database starts out
-// completely empty, so this is the only way into the rest of the app.
-// The event and scenario forms are reused on /scenarios to add
-// more of each -- and every page's scenario selector lists them -- so
-// those two revalidate everything under the root layout.
-function revalidateEventsAndScenarios() {
+// states (see bootstrap-forms.tsx), plus /trips (trips-ui.tsx). The
+// hosted database starts out completely empty, so creating a trip here
+// is the only way into the rest of the app. Every one of these can
+// change what the trip selector on every dashboard page lists or
+// highlights, so each revalidates everything under the root layout, not
+// just the page it was submitted from.
+function revalidateAll() {
   revalidatePath("/", "layout");
 }
 
@@ -31,8 +32,30 @@ export async function createTrip(_previous: FormActionState, formData: FormData)
     return { status: "error", message: translatePostgresError(error as { message: string }) };
   }
 
-  revalidatePath("/");
+  revalidateAll();
   return initialFormActionState;
+}
+
+// /trips' rename/status form (trips-ui.tsx) -- the travel window has
+// its own edit control on /scenarios (TravelWindowActions), untouched
+// here.
+export async function updateTrip(_previous: FormActionState, formData: FormData): Promise<FormActionState> {
+  const parsed = updateTripInput.safeParse({
+    id: formData.get("id"),
+    name: formData.get("name"),
+    status: formData.get("status"),
+    reason: formData.get("reason"),
+  });
+  if (!parsed.success) return { status: "error", message: firstIssueMessage(parsed.error) };
+
+  try {
+    await dataSource.updateTrip(parsed.data);
+  } catch (error) {
+    return { status: "error", message: translatePostgresError(error as { message: string }) };
+  }
+
+  revalidateAll();
+  return { status: "success" };
 }
 
 export async function createEvent(
@@ -57,7 +80,7 @@ export async function createEvent(
     return { status: "error", message: translatePostgresError(error as { message: string }) };
   }
 
-  revalidateEventsAndScenarios();
+  revalidateAll();
   return initialFormActionState;
 }
 
@@ -78,6 +101,6 @@ export async function createScenario(
     return { status: "error", message: translatePostgresError(error as { message: string }) };
   }
 
-  revalidateEventsAndScenarios();
+  revalidateAll();
   return initialFormActionState;
 }

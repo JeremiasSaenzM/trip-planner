@@ -4,10 +4,22 @@ import { changeReason, checkConfirmedNeedsSource, id, infoState } from "./shared
 
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use a YYYY-MM-DD date");
 
+export const tripStatus = z.enum(["planning", "confirmed", "completed", "cancelled"]);
+
 // The hosted database starts out completely empty -- this is the form
 // behind the Overview page's "no_trip" empty state.
 export const createTripInput = z.object({
   name: z.string().trim().min(1, "Name your trip"),
+});
+
+// Renames the trip and/or changes its status -- the travel window is a
+// separate, full-row-replace write (updateTripTravelWindowInput below),
+// never touched by this one.
+export const updateTripInput = z.object({
+  id,
+  name: z.string().trim().min(1, "Name your trip"),
+  status: tripStatus,
+  reason: changeReason,
 });
 
 // Mirrors trips_return_after_departure,
@@ -43,4 +55,5 @@ export const updateTripTravelWindowInput = z
   });
 
 export type CreateTripInput = z.infer<typeof createTripInput>;
+export type UpdateTripInput = z.infer<typeof updateTripInput>;
 export type UpdateTripTravelWindowInput = z.infer<typeof updateTripTravelWindowInput>;

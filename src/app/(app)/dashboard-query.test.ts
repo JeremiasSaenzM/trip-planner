@@ -9,6 +9,12 @@ describe("dashboardQuery", () => {
     );
   });
 
+  it("carries trip, same as scenario and basis", () => {
+    expect(dashboardQuery(new URLSearchParams("trip=xyz&scenario=abc&basis=conservative"))).toBe(
+      "?trip=xyz&scenario=abc&basis=conservative",
+    );
+  });
+
   it("carries basis=minimum like the other two", () => {
     expect(dashboardQuery(new URLSearchParams("scenario=abc&basis=minimum"))).toBe("?scenario=abc&basis=minimum");
   });

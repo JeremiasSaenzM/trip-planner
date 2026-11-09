@@ -36,6 +36,7 @@ export const demoDataSource: DataSource = {
   getProposalBatches: async () => fixtures.proposalBatches,
   getProposalItems: async () => fixtures.proposalItems,
   createTrip: async () => writesDisabledInDemoMode(),
+  updateTrip: async () => writesDisabledInDemoMode(),
   updateTripTravelWindow: async () => writesDisabledInDemoMode(),
   createEvent: async () => writesDisabledInDemoMode(),
   updateEvent: async () => writesDisabledInDemoMode(),

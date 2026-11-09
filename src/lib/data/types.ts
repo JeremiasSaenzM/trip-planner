@@ -436,6 +436,10 @@ export type ProposalItem = {
 // src/lib/validation is structurally identical to the matching type
 // below, so it's passed straight through with no mapping step.
 export type CreateTripWrite = { name: string };
+// Renames the trip and/or changes its status -- a full-row replace for
+// the two fields it owns (update_trip, 20261109090000_update_trip.sql).
+// The travel window is a separate write, below.
+export type UpdateTripWrite = { id: string; name: string; status: TripStatus; reason: string };
 export type UpdateTripTravelWindowWrite = {
   tripId: string;
   departureDate?: string;
@@ -760,6 +764,7 @@ export type DataSource = {
   getProposalBatches(): Promise<ProposalBatch[]>;
   getProposalItems(): Promise<ProposalItem[]>;
   createTrip(input: CreateTripWrite): Promise<Trip>;
+  updateTrip(input: UpdateTripWrite): Promise<Trip>;
   updateTripTravelWindow(input: UpdateTripTravelWindowWrite): Promise<Trip>;
   createEvent(input: CreateEventWrite): Promise<TripEvent>;
   updateEvent(input: UpdateEventWrite): Promise<TripEvent>;
