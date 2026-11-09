@@ -60,10 +60,14 @@ export type { Basis };
 
 export type DashboardData =
   | { status: "no_trip" }
-  | { status: "no_scenario"; trip: Trip; events: TripEvent[] }
+  | { status: "no_scenario"; trip: Trip; trips: Trip[]; events: TripEvent[] }
   | {
       status: "ready";
       trip: Trip;
+      /** Every one of the traveller's trips, sorted (sortTrips()) --
+       * the trip selector's own list, so switching trips doesn't
+       * depend on row order either. */
+      trips: Trip[];
       scenario: Scenario;
       scenarios: Scenario[];
       event: TripEvent | null;
@@ -181,6 +185,7 @@ export type DashboardData =
 // runs the domain functions once so the three screens stay consistent
 // with each other.
 export async function loadDashboardData(params: {
+  tripId?: string;
   scenarioId?: string;
   basis?: string;
 }): Promise<DashboardData> {
@@ -218,7 +223,8 @@ export async function loadDashboardData(params: {
     dataSource.getAccommodationOptions(),
   ]);
 
-  const trip = sortTrips(trips)[0];
+  const sortedTrips = sortTrips(trips);
+  const trip = sortedTrips.find((t) => t.id === params.tripId) ?? sortedTrips[0];
   if (!trip) return { status: "no_trip" };
 
   // Sorted here, once -- same reasoning and comparator as
@@ -230,7 +236,7 @@ export async function loadDashboardData(params: {
 
   const tripScenarios = sortScenarios(scenarios.filter((s) => s.tripId === trip.id));
   const scenario = tripScenarios.find((s) => s.id === params.scenarioId) ?? tripScenarios[0];
-  if (!scenario) return { status: "no_scenario", trip, events: tripEvents };
+  if (!scenario) return { status: "no_scenario", trip, trips: sortedTrips, events: tripEvents };
 
   const basis = parseBasis(params.basis);
   const asOfDate = new Date().toISOString().slice(0, 10);
@@ -378,6 +384,7 @@ export async function loadDashboardData(params: {
     return {
       status: "ready",
       trip,
+      trips: sortedTrips,
       scenario,
       scenarios: tripScenarios,
       event,
@@ -451,6 +458,7 @@ export async function loadDashboardData(params: {
   return {
     status: "ready",
     trip,
+    trips: sortedTrips,
     scenario,
     scenarios: tripScenarios,
     event,

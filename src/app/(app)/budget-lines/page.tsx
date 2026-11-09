@@ -5,7 +5,7 @@ import { getCurrentUser } from "@/lib/auth";
 
 import { AddBudgetLineForm, BudgetLineList } from "../budget-line-write-ui";
 import { Card, EmptyState } from "../dashboard-ui";
-import { DashboardControls } from "../dashboard-controls";
+import { DashboardControls, TripSwitcher } from "../dashboard-controls";
 import { loadDashboardData } from "../dashboard-data";
 import { FxRatesSection } from "../fx-rate-write-ui";
 
@@ -28,14 +28,21 @@ async function BudgetLinesScreen({
   searchParams: PageProps<"/budget-lines">["searchParams"];
 }) {
   await getCurrentUser();
-  const { scenario: scenarioId, basis } = await searchParams;
+  const { trip: tripId, scenario: scenarioId, basis } = await searchParams;
   const data = await loadDashboardData({
+    tripId: typeof tripId === "string" ? tripId : undefined,
     scenarioId: typeof scenarioId === "string" ? scenarioId : undefined,
     basis: typeof basis === "string" ? basis : undefined,
   });
 
   if (data.status === "no_trip") return <EmptyState>No trip yet.</EmptyState>;
-  if (data.status === "no_scenario") return <EmptyState>No scenario yet for this trip.</EmptyState>;
+  if (data.status === "no_scenario")
+    return (
+      <div className="space-y-4">
+        <TripSwitcher basePath="/budget-lines" trips={data.trips} activeTripId={data.trip.id} />
+        <EmptyState>No scenario yet for this trip.</EmptyState>
+      </div>
+    );
 
   const { trip, scenario, budgetLines, sources, fxRates, missingFxRates } = data;
 
@@ -43,6 +50,8 @@ async function BudgetLinesScreen({
     <div className="space-y-6">
       <DashboardControls
         basePath="/budget-lines"
+        trips={data.trips}
+        activeTripId={data.trip.id}
         scenarios={data.scenarios}
         activeScenarioId={data.scenario.id}
         basis={data.basis}

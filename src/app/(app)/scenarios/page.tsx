@@ -41,7 +41,7 @@ export default function ScenariosPage({ searchParams }: PageProps<"/scenarios">)
 // would be refused before you try).
 async function ScenariosScreen({ searchParams }: { searchParams: PageProps<"/scenarios">["searchParams"] }) {
   await getCurrentUser();
-  const { scenario: scenarioParam, basis: basisParam } = await searchParams;
+  const { trip: tripParam, scenario: scenarioParam, basis: basisParam } = await searchParams;
 
   const [trips, events, scenarios, sources, budgetLines, payments, flightOptions, stays, movements] =
     await Promise.all([
@@ -56,7 +56,10 @@ async function ScenariosScreen({ searchParams }: { searchParams: PageProps<"/sce
       dataSource.getMovements(),
     ]);
 
-  const trip = sortTrips(trips)[0];
+  // Same fallback rule as loadDashboardData: a missing or stale ?trip=
+  // means the default trip (sortTrips()[0]).
+  const sortedTrips = sortTrips(trips);
+  const trip = sortedTrips.find((t) => t.id === tripParam) ?? sortedTrips[0];
   if (!trip) return <EmptyState>No trip yet. Start one from Overview.</EmptyState>;
 
   const tripEvents = [...events.filter((e) => e.tripId === trip.id)].sort(
@@ -149,7 +152,7 @@ async function ScenariosScreen({ searchParams }: { searchParams: PageProps<"/sce
                       </span>
                     ) : (
                       <Link
-                        href={`/?scenario=${scenario.id}&basis=${basis}`}
+                        href={`/?trip=${trip.id}&scenario=${scenario.id}&basis=${basis}`}
                         className="shrink-0 text-sm font-medium underline"
                       >
                         Switch to

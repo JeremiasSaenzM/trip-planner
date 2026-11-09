@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import { getCurrentUser } from "@/lib/auth";
 import type { OpenItem, OpenItemCategory } from "@/lib/data/types";
 
-import { DashboardControls } from "../dashboard-controls";
+import { DashboardControls, TripSwitcher } from "../dashboard-controls";
 import { loadDashboardData } from "../dashboard-data";
 import { Card, EmptyState } from "../dashboard-ui";
 import { formatDate } from "../format";
@@ -32,20 +32,29 @@ export default function DeadlinesPage({ searchParams }: PageProps<"/deadlines">)
 
 async function DeadlinesScreen({ searchParams }: { searchParams: PageProps<"/deadlines">["searchParams"] }) {
   await getCurrentUser();
-  const { scenario: scenarioId, basis } = await searchParams;
+  const { trip: tripId, scenario: scenarioId, basis } = await searchParams;
   const data = await loadDashboardData({
+    tripId: typeof tripId === "string" ? tripId : undefined,
     scenarioId: typeof scenarioId === "string" ? scenarioId : undefined,
     basis: typeof basis === "string" ? basis : undefined,
   });
 
   if (data.status === "no_trip") return <EmptyState>No trip yet.</EmptyState>;
-  if (data.status === "no_scenario") return <EmptyState>No scenario yet for this trip.</EmptyState>;
+  if (data.status === "no_scenario")
+    return (
+      <div className="space-y-4">
+        <TripSwitcher basePath="/deadlines" trips={data.trips} activeTripId={data.trip.id} />
+        <EmptyState>No scenario yet for this trip.</EmptyState>
+      </div>
+    );
 
   if (data.openItems.length === 0) {
     return (
       <div className="space-y-6">
         <DashboardControls
           basePath="/deadlines"
+          trips={data.trips}
+          activeTripId={data.trip.id}
           scenarios={data.scenarios}
           activeScenarioId={data.scenario.id}
           basis={data.basis}
@@ -59,6 +68,8 @@ async function DeadlinesScreen({ searchParams }: { searchParams: PageProps<"/dea
     <div className="space-y-6">
       <DashboardControls
         basePath="/deadlines"
+        trips={data.trips}
+        activeTripId={data.trip.id}
         scenarios={data.scenarios}
         activeScenarioId={data.scenario.id}
         basis={data.basis}

@@ -527,6 +527,21 @@ export const realDataSource: DataSource = {
     return mapTripRow(data);
   },
 
+  // update_trip (20261109090000_update_trip.sql) -- name and status
+  // only; the travel window is updateTripTravelWindow's own, below.
+  async updateTrip(input) {
+    assertWritesAllowed();
+    const supabase = await createClient();
+    const { data, error } = await supabase.rpc("update_trip", {
+      p_id: input.id,
+      p_name: input.name,
+      p_status: input.status,
+      p_reason: input.reason,
+    });
+    if (error) throw error;
+    return mapTripRow(data as Record<string, unknown>);
+  },
+
   // update_trip_travel_window (20261022090000_trip_travel_window.sql) --
   // setting the window is an UPDATE on the trip, so it needs a reason,
   // set in the same call the change_log trigger checks it in.
