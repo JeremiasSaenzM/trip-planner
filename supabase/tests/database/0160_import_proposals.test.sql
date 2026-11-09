@@ -7,7 +7,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
-select plan(72);
+select plan(76);
 
 select has_table('proposal_batches', 'proposal_batches exists');
 select has_table('proposal_items', 'proposal_items exists');
@@ -17,8 +17,9 @@ select enum_has_labels('proposal_op', array[
   'create_stay', 'create_movement', 'update_stay', 'update_movement',
   'create_flight_option', 'create_flight_segment', 'update_flight_option',
   'create_location', 'update_location',
-  'create_accommodation_option', 'update_accommodation_option'
-], 'proposal_op is exactly the twenty-three operations (v1 plus stays/movements plus flights plus locations plus accommodation)');
+  'create_accommodation_option', 'update_accommodation_option',
+  'create_trip', 'update_trip'
+], 'proposal_op is exactly the twenty-five operations (v1 plus stays/movements, flights, locations, accommodation, and trips)');
 select enum_has_labels('proposal_status', array['pending', 'approved', 'rejected'], 'proposal_status is pending / approved / rejected');
 select ok((select relrowsecurity from pg_class where oid = 'proposal_batches'::regclass), 'RLS is on for proposal_batches');
 select ok((select relrowsecurity from pg_class where oid = 'proposal_items'::regclass), 'RLS is on for proposal_items');
@@ -125,7 +126,12 @@ select lives_ok(
           "payload": {"changes": {"scenarioId": {"from": null, "to": "b2000000-0000-0000-0000-000000000004"}}}},
          {"position": 14, "ref": "b1-update-move", "op": "update_movement", "reason": "pgTAP: sequence corrected",
           "targetId": "b2000000-0000-0000-0000-000000000011",
-          "payload": {"changes": {"sequence": {"from": 1, "to": 2}}}}
+          "payload": {"changes": {"sequence": {"from": 1, "to": 2}}}},
+         {"position": 15, "ref": "b1-trip", "op": "create_trip", "reason": "pgTAP: a second trip proposed",
+          "payload": {"data": {"name": "Proposed trip"}}},
+         {"position": 16, "ref": "b1-update-trip", "op": "update_trip", "reason": "pgTAP: trip confirmed",
+          "targetId": "b2000000-0000-0000-0000-000000000001",
+          "payload": {"changes": {"status": {"from": "planning", "to": "confirmed"}}}}
        ]'::jsonb
      ) $$,
   'create_proposal_batch saves a batch'
@@ -133,7 +139,7 @@ select lives_ok(
 
 select is(
   (select count(*)::int from proposal_items i join proposal_batches b on b.id = i.batch_id where b.note = 'pgTAP batch one'),
-  15,
+  17,
   'every item of the batch was saved, all pending'
 );
 
@@ -269,6 +275,31 @@ select results_eq(
      from movements where to_location_id = 'b2000000-0000-0000-0000-00000000000c' $$,
   $$ values (true, 'b2000000-0000-0000-0000-00000000000a'::uuid, 'b2000000-0000-0000-0000-00000000000c'::uuid) $$,
   'the movement''s scenario reference resolved the same way'
+);
+
+-- A trip: create injects no trip_id (it's the root), and update_trip
+-- goes through the same RPC the Trips page edit form uses.
+
+select lives_ok(
+  $$ select approve_proposal((select id from proposal_items where ref = 'b1-trip')) $$,
+  'a trip create needs no parent reference and succeeds on its own'
+);
+
+select results_eq(
+  $$ select name, status::text from trips where id = (select result_id from proposal_items where ref = 'b1-trip') $$,
+  $$ values ('Proposed trip'::text, 'planning'::text) $$,
+  'the trip was created with the proposed name, status at its default'
+);
+
+select lives_ok(
+  $$ select approve_proposal((select id from proposal_items where ref = 'b1-update-trip')) $$,
+  'updating the batch''s own trip succeeds'
+);
+
+select is(
+  (select status::text from trips where id = 'b2000000-0000-0000-0000-000000000001'),
+  'confirmed',
+  'the update went through: the trip is now confirmed'
 );
 
 -- Updates: same RPC as the edit form, refused when stale

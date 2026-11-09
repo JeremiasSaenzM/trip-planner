@@ -1,4 +1,4 @@
-import type { ProposalOp } from "@/lib/data/types";
+import type { ProposalOp, TripStatus } from "@/lib/data/types";
 import type { BudgetCategory, Confidence, FlightBaggage, InfoState } from "@/lib/domain/types";
 import type { ReferenceLabel } from "@/lib/proposals/review";
 
@@ -10,6 +10,7 @@ import { INFO_STATE_LABELS } from "./info-state-labels";
 import { MOVEMENT_MODE_LABELS, STAY_KIND_LABELS } from "./itinerary-labels";
 import { REFUNDABILITY_LABELS, TIMING_LABELS } from "./payment-labels";
 import { QUANTITY_UNIT_LABELS } from "./quantity-unit-labels";
+import { TRIP_STATUS_LABELS } from "./trip-labels";
 
 // Words for the /import review screen. Values are shown with the same
 // labels the rest of the app uses (categories, information states, ...),
@@ -39,6 +40,8 @@ export const OP_LABELS: Record<ProposalOp, string> = {
   update_location: "Change location",
   create_accommodation_option: "New accommodation option",
   update_accommodation_option: "Change accommodation option",
+  create_trip: "New trip",
+  update_trip: "Change trip",
 };
 
 const FIELD_LABELS: Record<string, string> = {
@@ -181,7 +184,16 @@ export function formatProposalValue(field: string, value: unknown): string {
     case "baggage":
       return FLIGHT_BAGGAGE_LABELS[value as FlightBaggage] ?? value;
     case "status":
-      return FLIGHT_OPTION_STATUS_LABELS[value as keyof typeof FLIGHT_OPTION_STATUS_LABELS] ?? value;
+      // flight_option/accommodation_option status and trip status
+      // reuse the one field name -- safe only because their value
+      // sets never overlap ("candidate"/"selected"/"rejected"/"booked"
+      // vs. "planning"/"confirmed"/"completed"/"cancelled"), so a value
+      // never matches the wrong map.
+      return (
+        FLIGHT_OPTION_STATUS_LABELS[value as keyof typeof FLIGHT_OPTION_STATUS_LABELS] ??
+        TRIP_STATUS_LABELS[value as TripStatus] ??
+        value
+      );
     case "rateUnit":
       return ACCOMMODATION_RATE_UNIT_LABELS[value as keyof typeof ACCOMMODATION_RATE_UNIT_LABELS] ?? value;
     default:

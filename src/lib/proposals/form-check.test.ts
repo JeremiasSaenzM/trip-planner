@@ -13,6 +13,7 @@ const SOURCE_ID = "30000000-0000-0000-0000-000000000001";
 const LOCATION_ID = fixtures.locations[0].id;
 
 const rows: CurrentRows = {
+  trips: fixtures.trips,
   events: fixtures.events,
   scenarios: fixtures.scenarios,
   budgetLines: fixtures.budgetLines,
@@ -141,6 +142,16 @@ describe("checkAgainstForm: creates go through the form's own schema", () => {
     });
     expect(result.ok).toBe(false);
   });
+
+  // Unlike every other create op, no tripId is injected -- a trip has
+  // no parent of its own to attach to.
+  it("accepts a named trip, with no reference fields to resolve", () => {
+    expect(check("create_trip", { data: { name: "Mexico City 2027" } })).toEqual({ ok: true });
+  });
+
+  it("refuses a blank trip name", () => {
+    expect(check("create_trip", { data: { name: "  " } }).ok).toBe(false);
+  });
 });
 
 describe("checkAgainstForm: updates are checked as the row would end up", () => {
@@ -217,6 +228,22 @@ describe("checkAgainstForm: updates are checked as the row would end up", () => 
     );
     expect(result.ok).toBe(false);
   });
+
+  it("applies a trip rename and status change on top of the current values", () => {
+    const trip = fixtures.trips[0];
+    const result = check(
+      "update_trip",
+      { changes: { name: { from: trip.name, to: "Renamed" }, status: { from: trip.status, to: "confirmed" } } },
+      trip.id,
+    );
+    expect(result).toEqual({ ok: true });
+  });
+
+  it("refuses a blank trip name on update too", () => {
+    const trip = fixtures.trips[0];
+    const result = check("update_trip", { changes: { name: { from: trip.name, to: "  " } } }, trip.id);
+    expect(result.ok).toBe(false);
+  });
 });
 
 // currentFields() is the TypeScript twin of approve_proposal()'s
@@ -235,6 +262,7 @@ describe("currentFields", () => {
     update_flight_option: fixtures.flightOptions[0].id,
     update_location: fixtures.locations[0].id,
     update_accommodation_option: fixtures.accommodationOptions[0].id,
+    update_trip: fixtures.trips[0].id,
   };
 
   it.each(Object.keys(targets) as UpdateOp[])("covers exactly the fields %s can change", (op) => {

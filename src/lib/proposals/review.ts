@@ -166,6 +166,8 @@ function resultStillExists(item: ProposalItem, rows: ReviewRows): boolean {
       return rows.locations.some((l) => l.id === item.resultId);
     case "create_accommodation_option":
       return rows.accommodationOptions.some((o) => o.id === item.resultId);
+    case "create_trip":
+      return rows.trips.some((t) => t.id === item.resultId);
   }
 }
 
@@ -337,6 +339,8 @@ function describeTarget(op: ProposalItem["op"], id: string, rows: ReviewRows): s
       const option = rows.accommodationOptions.find((o) => o.id === id);
       return option ? option.label : null;
     }
+    case "update_trip":
+      return rows.trips.find((t) => t.id === id)?.name ?? null;
     default:
       return null;
   }
@@ -376,6 +380,10 @@ function duplicateWarning(
         (r) => r.currency === data.currency && r.rateDate === data.rateDate && r.rateKind === data.rateKind,
       );
       return match ? "There's already a rate for this currency, date and kind -- approving this one will be refused." : null;
+    }
+    case "create_trip": {
+      const match = rows.trips.find((t) => same(t.name, data.name));
+      return match ? `A trip called "${match.name}" already exists.` : null;
     }
     default:
       return null;

@@ -9,6 +9,7 @@ import { resolverFor, reviewBatch, unknownReferences, type ReviewRows } from "./
 const TRIP_ID = "20000000-0000-0000-0000-000000000001";
 
 const rows: ReviewRows = {
+  trips: fixtures.trips,
   sources: fixtures.sources,
   events: fixtures.events,
   scenarios: fixtures.scenarios,

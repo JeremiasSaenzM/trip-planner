@@ -71,6 +71,7 @@ async function loadRows(): Promise<ReviewRows & { tripId: string | null }> {
   ]);
   return {
     tripId: sortTrips(trips)[0]?.id ?? null,
+    trips,
     sources,
     events,
     scenarios,
