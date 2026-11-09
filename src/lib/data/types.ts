@@ -392,7 +392,9 @@ export type ProposalOp =
   | "create_location"
   | "update_location"
   | "create_accommodation_option"
-  | "update_accommodation_option";
+  | "update_accommodation_option"
+  | "create_trip"
+  | "update_trip";
 export type ProposalStatus = "pending" | "approved" | "rejected";
 
 export type ProposalBatch = {

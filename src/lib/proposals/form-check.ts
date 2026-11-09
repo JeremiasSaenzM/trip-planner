@@ -14,6 +14,7 @@ import type {
   SavingsEntry,
   Scenario,
   Stay,
+  Trip,
 } from "@/lib/data/types";
 import { createAccommodationOptionInput, updateAccommodationOptionInput } from "@/lib/validation/accommodation-options";
 import { createBudgetLineInput, updateBudgetLineInput } from "@/lib/validation/budget-lines";
@@ -28,6 +29,7 @@ import { updateSavingsEntryInput } from "@/lib/validation/savings-entries";
 import { createScenarioInput, updateScenarioInput } from "@/lib/validation/scenarios";
 import { createSourceInput } from "@/lib/validation/sources";
 import { createStayInput, updateStayInput } from "@/lib/validation/stays";
+import { createTripInput, updateTripInput } from "@/lib/validation/trips";
 
 import {
   isUpdateOp,
@@ -41,6 +43,7 @@ import {
 } from "./schema";
 
 export type CurrentRows = {
+  trips: Trip[];
   events: TripEvent[];
   scenarios: Scenario[];
   budgetLines: BudgetLine[];
@@ -243,6 +246,10 @@ export function currentFields(op: UpdateOp, targetId: string, rows: CurrentRows)
           }
         : null;
     }
+    case "update_trip": {
+      const row = rows.trips.find((t) => t.id === targetId);
+      return row ? { name: row.name, status: row.status } : null;
+    }
   }
 }
 
@@ -387,6 +394,10 @@ function checkCreate(
         createAccommodationOptionInput.safeParse({ ...rest, stayId: ref(stay), sourceId: ref(source) }),
       );
     }
+    // No tripId injected: unlike every other create op, a trip has no
+    // parent of its own to attach to -- it's what tripId means.
+    case "create_trip":
+      return result(createTripInput.safeParse(data as CreateData<"create_trip">));
   }
 }
 
@@ -572,6 +583,15 @@ function checkUpdate(op: UpdateOp, id: string, merged: Record<string, unknown>, 
           observedOn: merged.observedOn,
           informationState: merged.informationState,
           notes: absent(merged.notes),
+          reason,
+        }),
+      );
+    case "update_trip":
+      return result(
+        updateTripInput.safeParse({
+          id,
+          name: merged.name,
+          status: merged.status,
           reason,
         }),
       );

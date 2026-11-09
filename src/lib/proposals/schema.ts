@@ -11,6 +11,7 @@ import { paymentTiming, refundability } from "@/lib/validation/payments";
 import { ianaTimezone } from "@/lib/validation/locations";
 import { confidence, currencyCode, httpUrl, id, infoState } from "@/lib/validation/shared";
 import { stayKind } from "@/lib/validation/stays";
+import { tripStatus } from "@/lib/validation/trips";
 
 // The format a research chat pastes in: one JSON document listing
 // proposed changes. Everything about it is untrusted -- every object is
@@ -49,6 +50,8 @@ export const PROPOSAL_OPS = [
   "update_location",
   "create_accommodation_option",
   "update_accommodation_option",
+  "create_trip",
+  "update_trip",
 ] as const satisfies readonly ProposalOp[];
 
 export type CreateOp = Extract<ProposalOp, `create_${string}`>;
@@ -111,6 +114,10 @@ export const REFERENCE_FIELDS: Record<ProposalOp, Record<string, ReferenceKind>>
   update_location: {},
   create_accommodation_option: { stay: "stay", source: "source" },
   update_accommodation_option: { source: "source" },
+  // A trip has no parent of its own to inject (it's the root), and
+  // nothing on it refers to another row.
+  create_trip: {},
+  update_trip: {},
 };
 
 // Ids are compared as text against what Postgres returns (always lower
@@ -309,6 +316,9 @@ export const CREATE_DATA = {
     isHostel: z.boolean(),
     notes: freeText.optional(),
   }),
+  create_trip: z.strictObject({
+    name,
+  }),
 } satisfies Record<CreateOp, z.ZodType>;
 
 // What each update operation may change, field by field, as {"from":
@@ -466,6 +476,12 @@ export const UPDATE_CHANGES = {
       notes: change(freeText.nullable()).optional(),
     })
     .refine(atLeastOneChange, "An update needs at least one change"),
+  update_trip: z
+    .strictObject({
+      name: change(name).optional(),
+      status: change(tripStatus).optional(),
+    })
+    .refine(atLeastOneChange, "An update needs at least one change"),
 } satisfies Record<UpdateOp, z.ZodType>;
 
 export type CreateData<Op extends CreateOp> = z.infer<(typeof CREATE_DATA)[Op]>;
@@ -504,6 +520,8 @@ export const pastedItem = z.discriminatedUnion("op", [
   updateItem("update_location"),
   createItem("create_accommodation_option"),
   updateItem("update_accommodation_option"),
+  createItem("create_trip"),
+  updateItem("update_trip"),
 ]);
 export type PastedItem = z.infer<typeof pastedItem>;
 

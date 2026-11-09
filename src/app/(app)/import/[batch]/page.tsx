@@ -39,6 +39,7 @@ async function BatchScreen({ params }: { params: PageProps<"/import/[batch]">["p
   const [
     batches,
     allItems,
+    trips,
     sources,
     events,
     scenarios,
@@ -55,6 +56,7 @@ async function BatchScreen({ params }: { params: PageProps<"/import/[batch]">["p
   ] = await Promise.all([
     dataSource.getProposalBatches(),
     dataSource.getProposalItems(),
+    dataSource.getTrips(),
     dataSource.getSources(),
     dataSource.getEvents(),
     dataSource.getScenarios(),
@@ -74,6 +76,7 @@ async function BatchScreen({ params }: { params: PageProps<"/import/[batch]">["p
   if (!batch) notFound();
 
   const reviews = reviewBatch(allItems.filter((item) => item.batchId === batch.id), {
+    trips,
     sources,
     events,
     scenarios,
