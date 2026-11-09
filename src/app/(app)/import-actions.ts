@@ -23,6 +23,7 @@ import {
   type ProposalPasteActionState,
 } from "./form-action-state";
 import { firstIssueMessage } from "./server-action-helpers";
+import { sortTrips } from "./trip-order";
 
 // Server Actions behind /import (see import-ui.tsx). Nothing here writes
 // plan data itself: approving calls approve_proposal(), which runs the
@@ -69,7 +70,7 @@ async function loadRows(): Promise<ReviewRows & { tripId: string | null }> {
     dataSource.getAccommodationOptions(),
   ]);
   return {
-    tripId: trips[0]?.id ?? null,
+    tripId: sortTrips(trips)[0]?.id ?? null,
     sources,
     events,
     scenarios,

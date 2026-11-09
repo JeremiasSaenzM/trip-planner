@@ -54,6 +54,7 @@ import { evaluateAccommodationOption, type AccommodationOptionEvaluation } from 
 import { parseBasis } from "./dashboard-query";
 import { evaluateFlightOption, type FlightOptionEvaluation } from "./flight-evaluation";
 import { sortScenarios } from "./scenario-order";
+import { sortTrips } from "./trip-order";
 
 export type { Basis };
 
@@ -176,10 +177,9 @@ export type DashboardData =
     };
 
 // The one place every dashboard page (Overview, Payments, Deadlines)
-// gets its data from. Resolves the current trip (the only one, for now
-// -- CLAUDE.md's Phase 4 scope doesn't call for a trip switcher) and the
-// selected scenario/basis, then runs the domain functions once so the
-// three screens stay consistent with each other.
+// gets its data from. Resolves the selected trip/scenario/basis, then
+// runs the domain functions once so the three screens stay consistent
+// with each other.
 export async function loadDashboardData(params: {
   scenarioId?: string;
   basis?: string;
@@ -218,10 +218,15 @@ export async function loadDashboardData(params: {
     dataSource.getAccommodationOptions(),
   ]);
 
-  const trip = trips[0];
+  const trip = sortTrips(trips)[0];
   if (!trip) return { status: "no_trip" };
 
-  const tripEvents = events.filter((e) => e.tripId === trip.id);
+  // Sorted here, once -- same reasoning and comparator as
+  // scenarios/page.tsx's own tripEvents, so which event a fresh
+  // CreateScenarioForm defaults to doesn't depend on row order either.
+  const tripEvents = [...events.filter((e) => e.tripId === trip.id)].sort(
+    (a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id),
+  );
 
   const tripScenarios = sortScenarios(scenarios.filter((s) => s.tripId === trip.id));
   const scenario = tripScenarios.find((s) => s.id === params.scenarioId) ?? tripScenarios[0];

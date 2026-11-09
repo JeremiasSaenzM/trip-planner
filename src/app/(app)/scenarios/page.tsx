@@ -13,6 +13,7 @@ import { Card, EmptyState } from "../dashboard-ui";
 import { formatDate } from "../format";
 import { INFO_STATE_LABELS } from "../info-state-labels";
 import { sortScenarios } from "../scenario-order";
+import { sortTrips } from "../trip-order";
 import {
   EventRowActions,
   ScenarioRowActions,
@@ -55,7 +56,7 @@ async function ScenariosScreen({ searchParams }: { searchParams: PageProps<"/sce
       dataSource.getMovements(),
     ]);
 
-  const trip = trips[0];
+  const trip = sortTrips(trips)[0];
   if (!trip) return <EmptyState>No trip yet. Start one from Overview.</EmptyState>;
 
   const tripEvents = [...events.filter((e) => e.tripId === trip.id)].sort(
