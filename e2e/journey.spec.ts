@@ -456,7 +456,7 @@ test("the full first-run journey, starting from a signed-out, empty account", as
       "http://x",
     ).searchParams.get("scenario")!;
     await page.getByRole("link", { name: "Manage scenarios" }).click();
-    await expect(page).toHaveURL(/\/scenarios\?scenario=/);
+    await expect(page).toHaveURL(/\/scenarios\?trip=.*&scenario=/);
     await expect(scenarioCard(page, "Thornmere 2029").getByText("Selected")).toBeVisible();
   });
 
@@ -480,7 +480,7 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await expect(eventCard(page, DATELESS_EVENT).getByText("Used by: Host TBA scenario")).toBeVisible();
 
     await scenarioCard(page, "Host TBA scenario").getByRole("link", { name: "Switch to" }).click();
-    await expect(page).toHaveURL(/\/\?scenario=/);
+    await expect(page).toHaveURL(/\/\?.*[?&]scenario=/);
     datelessScenarioId = new URL(page.url()).searchParams.get("scenario")!;
     expect(datelessScenarioId).not.toBe(firstScenarioId);
   });
@@ -498,7 +498,7 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     // no query, and clicking that one would drop the selection.
     await expect(budgetLink).toHaveAttribute("href", new RegExp(`scenario=${datelessScenarioId}`));
     await budgetLink.click();
-    await expect(page).toHaveURL(new RegExp(`/budget-lines\\?scenario=${datelessScenarioId}`));
+    await expect(page).toHaveURL(new RegExp(`/budget-lines\\?.*[?&]scenario=${datelessScenarioId}`));
   });
 
   await test.step("add a budget line to the new scenario; it doesn't appear in the first one", async () => {
@@ -752,7 +752,7 @@ test("the full first-run journey, starting from a signed-out, empty account", as
   await test.step("the Scenario Overview explains what this scenario is, and says what isn't stored", async () => {
     await page.goto(`/?scenario=${firstScenarioId}`);
     await page.getByRole("link", { name: "About this scenario" }).click();
-    await expect(page).toHaveURL(new RegExp(`/scenario\\?scenario=${firstScenarioId}`));
+    await expect(page).toHaveURL(new RegExp(`/scenario\\?.*[?&]scenario=${firstScenarioId}`));
 
     await expect(page.getByTestId("scenario-name")).toHaveText("Thornmere 2029");
     const whatThisIs = page.locator("section").filter({ has: page.getByRole("heading", { name: "What this is" }) });
