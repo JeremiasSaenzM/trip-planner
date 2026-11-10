@@ -928,6 +928,49 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await expect(accommodationOptionCard(page, "A-e2e-2")).not.toBeVisible();
   });
 
+  await test.step("an accommodation rate observed for the wrong night is refused, not just flagged (Phase 6.11)", async () => {
+    const stay = stayRow(page, "Cardiff"); // starts 2029-11-03, 11 nights
+
+    await stay.getByRole("button", { name: "Add an accommodation option", exact: true }).click();
+    await stay.getByLabel("Label", { exact: true }).fill("A-e2e-3");
+    await stay.getByLabel("Property name", { exact: true }).fill("Wrong Night Hotel e2e");
+    await stay.getByLabel("Rate", { exact: true }).fill("80");
+    await stay.getByLabel("Nights", { exact: true }).fill("11");
+    await stay.getByLabel("Currency", { exact: true }).fill("USD");
+    await stay.getByLabel("Source", { exact: true }).selectOption("__new__");
+    await stay.getByLabel("Provider", { exact: true }).fill("Yet another fictional hotel rate page");
+    await stay.getByLabel("Tier", { exact: true }).selectOption("2");
+    await stay.getByLabel("Observation date", { exact: true }).fill("2026-10-20");
+    await stay.getByLabel("Rate observed on", { exact: true }).fill("2026-10-20");
+    await stay.getByLabel(/Observed for the stay starting/).fill("2029-11-04"); // the stay starts 2029-11-03
+    await stay.getByRole("button", { name: "Add accommodation option", exact: true }).click();
+
+    await expect(
+      stay.getByText(/an accommodation figure must be backed by the nights it funds/),
+    ).toBeVisible();
+    await expect(accommodationOptionCard(page, "A-e2e-3")).not.toBeVisible();
+    await stay.getByRole("button", { name: "Cancel", exact: true }).click();
+
+    // Fresh form, correct night this time.
+    await stay.getByRole("button", { name: "Add an accommodation option", exact: true }).click();
+    await stay.getByLabel("Label", { exact: true }).fill("A-e2e-3");
+    await stay.getByLabel("Property name", { exact: true }).fill("Right Night Hotel e2e");
+    await stay.getByLabel("Rate", { exact: true }).fill("80");
+    await stay.getByLabel("Nights", { exact: true }).fill("11");
+    await stay.getByLabel("Currency", { exact: true }).fill("USD");
+    await stay.getByLabel("Source", { exact: true }).selectOption("__new__");
+    await stay.getByLabel("Provider", { exact: true }).fill("Yet another fictional hotel rate page");
+    await stay.getByLabel("Tier", { exact: true }).selectOption("2");
+    await stay.getByLabel("Observation date", { exact: true }).fill("2026-10-20");
+    await stay.getByLabel("Rate observed on", { exact: true }).fill("2026-10-20");
+    await stay.getByLabel(/Observed for the stay starting/).fill("2029-11-03");
+    await stay.getByRole("button", { name: "Add accommodation option", exact: true }).click();
+
+    const optionC = accommodationOptionCard(page, "A-e2e-3");
+    await expect(optionC).toBeVisible();
+    await expect(optionC.getByText("Guide price, not a dated observation.")).not.toBeVisible();
+  });
+
   await test.step("add flight options, watch the checks run, and compare -- never a sort control", async () => {
     // F-e2e-A: a round trip linked to the existing movements, with
     // segments that land well before the event and leave well
