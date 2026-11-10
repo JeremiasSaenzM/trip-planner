@@ -16,6 +16,7 @@ import type {
   Stay,
   Trip,
 } from "@/lib/data/types";
+import { checkObservationCoversStay, describeObservationMismatch } from "@/lib/domain/check-observation-covers-stay";
 import { createAccommodationOptionInput, updateAccommodationOptionInput } from "@/lib/validation/accommodation-options";
 import { createBudgetLineInput, updateBudgetLineInput } from "@/lib/validation/budget-lines";
 import { createEventInput, updateEventInput } from "@/lib/validation/events";
@@ -241,6 +242,7 @@ export function currentFields(op: UpdateOp, targetId: string, rows: CurrentRows)
             isHostel: row.isHostel,
             source: row.sourceId,
             observedOn: row.observedOn,
+            observedStartDate: row.observedStartDate,
             informationState: row.informationState,
             notes: row.notes,
           }
@@ -305,11 +307,11 @@ export function checkAgainstForm(
     for (const [field, change] of Object.entries((payload as { changes: Record<string, FieldChange> }).changes)) {
       merged[field] = field in refFields ? (ref(change.to) ?? null) : change.to;
     }
-    return checkUpdate(item.op, item.targetId!, merged, item.reason);
+    return checkUpdate(item.op, item.targetId!, merged, item.reason, context.rows);
   }
 
   const data = (payload as { data: Record<string, unknown> }).data;
-  return checkCreate(item.op as CreateOp, data, context.tripId, ref);
+  return checkCreate(item.op as CreateOp, data, context.tripId, ref, context.rows);
 }
 
 function checkCreate(
@@ -317,6 +319,7 @@ function checkCreate(
   data: Record<string, unknown>,
   tripId: string,
   ref: (value: unknown) => string | undefined,
+  rows: CurrentRows,
 ): FormCheck {
   switch (op) {
     case "create_source":
@@ -390,9 +393,20 @@ function checkCreate(
       return result(createLocationInput.safeParse(data as CreateData<"create_location">));
     case "create_accommodation_option": {
       const { stay, source, ...rest } = data as CreateData<"create_accommodation_option">;
-      return result(
-        createAccommodationOptionInput.safeParse({ ...rest, stayId: ref(stay), sourceId: ref(source) }),
-      );
+      const stayId = ref(stay);
+      const parsed = createAccommodationOptionInput.safeParse({ ...rest, stayId, sourceId: ref(source) });
+      if (!parsed.success) return result(parsed);
+      const stayRow = rows.stays.find((candidate) => candidate.id === stayId);
+      if (stayRow) {
+        const coverage = checkObservationCoversStay({
+          option: { observedStartDate: rest.observedStartDate ?? null, nights: rest.nights },
+          stay: { startDate: stayRow.startDate, nights: stayRow.nights },
+        });
+        if (coverage.status !== "ok" && coverage.status !== "undated") {
+          return { ok: false, message: describeObservationMismatch(coverage) };
+        }
+      }
+      return { ok: true };
     }
     // No tripId injected: unlike every other create op, a trip has no
     // parent of its own to attach to -- it's what tripId means.
@@ -401,7 +415,13 @@ function checkCreate(
   }
 }
 
-function checkUpdate(op: UpdateOp, id: string, merged: Record<string, unknown>, reason: string): FormCheck {
+function checkUpdate(
+  op: UpdateOp,
+  id: string,
+  merged: Record<string, unknown>,
+  reason: string,
+  rows: CurrentRows,
+): FormCheck {
   switch (op) {
     case "update_event":
       return result(
@@ -560,32 +580,48 @@ function checkUpdate(op: UpdateOp, id: string, merged: Record<string, unknown>, 
           reason,
         }),
       );
-    case "update_accommodation_option":
-      return result(
-        updateAccommodationOptionInput.safeParse({
-          id,
-          label: merged.label,
-          propertyName: merged.propertyName,
-          address: absent(merged.address),
-          rateAmount: merged.rateAmount,
-          rateUnit: merged.rateUnit,
-          nights: merged.nights,
-          mandatoryFees: merged.mandatoryFees,
-          currency: merged.currency,
-          status: merged.status,
-          refundability: merged.refundability,
-          cancellationDeadline: absent(merged.cancellationDeadline),
-          bookingReference: absent(merged.bookingReference),
-          conditionalRate: merged.conditionalRate,
-          undiscountedAmount: absent(merged.undiscountedAmount),
-          isHostel: merged.isHostel,
-          sourceId: merged.source,
-          observedOn: merged.observedOn,
-          informationState: merged.informationState,
-          notes: absent(merged.notes),
-          reason,
-        }),
-      );
+    case "update_accommodation_option": {
+      const parsed = updateAccommodationOptionInput.safeParse({
+        id,
+        label: merged.label,
+        propertyName: merged.propertyName,
+        address: absent(merged.address),
+        rateAmount: merged.rateAmount,
+        rateUnit: merged.rateUnit,
+        nights: merged.nights,
+        mandatoryFees: merged.mandatoryFees,
+        currency: merged.currency,
+        status: merged.status,
+        refundability: merged.refundability,
+        cancellationDeadline: absent(merged.cancellationDeadline),
+        bookingReference: absent(merged.bookingReference),
+        conditionalRate: merged.conditionalRate,
+        undiscountedAmount: absent(merged.undiscountedAmount),
+        isHostel: merged.isHostel,
+        sourceId: merged.source,
+        observedOn: merged.observedOn,
+        observedStartDate: absent(merged.observedStartDate),
+        informationState: merged.informationState,
+        notes: absent(merged.notes),
+        reason,
+      });
+      if (!parsed.success) return result(parsed);
+      const optionRow = rows.accommodationOptions.find((candidate) => candidate.id === id);
+      const stayRow = optionRow ? rows.stays.find((candidate) => candidate.id === optionRow.stayId) : undefined;
+      if (stayRow) {
+        const coverage = checkObservationCoversStay({
+          option: {
+            observedStartDate: (merged.observedStartDate as string | null | undefined) ?? null,
+            nights: merged.nights as number,
+          },
+          stay: { startDate: stayRow.startDate, nights: stayRow.nights },
+        });
+        if (coverage.status !== "ok" && coverage.status !== "undated") {
+          return { ok: false, message: describeObservationMismatch(coverage) };
+        }
+      }
+      return { ok: true };
+    }
     case "update_trip":
       return result(
         updateTripInput.safeParse({

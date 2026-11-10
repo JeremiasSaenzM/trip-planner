@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { dataSource } from "@/lib/data";
 import { translatePostgresError } from "@/lib/data/error-messages";
+import { checkObservationCoversStay, describeObservationMismatch } from "@/lib/domain/check-observation-covers-stay";
 import {
   createAccommodationOptionInput,
   deleteAccommodationOptionInput,
@@ -19,6 +20,24 @@ import { resolveSourceId } from "./source-actions";
 // flight-actions.ts's own conventions exactly.
 function revalidateAll() {
   revalidatePath("/scenario");
+}
+
+// Refuses the write before it ever reaches dataSource -- an
+// unfounded figure is a defect, not something to flag after the
+// fact (Phase 6.11). The database trigger on accommodation_options
+// is the backstop this mirrors; this check just gives the form a
+// readable message instead of a round trip.
+async function checkAgainstStay(stayId: string, observedStartDate: string | undefined, nights: number) {
+  const stays = await dataSource.getStays();
+  const stay = stays.find((candidate) => candidate.id === stayId);
+  if (!stay) return null;
+
+  const result = checkObservationCoversStay({
+    option: { observedStartDate: observedStartDate ?? null, nights },
+    stay: { startDate: stay.startDate, nights: stay.nights },
+  });
+  if (result.status === "ok" || result.status === "undated") return null;
+  return describeObservationMismatch(result);
 }
 
 export async function createAccommodationOption(
@@ -52,10 +71,14 @@ export async function createAccommodationOption(
     isHostel: formData.get("isHostel") === "on",
     sourceId,
     observedOn: formData.get("observedOn"),
+    observedStartDate: optionalText(formData.get("observedStartDate")),
     informationState: formData.get("informationState"),
     notes: optionalText(formData.get("notes")),
   });
   if (!parsed.success) return { status: "error", message: firstIssueMessage(parsed.error) };
+
+  const mismatch = await checkAgainstStay(parsed.data.stayId, parsed.data.observedStartDate, parsed.data.nights);
+  if (mismatch) return { status: "error", message: mismatch };
 
   try {
     await dataSource.createAccommodationOption(parsed.data);
@@ -99,11 +122,18 @@ export async function updateAccommodationOption(
     isHostel: formData.get("isHostel") === "on",
     sourceId,
     observedOn: formData.get("observedOn"),
+    observedStartDate: optionalText(formData.get("observedStartDate")),
     informationState: formData.get("informationState"),
     notes: optionalText(formData.get("notes")),
     reason: formData.get("reason"),
   });
   if (!parsed.success) return { status: "error", message: firstIssueMessage(parsed.error) };
+
+  const existing = (await dataSource.getAccommodationOptions()).find((option) => option.id === parsed.data.id);
+  if (existing) {
+    const mismatch = await checkAgainstStay(existing.stayId, parsed.data.observedStartDate, parsed.data.nights);
+    if (mismatch) return { status: "error", message: mismatch };
+  }
 
   try {
     await dataSource.updateAccommodationOption(parsed.data);
