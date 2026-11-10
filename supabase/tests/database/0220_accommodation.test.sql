@@ -6,7 +6,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
-select plan(23);
+select plan(30);
 
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '10000000-0000-0000-0000-000000000001', true);
@@ -80,6 +80,57 @@ select lives_ok(
        80, 'per_night', 5, 'USD', '13000000-0000-0000-0000-000000000003', '2026-10-01', true, 95
      ) $$,
   'a conditional rate with an undiscounted amount is accepted'
+);
+
+-- Phase 6.11: an accommodation figure must be backed by the nights it
+-- funds. The stay (id ...004) runs 2027-07-01, 5 nights.
+select throws_like(
+  $$ insert into accommodation_options (
+       owner_id, stay_id, label, property_name, rate_amount, rate_unit, nights, currency,
+       source_id, observed_on, observed_start_date
+     ) values (
+       '10000000-0000-0000-0000-000000000001', '13000000-0000-0000-0000-000000000004', 'bad nights', 'Bad Hotel',
+       80, 'per_night', 3, 'USD', '13000000-0000-0000-0000-000000000003', '2026-10-01', '2027-07-01'
+     ) $$,
+  '%accommodation figure must be backed by the nights it funds%',
+  'an observed window with the wrong night count is refused'
+);
+select throws_like(
+  $$ insert into accommodation_options (
+       owner_id, stay_id, label, property_name, rate_amount, rate_unit, nights, currency,
+       source_id, observed_on, observed_start_date
+     ) values (
+       '10000000-0000-0000-0000-000000000001', '13000000-0000-0000-0000-000000000004', 'bad date', 'Bad Hotel',
+       80, 'per_night', 5, 'USD', '13000000-0000-0000-0000-000000000003', '2026-10-01', '2027-07-02'
+     ) $$,
+  '%accommodation figure must be backed by the nights it funds%',
+  'an observed window one day off the stay is refused'
+);
+select lives_ok(
+  $$ insert into accommodation_options (
+       owner_id, stay_id, label, property_name, rate_amount, rate_unit, nights, currency,
+       source_id, observed_on, observed_start_date
+     ) values (
+       '10000000-0000-0000-0000-000000000001', '13000000-0000-0000-0000-000000000004', 'undated', 'Guide Price Hotel',
+       80, 'per_night', 5, 'USD', '13000000-0000-0000-0000-000000000003', '2026-10-01', null
+     ) $$,
+  'no observed_start_date at all (a guide price) is allowed'
+);
+select lives_ok(
+  $$ insert into accommodation_options (
+       owner_id, stay_id, label, property_name, rate_amount, rate_unit, nights, currency,
+       source_id, observed_on, observed_start_date
+     ) values (
+       '10000000-0000-0000-0000-000000000001', '13000000-0000-0000-0000-000000000004', 'year placeholder', 'A-009 Style Hotel',
+       80, 'per_night', 5, 'USD', '13000000-0000-0000-0000-000000000003', '2026-10-01', '2026-07-01'
+     ) $$,
+  'a whole-year shift (A-009''s sanctioned placeholder convention) is allowed'
+);
+select throws_like(
+  $$ update accommodation_options set observed_start_date = '2027-07-02'
+     where id = '13000000-0000-0000-0000-000000000005' $$,
+  '%accommodation figure must be backed by the nights it funds%',
+  'the trigger refuses an update too, not just an insert'
 );
 
 -- update_accommodation_option / delete_accommodation_option
@@ -207,6 +258,34 @@ select results_eq(
      ) $$,
   $$ values ('pgTAP proposed option'::text, 85::numeric) $$,
   'the proposed option and the rate update both actually landed'
+);
+
+-- The import path is never a back door around the trigger: the batch
+-- layer stores whatever payload it's given, but approving a mismatched
+-- one is refused exactly like a direct write would be.
+select lives_ok(
+  $$ select create_proposal_batch(
+       '13000000-0000-0000-0000-000000000001', 'pgTAP accommodation mismatch batch', '{"raw": "as pasted"}',
+       '[
+         {"position": 0, "op": "create_accommodation_option", "reason": "pgTAP: wrong night observed",
+          "payload": {"data": {
+            "stay": {"id": "13000000-0000-0000-0000-000000000004"},
+            "label": "pgTAP mismatched option", "propertyName": "Wrong Night Hotel",
+            "rateAmount": 90, "rateUnit": "per_night", "nights": 5, "mandatoryFees": 10, "currency": "USD",
+            "informationState": "estimate",
+            "source": {"id": "13000000-0000-0000-0000-000000000003"},
+            "observedOn": "2026-10-20", "observedStartDate": "2027-07-02", "refundability": "unknown",
+            "conditionalRate": false, "isHostel": false
+          }}, "dependsOn": []}
+       ]'
+     ) $$,
+  'a batch proposing a mismatched accommodation option is saved -- the batch layer doesn''t validate payload contents'
+);
+select throws_like(
+  $$ select approve_proposal(id) from proposal_items
+     where batch_id = (select id from proposal_batches where note = 'pgTAP accommodation mismatch batch') and position = 0 $$,
+  '%accommodation figure must be backed by the nights it funds%',
+  'approving it is refused by the same trigger, not silently approved and flagged later'
 );
 
 select * from finish();
