@@ -343,6 +343,10 @@ export type AccommodationOption = {
   isHostel: boolean;
   sourceId: string;
   observedOn: string;
+  /** The stay-dates this rate was actually observed for -- null is a
+   * dateless guide price, still legitimate but no evidence for any
+   * specific night (checkObservationCoversStay's "undated"). */
+  observedStartDate: string | null;
   informationState: InfoState;
   notes: string | null;
   createdAt: string;
@@ -675,6 +679,7 @@ type AccommodationOptionFieldsWrite = {
   isHostel: boolean;
   sourceId: string;
   observedOn: string;
+  observedStartDate?: string;
   informationState: InfoState;
   notes?: string;
 };

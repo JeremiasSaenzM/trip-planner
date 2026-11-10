@@ -269,6 +269,7 @@ function mapAccommodationOptionRow(row: Record<string, unknown>): AccommodationO
     isHostel: row.is_hostel as boolean,
     sourceId: row.source_id as string,
     observedOn: row.observed_on as string,
+    observedStartDate: row.observed_start_date as string | null,
     informationState: row.information_state as AccommodationOption["informationState"],
     notes: row.notes as string | null,
     createdAt: row.created_at as string,
@@ -1165,6 +1166,7 @@ export const realDataSource: DataSource = {
         is_hostel: input.isHostel,
         source_id: input.sourceId,
         observed_on: input.observedOn,
+        observed_start_date: input.observedStartDate ?? null,
         information_state: input.informationState,
         notes: input.notes ?? null,
       })
@@ -1196,6 +1198,7 @@ export const realDataSource: DataSource = {
       p_is_hostel: input.isHostel,
       p_source_id: input.sourceId,
       p_observed_on: input.observedOn,
+      p_observed_start_date: input.observedStartDate ?? null,
       p_information_state: input.informationState,
       p_notes: input.notes ?? null,
       p_reason: input.reason,
