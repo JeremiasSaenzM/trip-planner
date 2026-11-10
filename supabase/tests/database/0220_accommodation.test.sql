@@ -6,7 +6,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
-select plan(30);
+select plan(34);
 
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '10000000-0000-0000-0000-000000000001', true);
@@ -286,6 +286,62 @@ select throws_like(
      where batch_id = (select id from proposal_batches where note = 'pgTAP accommodation mismatch batch') and position = 0 $$,
   '%accommodation figure must be backed by the nights it funds%',
   'approving it is refused by the same trigger, not silently approved and flagged later'
+);
+
+-- Phase 6.11a: moving a stay must re-validate any dated accommodation
+-- option already attached to it, and a validation that can't find
+-- its stay must refuse outright, not wave the write through. Fresh
+-- fixtures, kept separate from the ones above, so these don't inherit
+-- any state the earlier assertions left behind.
+insert into stays (id, owner_id, scenario_id, location_id, start_date, nights, kind, information_state) values (
+  '13000000-0000-0000-0000-000000000008', '10000000-0000-0000-0000-000000000001',
+  '13000000-0000-0000-0000-000000000002', '13000000-0000-0000-0000-00000000000a', '2028-03-01', 4, 'event', 'estimate'
+);
+insert into accommodation_options (
+  id, owner_id, stay_id, label, property_name, rate_amount, rate_unit, nights, currency, source_id, observed_on, observed_start_date
+) values (
+  '13000000-0000-0000-0000-000000000009', '10000000-0000-0000-0000-000000000001',
+  '13000000-0000-0000-0000-000000000008', 'pgTAP dated option', 'Dated Hotel', 100, 'per_night', 4, 'USD',
+  '13000000-0000-0000-0000-000000000003', '2026-10-01', '2028-03-01'
+);
+
+select throws_like(
+  $$ update stays set start_date = '2028-03-02' where id = '13000000-0000-0000-0000-000000000008' $$,
+  '%pgTAP dated option%',
+  'moving a stay off a dated option''s own night is refused, naming the option'
+);
+select lives_ok(
+  $$ update stays set start_date = '2029-03-01' where id = '13000000-0000-0000-0000-000000000008' $$,
+  'moving a stay to the same month/day next year keeps a dated option valid, same A-009 tolerance as the option-side check'
+);
+
+insert into stays (id, owner_id, scenario_id, location_id, start_date, nights, kind, information_state) values (
+  '13000000-0000-0000-0000-00000000000c', '10000000-0000-0000-0000-000000000001',
+  '13000000-0000-0000-0000-000000000002', '13000000-0000-0000-0000-00000000000a', '2028-04-01', 4, 'event', 'estimate'
+);
+insert into accommodation_options (
+  id, owner_id, stay_id, label, property_name, rate_amount, rate_unit, nights, currency, source_id, observed_on
+) values (
+  '13000000-0000-0000-0000-00000000000d', '10000000-0000-0000-0000-000000000001',
+  '13000000-0000-0000-0000-00000000000c', 'pgTAP undated option', 'Guide Price Hotel', 90, 'per_night', 4, 'USD',
+  '13000000-0000-0000-0000-000000000003', '2026-10-01'
+);
+
+select lives_ok(
+  $$ update stays set start_date = '2028-04-15' where id = '13000000-0000-0000-0000-00000000000c' $$,
+  'an undated attached option is skipped, not re-validated, so an otherwise-invalidating move still succeeds'
+);
+
+select throws_like(
+  $$ insert into accommodation_options (
+       owner_id, stay_id, label, property_name, rate_amount, rate_unit, nights, currency,
+       source_id, observed_on, observed_start_date
+     ) values (
+       '10000000-0000-0000-0000-000000000001', '13000000-0000-0000-0000-0000000000ff', 'orphan', 'Unreachable Stay Hotel',
+       80, 'per_night', 4, 'USD', '13000000-0000-0000-0000-000000000003', '2026-10-01', '2028-03-01'
+     ) $$,
+  '%stay could not be found%',
+  'a dated option whose stay can''t be found is refused outright, not silently allowed through a failed comparison'
 );
 
 select * from finish();
