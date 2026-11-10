@@ -45,6 +45,10 @@ const accommodationOptionFields = z
     informationState: infoState,
     sourceId: id,
     observedOn: isoDate,
+    // Nullable, not just optional: a dateless guide price (no
+    // observedStartDate) is legitimate -- checkObservationCoversStay's
+    // "undated" -- not something to coerce into a required field.
+    observedStartDate: isoDate.optional(),
     notes: z.string().trim().optional(),
   })
   .refine((value) => !value.conditionalRate || value.undiscountedAmount !== undefined, {
