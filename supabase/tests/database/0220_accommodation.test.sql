@@ -88,7 +88,7 @@ select throws_like(
   $$ select update_accommodation_option(
        '13000000-0000-0000-0000-000000000005', 'Renamed', 'Hotel One', null, 100, 'per_night', 5, 0, 'USD',
        'candidate', 'unknown', null, null, false, null, false,
-       '13000000-0000-0000-0000-000000000003', '2026-10-01', 'estimate', null, ''
+       '13000000-0000-0000-0000-000000000003', '2026-10-01', null, 'estimate', null, ''
      ) $$,
   '%reason is required%',
   'update_accommodation_option rejects a blank reason'
@@ -98,7 +98,7 @@ select lives_ok(
   $$ select update_accommodation_option(
        '13000000-0000-0000-0000-000000000005', 'Renamed hotel', 'Hotel One Renamed', 'Main St 1', 110, 'per_night', 5, 20, 'USD',
        'selected', 'refundable', '2027-06-01', 'ABC123', false, null, false,
-       '13000000-0000-0000-0000-000000000003', '2026-10-01', 'estimate', 'pgTAP note', 'pgTAP: updating it'
+       '13000000-0000-0000-0000-000000000003', '2026-10-01', null, 'estimate', 'pgTAP note', 'pgTAP: updating it'
      ) $$,
   'update_accommodation_option succeeds with a real reason'
 );
@@ -129,7 +129,7 @@ select set_config('request.jwt.claim.sub', '10000000-0000-0000-0000-000000000002
 select throws_like(
   $$ select update_accommodation_option(
        '13000000-0000-0000-0000-000000000005', 'x', 'x', null, 1, 'per_night', 1, 0, 'USD',
-       'candidate', 'unknown', null, null, false, null, false, null, '2026-10-01', 'estimate', null, 'not mine'
+       'candidate', 'unknown', null, null, false, null, false, null, '2026-10-01', null, 'estimate', null, 'not mine'
      ) $$,
   '%not found%',
   'a second account updating my accommodation option gets "not found"'
@@ -144,10 +144,10 @@ select set_config('request.jwt.claim.sub', '10000000-0000-0000-0000-000000000001
 
 -- Grants: authenticated can execute both new RPCs, anon can't.
 select ok(has_function_privilege('authenticated',
-  'update_accommodation_option(uuid, text, text, text, numeric, accommodation_rate_unit, integer, numeric, text, accommodation_option_status, refundability, date, text, boolean, numeric, boolean, uuid, date, info_state, text, text)',
+  'update_accommodation_option(uuid, text, text, text, numeric, accommodation_rate_unit, integer, numeric, text, accommodation_option_status, refundability, date, text, boolean, numeric, boolean, uuid, date, date, info_state, text, text)',
   'EXECUTE'), 'authenticated can execute update_accommodation_option');
 select ok(not has_function_privilege('anon',
-  'update_accommodation_option(uuid, text, text, text, numeric, accommodation_rate_unit, integer, numeric, text, accommodation_option_status, refundability, date, text, boolean, numeric, boolean, uuid, date, info_state, text, text)',
+  'update_accommodation_option(uuid, text, text, text, numeric, accommodation_rate_unit, integer, numeric, text, accommodation_option_status, refundability, date, text, boolean, numeric, boolean, uuid, date, date, info_state, text, text)',
   'EXECUTE'), 'anon cannot execute update_accommodation_option');
 select ok(has_function_privilege('authenticated', 'delete_accommodation_option(uuid, text)', 'EXECUTE'),
   'authenticated can execute delete_accommodation_option');
