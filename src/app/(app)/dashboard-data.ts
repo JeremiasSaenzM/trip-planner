@@ -44,6 +44,7 @@ import {
   findMovementsMissingBudgetLine,
   type MovementMissingBudgetLine,
 } from "@/lib/domain/find-movements-missing-budget-line";
+import { findOverlappingStays, type OverlappingStaysResult } from "@/lib/domain/find-overlapping-stays";
 import { TRAVELLER_INCOME_CADENCE } from "@/lib/domain/income-cadence";
 import { resolveDepartureDate, type ResolvedDeparture } from "@/lib/domain/resolve-departure-date";
 import { resolveTravelWindow, type ResolvedTravelWindow } from "@/lib/domain/resolve-travel-window";
@@ -162,6 +163,11 @@ export type DashboardData =
       budgetLineMatchesStay: BudgetLineStayMismatch[];
       budgetLineNightsAddUp: BudgetLineNightsCheckResult;
       budgetLineDaysAddUp: BudgetLineDaysCheckResult;
+      /** Phase 6.11: two stays covering the same night at different
+       * locations -- impossible, not uncertain, so it's reported at
+       * error tier on Scenario Overview, not folded into the five
+       * warnings above. */
+      overlappingStays: OverlappingStaysResult[];
       /** Scenario-scoped, same rule as stays/movements. */
       flightOptions: FlightOption[];
       /** Every segment belonging to one of flightOptions above. */
@@ -330,6 +336,14 @@ export async function loadDashboardData(params: {
     returnDate: travelWindow.returnDate,
   });
   const budgetLineDaysAddUp = checkBudgetLineDaysAddUp(scenarioBudgetLines, scenarioMovements);
+  const overlappingStays = findOverlappingStays(
+    scenarioStays.map((stay) => ({
+      id: stay.id,
+      locationId: stay.locationId,
+      startDate: stay.startDate,
+      nights: stay.nights,
+    })),
+  );
 
   const scenarioFlightOptions = flightOptions.filter((option) => option.scenarioId === scenario.id);
   const scenarioFlightSegments = flightSegments.filter((segment) =>
@@ -423,6 +437,7 @@ export async function loadDashboardData(params: {
       budgetLineMatchesStay,
       budgetLineNightsAddUp,
       budgetLineDaysAddUp,
+      overlappingStays,
       flightOptions: scenarioFlightOptions,
       flightSegments: scenarioFlightSegments,
       flightOptionEvaluations,
@@ -497,6 +512,7 @@ export async function loadDashboardData(params: {
     budgetLineMatchesStay,
     budgetLineNightsAddUp,
     budgetLineDaysAddUp,
+    overlappingStays,
     flightOptions: scenarioFlightOptions,
     flightSegments: scenarioFlightSegments,
     flightOptionEvaluations,
