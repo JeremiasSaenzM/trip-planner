@@ -49,6 +49,7 @@ const FIELD_LABELS: Record<string, string> = {
   tier: "Tier",
   url: "URL",
   observedOn: "Observation date",
+  observedStartDate: "Observed for the stay starting",
   applicablePeriodStart: "Applies from",
   applicablePeriodEnd: "Applies until",
   notes: "Notes",

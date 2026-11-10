@@ -127,6 +127,56 @@ describe("checkAgainstForm: creates go through the form's own schema", () => {
     ).toEqual({ ok: true });
   });
 
+  it("accepts an accommodation option whose observed window matches its stay", () => {
+    const stay = fixtures.stays[0];
+    expect(
+      check("create_accommodation_option", {
+        data: {
+          stay: { id: stay.id },
+          label: "A new candidate",
+          propertyName: "Some Hotel",
+          rateAmount: 100,
+          rateUnit: "per_night",
+          nights: stay.nights,
+          mandatoryFees: 0,
+          currency: "EUR",
+          informationState: "estimate",
+          source: { id: SOURCE_ID },
+          observedOn: "2026-10-05",
+          observedStartDate: stay.startDate,
+          refundability: "unknown",
+          conditionalRate: false,
+          isHostel: false,
+        },
+      }),
+    ).toEqual({ ok: true });
+  });
+
+  it("refuses an accommodation option observed for the wrong night, not just a warning (Phase 6.11)", () => {
+    const stay = fixtures.stays[0];
+    const result = check("create_accommodation_option", {
+      data: {
+        stay: { id: stay.id },
+        label: "A new candidate",
+        propertyName: "Some Hotel",
+        rateAmount: 100,
+        rateUnit: "per_night",
+        nights: stay.nights,
+        mandatoryFees: 0,
+        currency: "EUR",
+        informationState: "estimate",
+        source: { id: SOURCE_ID },
+        observedOn: "2026-10-05",
+        observedStartDate: "2031-03-05", // the stay starts 2031-03-04
+        refundability: "unknown",
+        conditionalRate: false,
+        isHostel: false,
+      },
+    });
+    expect(result.ok).toBe(false);
+    expect((result as { message: string }).message).toContain("an accommodation figure must be backed by the nights it funds");
+  });
+
   it("refuses a movement that arrives before it departs, a form-only cross-field rule", () => {
     const result = check("create_movement", {
       data: {
@@ -227,6 +277,29 @@ describe("checkAgainstForm: updates are checked as the row would end up", () => 
       movement.id,
     );
     expect(result.ok).toBe(false);
+  });
+
+  it("refuses moving an accommodation option's observed night off its stay's own night (Phase 6.11)", () => {
+    const option = fixtures.accommodationOptions[0]; // observed for 2031-03-04, matching its stay
+    const result = check(
+      "update_accommodation_option",
+      { changes: { observedStartDate: { from: option.observedStartDate, to: "2031-03-05" } } },
+      option.id,
+    );
+    expect(result.ok).toBe(false);
+    expect((result as { message: string }).message).toContain("an accommodation figure must be backed by the nights it funds");
+  });
+
+  it("accepts moving an accommodation option's observed night onto its stay's own night", () => {
+    const option = fixtures.accommodationOptions[1]; // starts undated -- see fixtures.ts
+    const stay = fixtures.stays.find((candidate) => candidate.id === option.stayId)!;
+    expect(
+      check(
+        "update_accommodation_option",
+        { changes: { observedStartDate: { from: option.observedStartDate, to: stay.startDate } } },
+        option.id,
+      ),
+    ).toEqual({ ok: true });
   });
 
   it("applies a trip rename and status change on top of the current values", () => {

@@ -226,6 +226,18 @@ export function AddAccommodationOptionForm({
       </div>
 
       <div className="space-y-1.5">
+        <label htmlFor="accommodation-option-observed-start-date" className={labelClass}>
+          Observed for the stay starting (optional -- leave blank for a dateless guide price)
+        </label>
+        <input
+          id="accommodation-option-observed-start-date"
+          name="observedStartDate"
+          type="date"
+          className={inputClass}
+        />
+      </div>
+
+      <div className="space-y-1.5">
         <label htmlFor="accommodation-option-notes" className={labelClass}>
           Notes (optional)
         </label>
@@ -363,6 +375,9 @@ function AccommodationOptionCard({
               <span className="ml-1 text-amber-700 dark:text-amber-400">(may be out of date -- worth checking again)</span>
             )}
           </p>
+          {option.observedStartDate === null && (
+            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Guide price, not a dated observation.</p>
+          )}
           {option.notes && <p className="mt-1 text-sm whitespace-pre-line">{option.notes}</p>}
 
           <div className="mt-2 flex flex-wrap gap-3 text-sm">
@@ -621,6 +636,19 @@ function EditAccommodationOptionForm({
           type="date"
           required
           defaultValue={option.observedOn}
+          className={inputClass}
+        />
+      </div>
+
+      <div className="space-y-1.5">
+        <label htmlFor={`${formId}-observedStartDate`} className={labelClass}>
+          New: observed for the stay starting (optional -- leave blank for a dateless guide price)
+        </label>
+        <input
+          id={`${formId}-observedStartDate`}
+          name="observedStartDate"
+          type="date"
+          defaultValue={option.observedStartDate ?? ""}
           className={inputClass}
         />
       </div>
