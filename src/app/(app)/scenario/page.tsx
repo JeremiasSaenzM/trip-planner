@@ -8,6 +8,7 @@ import type { InfoState } from "@/lib/domain/types";
 
 import { countDaysOnGround, type ItineraryDay } from "@/lib/domain/build-itinerary-timeline";
 import { buildUnconfirmedDateFacts, type UnconfirmedDateFact } from "@/lib/domain/build-unconfirmed-date-facts";
+import { describeObservationMismatch } from "@/lib/domain/check-observation-covers-stay";
 import { observationAgeDays, SOURCE_STALENESS_DAYS } from "@/lib/domain/observation-age";
 import type { ResolvedTravelWindow } from "@/lib/domain/resolve-travel-window";
 
@@ -484,9 +485,19 @@ function ItineraryChecks({ data }: { data: Extract<DashboardData, { status: "rea
     budgetLineMatchesStay,
     budgetLineNightsAddUp,
     budgetLineDaysAddUp,
+    overlappingStays,
+    accommodationOptionEvaluations,
     locations,
   } = data;
   const locationName = (locationId: string) => locations.find((l) => l.id === locationId)?.name ?? locationId;
+
+  // Error tier, not a warning: an unfounded figure is a defect, and two
+  // stays can't both be where you are on the same night (Phase 6.11).
+  const observationMismatches = accommodationOptionEvaluations.filter(
+    (evaluation) =>
+      evaluation.observationCoversStay.status === "night_count_differs" ||
+      evaluation.observationCoversStay.status === "dates_differ",
+  );
 
   const nothingToReport =
     stayNightsCheck.status !== "mismatch" &&
@@ -496,7 +507,9 @@ function ItineraryChecks({ data }: { data: Extract<DashboardData, { status: "rea
     movementsMissingBudgetLine.length === 0 &&
     budgetLineMatchesStay.length === 0 &&
     budgetLineNightsAddUp.status !== "mismatch" &&
-    budgetLineDaysAddUp.status !== "mismatch";
+    budgetLineDaysAddUp.status !== "mismatch" &&
+    overlappingStays.length === 0 &&
+    observationMismatches.length === 0;
 
   return (
     <div className="space-y-2">
@@ -572,6 +585,24 @@ function ItineraryChecks({ data }: { data: Extract<DashboardData, { status: "rea
           {budgetLineDaysAddUp.groundDays === 1 ? "" : "s"} on the ground.
         </Caveat>
       )}
+      {overlappingStays.length > 0 && (
+        <Caveat tone="danger">
+          {overlappingStays.length} night{overlappingStays.length === 1 ? "" : "s"} covered by two stays at
+          different locations at once -- that&apos;s impossible, not uncertain:{" "}
+          {overlappingStays
+            .map(
+              (overlap) =>
+                `${formatDate(overlap.date)} (${overlap.stays.map((stay) => locationName(stay.locationId)).join(" and ")})`,
+            )
+            .join(", ")}
+          .
+        </Caveat>
+      )}
+      {observationMismatches.map((evaluation) => (
+        <Caveat key={evaluation.option.id} tone="danger">
+          &quot;{evaluation.option.label}&quot;: {describeObservationMismatch(evaluation.observationCoversStay)}
+        </Caveat>
+      ))}
       {nothingToReport &&
         stayNightsCheck.status !== "unknown" &&
         eventStayCoverage.status !== "unknown" &&

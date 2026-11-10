@@ -11,6 +11,10 @@ import {
 import { checkAccommodationDatesCovered } from "@/lib/domain/check-accommodation-dates-covered";
 import { checkAccommodationHostelEligibility } from "@/lib/domain/check-accommodation-hostel-eligibility";
 import { checkAccommodationNightsMatchStay } from "@/lib/domain/check-accommodation-nights-match-stay";
+import {
+  checkObservationCoversStay,
+  type ObservationCoverageResult,
+} from "@/lib/domain/check-observation-covers-stay";
 import type { HardConstraintResult } from "@/lib/domain/types";
 
 export type AccommodationOptionEvaluation = {
@@ -19,6 +23,7 @@ export type AccommodationOptionEvaluation = {
   datesCovered: HardConstraintResult;
   cancellationDeadline: HardConstraintResult;
   hostelEligibility: HardConstraintResult;
+  observationCoversStay: ObservationCoverageResult;
   effectiveCost: EffectiveAccommodationCostResult;
 };
 
@@ -56,6 +61,11 @@ export function evaluateAccommodationOption(input: {
     stayKind: stay.kind,
   });
 
+  const observationCoversStay = checkObservationCoversStay({
+    option: { observedStartDate: option.observedStartDate, nights: option.nights },
+    stay: { startDate: stay.startDate, nights: stay.nights },
+  });
+
   const effectiveCost = calculateEffectiveAccommodationCost({
     rateAmount: option.rateAmount,
     rateUnit: option.rateUnit,
@@ -66,5 +76,13 @@ export function evaluateAccommodationOption(input: {
     undiscountedAmount: option.undiscountedAmount,
   });
 
-  return { option, nightsMatchStay, datesCovered, cancellationDeadline, hostelEligibility, effectiveCost };
+  return {
+    option,
+    nightsMatchStay,
+    datesCovered,
+    cancellationDeadline,
+    hostelEligibility,
+    observationCoversStay,
+    effectiveCost,
+  };
 }
