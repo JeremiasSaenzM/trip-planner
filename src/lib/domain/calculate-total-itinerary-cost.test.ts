@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { calculateTotalItineraryCost } from "./calculate-total-itinerary-cost";
+import { calculateTotalItineraryCost, selectRouteCausedBudgetLineIds } from "./calculate-total-itinerary-cost";
 import type { FxRate } from "./convert-to-usd";
 
 const RATES: FxRate[] = [
@@ -78,5 +78,63 @@ describe("calculateTotalItineraryCost", () => {
     });
     expect(result.complete).toBe(false);
     expect(result.amountUsd).toBe(0);
+  });
+});
+
+// Production bug (Scenarios P and Q): a flight's own plane movement
+// carried the flights budget line -- the fare itself -- as its
+// budgetLineId, and the roll-up added that line a second time on top
+// of effectiveFlightCostAmount, exactly doubling the total.
+describe("selectRouteCausedBudgetLineIds", () => {
+  it("excludes a flight leg's own link, so the total equals the flight cost alone", () => {
+    const linkedBudgetLineIds = selectRouteCausedBudgetLineIds({
+      flightOptionId: "option-1",
+      movements: [
+        { flightOptionId: "option-1", budgetLineId: "flights-line", isFlightLeg: true }, // outbound
+        { flightOptionId: "option-1", budgetLineId: "flights-line", isFlightLeg: true }, // return
+      ],
+      stays: [],
+    });
+    expect(linkedBudgetLineIds).toEqual([]);
+
+    const result = calculateTotalItineraryCost({
+      effectiveFlightCostAmount: 1248.36,
+      effectiveFlightCostCurrency: "USD",
+      linkedBudgetLineIds,
+      budgetLines: [
+        { id: "flights-line", amountMin: 1248.36, amountTarget: 1248.36, amountConservative: 1248.36, currency: "USD" },
+      ],
+      basis: "target",
+      rates: RATES,
+      asOfDate: "2026-10-26",
+    });
+    expect(result).toEqual({ amountUsd: 1248.36, complete: true, missingBudgetLineCount: 0 });
+  });
+
+  it("still includes a genuine route-caused extra: a non-plane movement, and a stay, each linked to the option", () => {
+    const linkedBudgetLineIds = selectRouteCausedBudgetLineIds({
+      flightOptionId: "option-1",
+      movements: [
+        { flightOptionId: "option-1", budgetLineId: "flights-line", isFlightLeg: true },
+        { flightOptionId: "option-1", budgetLineId: "taxi-line", isFlightLeg: false },
+      ],
+      stays: [{ flightOptionId: "option-1", budgetLineId: "forced-night-line" }],
+    });
+    expect(linkedBudgetLineIds).toEqual(["taxi-line", "forced-night-line"]);
+
+    const result = calculateTotalItineraryCost({
+      effectiveFlightCostAmount: 1000,
+      effectiveFlightCostCurrency: "USD",
+      linkedBudgetLineIds,
+      budgetLines: [
+        { id: "flights-line", amountMin: 1000, amountTarget: 1000, amountConservative: 1000, currency: "USD" },
+        { id: "taxi-line", amountMin: 40, amountTarget: 40, amountConservative: 40, currency: "USD" },
+        { id: "forced-night-line", amountMin: 60, amountTarget: 60, amountConservative: 60, currency: "USD" },
+      ],
+      basis: "target",
+      rates: RATES,
+      asOfDate: "2026-10-26",
+    });
+    expect(result).toEqual({ amountUsd: 1000 + 40 + 60, complete: true, missingBudgetLineCount: 0 });
   });
 });
