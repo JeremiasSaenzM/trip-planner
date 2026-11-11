@@ -5,6 +5,7 @@ import { calculateEffectiveFlightCost, type EffectiveFlightCostResult } from "@/
 import { calculateOnwardTravelMinutes, type OnwardTravelResult } from "@/lib/domain/calculate-onward-travel-minutes";
 import {
   calculateTotalItineraryCost,
+  selectRouteCausedBudgetLineIds,
   type TotalItineraryCostBudgetLine,
   type TotalItineraryCostResult,
 } from "@/lib/domain/calculate-total-itinerary-cost";
@@ -123,10 +124,15 @@ export function evaluateFlightOption(input: {
     baggage: option.baggage,
   });
 
-  const linkedBudgetLineIds = [
-    ...movements.filter((movement) => movement.flightOptionId === option.id).map((movement) => movement.budgetLineId),
-    ...stays.filter((stay) => stay.flightOptionId === option.id).map((stay) => stay.budgetLineId),
-  ];
+  const linkedBudgetLineIds = selectRouteCausedBudgetLineIds({
+    flightOptionId: option.id,
+    movements: movements.map((movement) => ({
+      flightOptionId: movement.flightOptionId,
+      budgetLineId: movement.budgetLineId,
+      isFlightLeg: movement.mode === "plane",
+    })),
+    stays: stays.map((stay) => ({ flightOptionId: stay.flightOptionId, budgetLineId: stay.budgetLineId })),
+  });
 
   const totalItineraryCost = calculateTotalItineraryCost({
     effectiveFlightCostAmount: effectiveFlightCost.amount,
