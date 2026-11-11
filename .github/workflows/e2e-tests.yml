@@ -98,9 +98,6 @@ jobs:
             -H "Content-Type: application/json" \
             -d "{\"email\": \"$E2E_TEST_EMAIL\", \"email_confirm\": true}"
 
-      - name: Install Playwright's browser
-        run: npx playwright install --with-deps chromium
-
       - name: Build the app against the local stack
         run: npx next build
         env:
@@ -125,8 +122,35 @@ jobs:
           cat next-start.log
           exit 1
 
+      # Runs inside Playwright's own image instead of the host, the way
+      # `npx playwright install --with-deps` used to set up for: that
+      # install step's own apt call was the chronic failure here
+      # (azure.archive.ubuntu.com intermittently unresolvable on hosted
+      # runners), and it died before a single test ran -- a red check
+      # that meant "no verdict", not "the code is broken". This image
+      # ships Chromium and every system dependency already built in, so
+      # there's no apt step left to fail.
+      #
+      # --network host lets the container reach the app and Mailpit the
+      # same way the host shell already does -- both are bound to
+      # 127.0.0.1, which a container only sees by sharing the host's
+      # network namespace outright. --user matches the host account that
+      # owns the checked-out files (and will own whatever this run
+      # writes, e.g. playwright-report/), since the image's own default
+      # user is a non-root `pwuser` that doesn't.
+      #
+      # The image tag's version has to match @playwright/test's own
+      # version in package.json exactly -- a mismatch is its own failure
+      # mode (the test runner and the browsers it drives disagreeing on
+      # protocol). Bump both together.
       - name: Run Playwright
-        run: npx playwright test
+        run: |
+          docker run --rm --init --ipc=host --network host \
+            --user "$(id -u):$(id -g)" \
+            -v "$PWD":/work -w /work \
+            -e CI=true -e E2E_TEST_EMAIL \
+            mcr.microsoft.com/playwright:v1.64.1-noble \
+            npx playwright test
         env:
           E2E_TEST_EMAIL: ${{ env.E2E_TEST_EMAIL }}
 
