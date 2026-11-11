@@ -12,19 +12,64 @@ export type TotalItineraryCostBudgetLine = {
 export type TotalItineraryCostInput = {
   effectiveFlightCostAmount: number;
   effectiveFlightCostCurrency: string;
-  /** Every movement/stay in this scenario explicitly linked to this
-   * option via flight_option_id, by its own budgetLineId -- one entry
-   * per link, in whatever order. A link with no budget line yet is
-   * null, counted below rather than silently skipped. Route-causation
-   * is only ever this explicit link, never guessed at (20261028090000's
-   * own reasoning): "unavoidable route-caused costs" means exactly
-   * these, nothing inferred from timing or location. */
+  /** Every route-caused link's own budgetLineId -- build with
+   * selectRouteCausedBudgetLineIds below, which already excludes a
+   * flight leg's own link (that one means "this movement IS the
+   * ticket," not "caused by it," and its budget line is the fare,
+   * already inside effectiveFlightCostAmount). A link with no budget
+   * line yet is null, counted below rather than silently skipped.
+   * Route-causation is only ever an explicit link, never guessed at
+   * (20261028090000's own reasoning): "unavoidable route-caused costs"
+   * means exactly these, nothing inferred from timing or location. */
   linkedBudgetLineIds: (string | null)[];
   budgetLines: TotalItineraryCostBudgetLine[];
   basis: Basis;
   rates: FxRate[];
   asOfDate: string;
 };
+
+export type RouteCausedLink = {
+  flightOptionId: string | null;
+  budgetLineId: string | null;
+};
+
+export type RouteCausedMovementLink = RouteCausedLink & {
+  /** True when this movement IS the flight itself -- the itinerary
+   * entry and the ticket restating each other (Movement.flightOptionId's
+   * own doc comment: set "on the flight leg itself ... or on a
+   * movement that only exists because of that ticket" -- the same
+   * column, two readings). Never route-caused: its budget line is the
+   * fare, already inside effectiveFlightCostAmount. Resolved by the
+   * caller from the movement's own mode (mode === "plane") -- this
+   * function only ever sees the resolved flag, same as
+   * calculateOnwardTravelMinutes taking resolved zones rather than
+   * looking locations up itself. */
+  isFlightLeg: boolean;
+};
+
+/**
+ * Which linked movements/stays count as route-caused, for the
+ * flightOptionId being costed -- everything else calculateTotalItineraryCost
+ * needs is already resolved at this point (the basis, the budget
+ * lines, the fx rates). Split out as its own function so this
+ * selection is exercised directly: the production bug this guards
+ * against was exactly this step adding a flight leg's own link
+ * (the fare) back in as if it were a separate route-caused cost.
+ */
+export function selectRouteCausedBudgetLineIds(input: {
+  flightOptionId: string;
+  movements: RouteCausedMovementLink[];
+  stays: RouteCausedLink[];
+}): (string | null)[] {
+  return [
+    ...input.movements
+      .filter((movement) => movement.flightOptionId === input.flightOptionId && !movement.isFlightLeg)
+      .map((movement) => movement.budgetLineId),
+    ...input.stays
+      .filter((stay) => stay.flightOptionId === input.flightOptionId)
+      .map((stay) => stay.budgetLineId),
+  ];
+}
 
 export type TotalItineraryCostResult = {
   amountUsd: number;
