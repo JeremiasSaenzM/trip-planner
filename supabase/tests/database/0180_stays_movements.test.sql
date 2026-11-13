@@ -6,7 +6,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
-select plan(33);
+select plan(38);
 
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '10000000-0000-0000-0000-000000000001', true);
@@ -222,6 +222,86 @@ select is(
   (select count(*) from movements where id = '11000000-0000-0000-0000-000000000006')::int,
   0,
   'the movement is actually gone'
+);
+
+-- Cross-scenario link guard (20261113090000): a stay or movement may
+-- not point at another scenario's budget line or flight option.
+
+insert into scenarios (id, owner_id, trip_id, name) values (
+  '11000000-0000-0000-0000-000000000014', '10000000-0000-0000-0000-000000000001',
+  '11000000-0000-0000-0000-000000000001', 'pgTAP fixture scenario 2'
+);
+
+insert into budget_lines (
+  id, owner_id, trip_id, scenario_id, category, description,
+  amount_min, amount_target, amount_conservative, currency, information_state
+) values (
+  '11000000-0000-0000-0000-000000000015', '10000000-0000-0000-0000-000000000001',
+  '11000000-0000-0000-0000-000000000001', '11000000-0000-0000-0000-000000000014',
+  'C', 'pgTAP cross-scenario guard target (scenario 2)', 100, 100, 100, 'USD', 'estimate'
+);
+
+-- Trip-level: scenario_id null, legitimately referenced by any scenario.
+insert into budget_lines (
+  id, owner_id, trip_id, scenario_id, category, description,
+  amount_min, amount_target, amount_conservative, currency, information_state
+) values (
+  '11000000-0000-0000-0000-000000000016', '10000000-0000-0000-0000-000000000001',
+  '11000000-0000-0000-0000-000000000001', null,
+  'J', 'pgTAP trip-level budget line', 50, 50, 50, 'USD', 'estimate'
+);
+
+insert into flight_options (
+  id, owner_id, scenario_id, label, fare, bag_fee, mandatory_fees, currency, source_id, observed_on, baggage
+) values (
+  '11000000-0000-0000-0000-000000000017', '10000000-0000-0000-0000-000000000001',
+  '11000000-0000-0000-0000-000000000014', 'pgTAP cross-scenario flight option (scenario 2)',
+  300, 0, 20, 'EUR', '30000000-0000-0000-0000-000000000001', current_date, 'included'
+);
+
+insert into stays (id, owner_id, scenario_id, location_id, start_date, nights) values (
+  '11000000-0000-0000-0000-000000000018', '10000000-0000-0000-0000-000000000001',
+  '11000000-0000-0000-0000-000000000002', '11000000-0000-0000-0000-000000000010', '2027-03-01', 3
+);
+
+insert into movements (id, owner_id, scenario_id, sequence, from_location_id, to_location_id, depart_date, arrive_date) values (
+  '11000000-0000-0000-0000-000000000019', '10000000-0000-0000-0000-000000000001',
+  '11000000-0000-0000-0000-000000000002', 4, '11000000-0000-0000-0000-000000000011', '11000000-0000-0000-0000-000000000010',
+  '2027-03-01', '2027-03-01'
+);
+
+select throws_like(
+  $$ update stays set budget_line_id = '11000000-0000-0000-0000-000000000015'
+     where id = '11000000-0000-0000-0000-000000000018' $$,
+  '%belongs to scenario%',
+  'a stay cannot point at another scenario''s budget line'
+);
+
+select throws_like(
+  $$ update stays set flight_option_id = '11000000-0000-0000-0000-000000000017'
+     where id = '11000000-0000-0000-0000-000000000018' $$,
+  '%belongs to scenario%',
+  'a stay cannot point at another scenario''s flight option'
+);
+
+select throws_like(
+  $$ update movements set budget_line_id = '11000000-0000-0000-0000-000000000015'
+     where id = '11000000-0000-0000-0000-000000000019' $$,
+  '%belongs to scenario%',
+  'a movement cannot point at another scenario''s budget line'
+);
+
+select throws_like(
+  $$ update movements set flight_option_id = '11000000-0000-0000-0000-000000000017'
+     where id = '11000000-0000-0000-0000-000000000019' $$,
+  '%belongs to scenario%',
+  'a movement cannot point at another scenario''s flight option'
+);
+
+select lives_ok(
+  $$ update stays set budget_line_id = '11000000-0000-0000-0000-000000000016'
+     where id = '11000000-0000-0000-0000-000000000018' $$,
+  'a stay can point at a trip-level budget line (no scenario of its own)'
 );
 
 -- A second account can't touch either table's RPCs.
