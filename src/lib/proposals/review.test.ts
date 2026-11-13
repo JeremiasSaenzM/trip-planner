@@ -193,6 +193,81 @@ describe("reviewBatch", () => {
   });
 });
 
+describe("scenario label", () => {
+  // The review screen's own catch for the cross-scenario link gap
+  // (20261113090000): every item names, by scenario name, what it
+  // affects -- never a bare id, never nothing when there's one to show.
+  it("names the scenario a create_budget_line's own reference points at", () => {
+    const review = reviewBatch(items, rows).find((r) => r.item.position === 2)!;
+    expect(review.scenario).toEqual({
+      kind: "scenario",
+      label: { kind: "existing", label: "Candidate A — direct trip" },
+    });
+  });
+
+  it("is trip-level when a create_budget_line names no scenario", () => {
+    const noScenario: ProposalItem = {
+      ...items[2],
+      payload: {
+        data: { ...(items[2].payload as { data: Record<string, unknown> }).data, scenario: undefined },
+      },
+    };
+    const review = reviewBatch([noScenario], rows)[0];
+    expect(review.scenario).toEqual({ kind: "trip_level" });
+  });
+
+  it("names an update_stay's own current scenario, which it has no way to change", () => {
+    const stay = fixtures.stays[0];
+    const updateStay: ProposalItem = {
+      id: "c0000000-0000-0000-0000-000000000003",
+      batchId: items[0].batchId,
+      position: 0,
+      ref: null,
+      op: "update_stay",
+      targetId: stay.id,
+      payload: { changes: { nights: { from: stay.nights, to: stay.nights + 1 } } },
+      dependsOn: [],
+      reason: "A reason",
+      status: "pending",
+      decisionReason: null,
+      decidedAt: null,
+      resultId: null,
+      createdAt: "2026-10-12T00:00:00Z",
+    };
+    const review = reviewBatch([updateStay], rows)[0];
+    const scenarioName = fixtures.scenarios.find((s) => s.id === stay.scenarioId)!.name;
+    expect(review.scenario).toEqual({ kind: "scenario", label: { kind: "existing", label: scenarioName } });
+  });
+
+  it("is trip-level for an update_budget_line targeting a line with no scenario of its own", () => {
+    const sharedLine = fixtures.budgetLines.find((l) => l.scenarioId === null)!;
+    const updateLine: ProposalItem = {
+      id: "c0000000-0000-0000-0000-000000000004",
+      batchId: items[0].batchId,
+      position: 0,
+      ref: null,
+      op: "update_budget_line",
+      targetId: sharedLine.id,
+      payload: { changes: { description: { from: sharedLine.description, to: "Renamed" } } },
+      dependsOn: [],
+      reason: "A reason",
+      status: "pending",
+      decisionReason: null,
+      decidedAt: null,
+      resultId: null,
+      createdAt: "2026-10-12T00:00:00Z",
+    };
+    const review = reviewBatch([updateLine], rows)[0];
+    expect(review.scenario).toEqual({ kind: "trip_level" });
+  });
+
+  it("is null for an item with no scenario dimension at all", () => {
+    const review = reviewBatch(items, rows).find((r) => r.item.position === 0)!;
+    expect(review.item.op).toBe("create_source");
+    expect(review.scenario).toBeNull();
+  });
+});
+
 describe("unknownReferences", () => {
   it("accepts references to your own rows in this trip", () => {
     expect(unknownReferences(items[2], TRIP_ID, rows)).toEqual([]);
