@@ -5,7 +5,7 @@ import { Suspense } from "react";
 
 import { getCurrentUser } from "@/lib/auth";
 import { dataSource } from "@/lib/data";
-import { reviewBatch, type FieldRow, type ItemReview, type ItemState } from "@/lib/proposals/review";
+import { reviewBatch, type FieldRow, type ItemReview, type ItemState, type ScenarioLabel } from "@/lib/proposals/review";
 
 import { Card, Caveat } from "../../dashboard-ui";
 import { fieldLabel, formatProposalValue, OP_LABELS, referenceText } from "../../import-labels";
@@ -161,6 +161,8 @@ function ProposalCard({ review, describe }: { review: ItemReview; describe: (pos
           </span>
         </div>
 
+        <ScenarioLine scenario={review.scenario} />
+
         <StateNote state={state} decisionReason={item.decisionReason} describe={describe} />
 
         <dl className="space-y-1.5 text-sm">
@@ -188,6 +190,21 @@ function ProposalCard({ review, describe }: { review: ItemReview; describe: (pos
         )}
       </div>
     </Card>
+  );
+}
+
+// Always a name, never a bare id and never nothing -- the review
+// screen's own catch for the cross-scenario link gap (20261113090000):
+// this is the one line on every card that says which scenario it
+// affects, so a wrong scenario reference is visible here rather than
+// only caught later by the database trigger at approval time.
+function ScenarioLine({ scenario }: { scenario: ScenarioLabel | null }) {
+  if (!scenario) return null;
+  return (
+    <p className="text-sm">
+      <span className="font-medium">Scenario:</span>{" "}
+      {scenario.kind === "trip_level" ? "Trip-level (shared across scenarios)" : referenceText(scenario.label)}
+    </p>
   );
 }
 

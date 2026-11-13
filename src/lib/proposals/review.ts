@@ -45,11 +45,17 @@ export type ItemReview = {
   targetLabel: string | null;
   /** Every source this item cites, by name. */
   sources: ReferenceLabel[];
+  /** Which scenario this item affects, by name -- never a bare id and
+   * never silently omitted when there is one to show. See
+   * scenarioLabelFor's own comment for what null and "trip_level" mean. */
+  scenario: ScenarioLabel | null;
   /** A non-blocking heads-up, e.g. a budget line with the same description already exists. */
   warning: string | null;
   /** Pending items that depend on this one, directly or through another item. */
   dependents: number[];
 };
+
+export type ScenarioLabel = { kind: "scenario"; label: ReferenceLabel } | { kind: "trip_level" };
 
 /** The resolver approval uses: an item's reference means what its approval created. */
 export function resolverFor(items: ProposalItem[]): ResolveReference {
@@ -78,6 +84,7 @@ function reviewItem(item: ProposalItem, items: ProposalItem[], rows: ReviewRows)
       fields: [],
       targetLabel: null,
       sources: [],
+      scenario: null,
       warning: null,
       dependents,
     };
@@ -122,9 +129,110 @@ function reviewItem(item: ProposalItem, items: ProposalItem[], rows: ReviewRows)
     fields,
     targetLabel,
     sources,
+    scenario: scenarioLabelFor(item, payload, items, rows),
     warning: item.status === "pending" ? duplicateWarning(item, payload, rows, items) : null,
     dependents,
   };
+}
+
+/**
+ * Which scenario this item affects, named rather than left as a UUID
+ * or omitted -- the review screen's own catch for the cross-scenario
+ * link gap (20261113090000): a mismatch between what an item's own
+ * scenario reference says and what a referenced budget line/stay
+ * actually belongs to is visible here, on the card, before approval
+ * ever reaches the database trigger that would otherwise be the only
+ * thing noticing. Null means this kind of item has no scenario
+ * dimension at all (a source, a location, the trip itself); "trip_level"
+ * means it does, but is currently shared across every scenario (a
+ * budget line or payment with no scenario_id of its own) -- an honest
+ * middle ground, not "unknown".
+ */
+function scenarioLabelFor(
+  item: ProposalItem,
+  payload: { data: Record<string, unknown> } | { changes: Record<string, FieldChange> },
+  items: ProposalItem[],
+  rows: ReviewRows,
+): ScenarioLabel | null {
+  if (!isUpdateOp(item.op)) {
+    const data = (payload as { data: Record<string, unknown> }).data;
+    switch (item.op) {
+      case "create_budget_line":
+      case "create_payment":
+      case "create_stay":
+      case "create_movement":
+      case "create_flight_option": {
+        const reference = data.scenario as Reference | undefined;
+        if (!reference) return { kind: "trip_level" };
+        const label = labelReference(reference, "scenario", items, rows);
+        return label ? { kind: "scenario", label } : { kind: "trip_level" };
+      }
+      case "create_accommodation_option":
+        return stayReferenceScenarioLabel(data.stay, items, rows);
+      default:
+        return null;
+    }
+  }
+
+  if (!item.targetId) return null;
+  switch (item.op) {
+    case "update_stay":
+      return scenarioLabelForId(rows.stays.find((s) => s.id === item.targetId)?.scenarioId ?? null, items, rows);
+    case "update_movement":
+      return scenarioLabelForId(rows.movements.find((m) => m.id === item.targetId)?.scenarioId ?? null, items, rows);
+    case "update_budget_line":
+      return scenarioLabelForId(rows.budgetLines.find((l) => l.id === item.targetId)?.scenarioId ?? null, items, rows);
+    case "update_payment": {
+      const payment = rows.payments.find((p) => p.id === item.targetId);
+      if (!payment) return null;
+      const scenarioId = payment.scenarioId ?? rows.budgetLines.find((l) => l.id === payment.budgetLineId)?.scenarioId ?? null;
+      return scenarioLabelForId(scenarioId, items, rows);
+    }
+    case "update_flight_option":
+      return scenarioLabelForId(rows.flightOptions.find((o) => o.id === item.targetId)?.scenarioId ?? null, items, rows);
+    case "update_accommodation_option": {
+      const option = rows.accommodationOptions.find((o) => o.id === item.targetId);
+      const stay = option ? rows.stays.find((s) => s.id === option.stayId) : undefined;
+      return scenarioLabelForId(stay?.scenarioId ?? null, items, rows);
+    }
+    default:
+      return null;
+  }
+}
+
+function scenarioLabelForId(scenarioId: string | null, items: ProposalItem[], rows: ReviewRows): ScenarioLabel {
+  if (scenarioId === null) return { kind: "trip_level" };
+  const label = labelReference(scenarioId, "scenario", items, rows);
+  return label ? { kind: "scenario", label } : { kind: "trip_level" };
+}
+
+/** create_accommodation_option's only reference is to a stay, which has
+ * no scenario field of its own to read directly -- one hop through
+ * the stay (an existing row, or another pending create_stay item of
+ * this same batch) to whichever scenario it belongs to. */
+function stayReferenceScenarioLabel(value: unknown, items: ProposalItem[], rows: ReviewRows): ScenarioLabel | null {
+  if (value === null || value === undefined) return null;
+  const reference: Reference = typeof value === "string" ? { id: value } : (value as Reference);
+
+  if ("id" in reference) {
+    const stay = rows.stays.find((s) => s.id === reference.id);
+    return stay ? scenarioLabelForId(stay.scenarioId, items, rows) : null;
+  }
+  if ("item" in reference) {
+    const target = items.find((other) => other.position === reference.item);
+    if (!target) return null;
+    if (target.status === "approved" && target.resultId) {
+      const stay = rows.stays.find((s) => s.id === target.resultId);
+      if (stay) return scenarioLabelForId(stay.scenarioId, items, rows);
+    }
+    const targetPayload = readPayload(target.op, target.payload);
+    const targetData = targetPayload && "data" in targetPayload ? targetPayload.data : {};
+    const scenarioRef = (targetData as Record<string, unknown>).scenario as Reference | undefined;
+    if (!scenarioRef) return { kind: "trip_level" };
+    const label = labelReference(scenarioRef, "scenario", items, rows);
+    return label ? { kind: "scenario", label } : { kind: "trip_level" };
+  }
+  return null;
 }
 
 // An approved or rejected item never changes its own mind -- but
