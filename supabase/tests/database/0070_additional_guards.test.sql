@@ -22,7 +22,7 @@ select throws_like(
 select throws_like(
   $$ insert into payments (owner_id, budget_line_id, scenario_id, description, total_amount, currency)
      values ('10000000-0000-0000-0000-000000000001', '70000000-0000-0000-0000-000000000001', '50000000-0000-0000-0000-000000000002', 'conflicting scenario', 50, 'EUR') $$,
-  '%does not match its budget line%',
+  '%belongs to scenario%',
   'a payment scenario that conflicts with its budget line''s scenario is rejected'
 );
 
