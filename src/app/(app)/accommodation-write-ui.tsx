@@ -312,10 +312,12 @@ function AccommodationOptionCard({
         <DeleteAccommodationOptionForm key={attempt} option={option} onDone={() => setMode("view")} />
       ) : (
         <>
-          {/* 1. Constraint results first -- the four checks. */}
+          {/* 1. Check results first -- the four accommodation checks.
+              Never headed "Hard constraints": there are exactly three
+              (04 section 2), and all three are flight checks. */}
           <div className="mt-3 space-y-1.5 text-sm">
             <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
-              Hard constraints
+              Checks
             </p>
             <ConstraintRow label="Nights match the stay" result={evaluation.nightsMatchStay} />
             <ConstraintRow label="Dates covered by source" result={evaluation.datesCovered} />
