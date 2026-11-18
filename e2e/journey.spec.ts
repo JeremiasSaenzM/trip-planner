@@ -492,14 +492,38 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await expect(page.getByTestId("required-monthly-saving")).toHaveCount(0);
   });
 
-  await test.step("with a second scenario, the comparison chart lists both and says why one has no line", async () => {
-    const comparison = page.getByTestId("scenario-comparison");
-    const items = comparison.getByTestId("scenario-comparison-legend-item");
+  await test.step("with a second scenario, the comparison defaults to By deadline and says why one has no bars", async () => {
+    const savingsToggle = page.getByRole("navigation", { name: "How to show savings" });
+    await expect(savingsToggle.getByRole("link", { name: "By deadline" })).toHaveAttribute("aria-current", "page");
+    const items = page.getByTestId("pot-comparison").getByTestId("scenario-comparison-legend-item");
     await expect(items).toHaveCount(2);
     const viewed = items.filter({ hasText: "Host TBA scenario" });
     await expect(viewed).toContainText("(this scenario)");
-    await expect(viewed).toContainText("no line: no departure date to save toward");
+    await expect(viewed).toContainText("no bars: no departure date to save toward");
     await expect(items.filter({ hasText: "Thornmere 2029" })).not.toContainText("(this scenario)");
+    await expect(page.getByTestId("scenario-comparison")).toHaveCount(0);
+  });
+
+  await test.step("Running total swaps in the matched pair, and the choice survives a nav round trip", async () => {
+    const savingsToggle = page.getByRole("navigation", { name: "How to show savings" });
+    await savingsToggle.getByRole("link", { name: "Running total" }).click();
+    await expect(page).toHaveURL(/[?&]savings=running-total/);
+    await expect(page.getByTestId("scenario-comparison").getByTestId("scenario-comparison-legend-item")).toHaveCount(2);
+    await expect(page.getByTestId("pot-comparison")).toHaveCount(0);
+
+    // Out through the nav and back: the view must still be Running total.
+    const nav = page.getByRole("navigation", { name: "Main" });
+    await expect(nav.getByRole("link", { name: "Budget" })).toHaveAttribute("href", /savings=running-total/);
+    await nav.getByRole("link", { name: "Budget" }).click();
+    await expect(page).toHaveURL(/\/budget-lines\?.*savings=running-total/);
+    await nav.getByRole("link", { name: "Overview" }).click();
+    await expect(
+      page.getByRole("navigation", { name: "How to show savings" }).getByRole("link", { name: "Running total" }),
+    ).toHaveAttribute("aria-current", "page");
+
+    // Back to the default, so the steps below see the page as before.
+    await page.getByRole("navigation", { name: "How to show savings" }).getByRole("link", { name: "By deadline" }).click();
+    await expect(page).not.toHaveURL(/savings=/);
   });
 
   await test.step("the selection survives a nav click", async () => {

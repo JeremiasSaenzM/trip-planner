@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Suspense } from "react";
+import { Suspense, type ReactNode } from "react";
 
 import { getCurrentUser } from "@/lib/auth";
 import { dataSource } from "@/lib/data";
@@ -15,7 +15,9 @@ import { DeadlinePotList } from "./deadline-pots-ui";
 import { formatUsd } from "./format";
 import { departureAnchorText } from "./pot-item-text";
 import { ParallelSavingsChart } from "./savings-plan-charts";
-import { ScenarioComparisonChart } from "./scenario-comparison-chart";
+import { PotComparisonChart, ScenarioComparisonChart } from "./scenario-comparison-chart";
+import type { SavingsView } from "./savings-view";
+import { SavingsViewToggle } from "./savings-view-toggle";
 import { RecordSavingsEntryForm, SavingsEntryList } from "./savings-entries-ui";
 
 export const metadata: Metadata = { title: "Overview" };
@@ -78,6 +80,50 @@ async function Overview({ searchParams }: { searchParams: PageProps<"/">["search
     pots,
   } = data;
   const binding = savings?.bindingRequirement[data.basis] ?? null;
+  const comparing = data.scenarioComparison.length >= 2;
+
+  const savingsCharts: Record<SavingsView, ReactNode> = {
+    "by-deadline": (
+      <>
+        {parallelPlan && (
+          <Card>
+            <CardLabel>One pot per payment</CardLabel>
+            <ParallelSavingsChart plan={parallelPlan} availableUsd={availableUsd} asOfDate={data.asOfDate} />
+          </Card>
+        )}
+        {comparing && (
+          <Card>
+            <CardLabel>All scenarios compared</CardLabel>
+            <PotComparisonChart lines={data.scenarioComparison} basis={data.basis} />
+          </Card>
+        )}
+      </>
+    ),
+    "running-total": (
+      <>
+        {savings && binding !== null && (
+          <Card>
+            <CardLabel>Savings schedule</CardLabel>
+            <SavingsScheduleChart
+              schedule={savings.schedule}
+              obligations={obligations}
+              availableUsd={availableUsd}
+              bindingRequirementUsd={binding}
+              asOfDate={data.asOfDate}
+              basis={data.basis}
+              departureSaveBy={data.departureSaveBy}
+            />
+          </Card>
+        )}
+        {comparing && (
+          <Card>
+            <CardLabel>All scenarios compared</CardLabel>
+            <ScenarioComparisonChart lines={data.scenarioComparison} basis={data.basis} />
+          </Card>
+        )}
+      </>
+    ),
+  };
 
   return (
     <div className="space-y-6">
@@ -232,37 +278,27 @@ async function Overview({ searchParams }: { searchParams: PageProps<"/">["search
         <BudgetByCategoryChart byCategory={rollup.byCategory} basis={data.basis} />
       </Card>
 
-      {/* Phase 7a: every scenario of this trip on one chart, built from
-          the same obligations as the savings schedule below -- so the
-          viewed scenario's line here is exactly that chart's steps. */}
-      {data.scenarioComparison.length >= 2 && (
-        <Card>
-          <CardLabel>All scenarios compared</CardLabel>
-          <ScenarioComparisonChart lines={data.scenarioComparison} basis={data.basis} />
-        </Card>
-      )}
-
-      {savings && binding !== null && (
-        <Card>
-          <CardLabel>Savings schedule</CardLabel>
-          <SavingsScheduleChart
-            schedule={savings.schedule}
-            obligations={obligations}
-            availableUsd={availableUsd}
-            bindingRequirementUsd={binding}
-            asOfDate={data.asOfDate}
+      {/* Phase 7a: a matched pair of savings charts at a time -- this
+          scenario's own and, with two or more scenarios, the same view of
+          every scenario of the trip. Never one of each: a curve read
+          against bars is how both get misread. A Record over every
+          SavingsView, so a new view (Phase 7's saving-method selector)
+          doesn't build until it has its own pair. */}
+      <section aria-label="Saving over time" className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
+            Saving over time
+          </p>
+          <SavingsViewToggle
+            basePath="/"
+            trip={data.trip.id}
+            scenario={data.scenario.id}
             basis={data.basis}
-            departureSaveBy={data.departureSaveBy}
+            savingsView={data.savingsView}
           />
-        </Card>
-      )}
-
-      {parallelPlan && (
-        <Card>
-          <CardLabel>One pot per payment</CardLabel>
-          <ParallelSavingsChart plan={parallelPlan} availableUsd={availableUsd} asOfDate={data.asOfDate} />
-        </Card>
-      )}
+        </div>
+        {savingsCharts[data.savingsView]}
+      </section>
     </div>
   );
 }
