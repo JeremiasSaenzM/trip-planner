@@ -15,7 +15,7 @@ import { DeadlinePotList } from "./deadline-pots-ui";
 import { formatUsd } from "./format";
 import { departureAnchorText } from "./pot-item-text";
 import { ParallelSavingsChart } from "./savings-plan-charts";
-import { PotComparisonChart, ScenarioComparisonChart } from "./scenario-comparison-chart";
+import { ScenarioComparisonChart } from "./scenario-comparison-chart";
 import type { SavingsView } from "./savings-view";
 import { SavingsViewToggle } from "./savings-view-toggle";
 import { RecordSavingsEntryForm, SavingsEntryList } from "./savings-entries-ui";
@@ -89,12 +89,6 @@ async function Overview({ searchParams }: { searchParams: PageProps<"/">["search
           <Card>
             <CardLabel>One pot per payment</CardLabel>
             <ParallelSavingsChart plan={parallelPlan} availableUsd={availableUsd} asOfDate={data.asOfDate} />
-          </Card>
-        )}
-        {comparing && (
-          <Card>
-            <CardLabel>All scenarios compared</CardLabel>
-            <PotComparisonChart lines={data.scenarioComparison} basis={data.basis} />
           </Card>
         )}
       </>

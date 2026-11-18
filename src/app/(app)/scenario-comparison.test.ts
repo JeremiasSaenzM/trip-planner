@@ -5,7 +5,7 @@ import * as fixtures from "@/lib/data/fixtures";
 import { BASES } from "@/lib/domain/types";
 
 import { buildSavingsScheduleData } from "./charts";
-import { buildComparisonChartRows, buildPotComparisonRows } from "./scenario-comparison-chart";
+import { buildComparisonChartRows } from "./scenario-comparison-chart";
 import { buildScenarioComparison, buildScenarioSavings, type ScenarioComparisonLine } from "./scenario-savings";
 import { sortScenarios } from "./scenario-order";
 
@@ -83,34 +83,6 @@ describe("buildScenarioComparison", () => {
     });
   }
 
-  it("has real pots to compare in the fixtures, so the pot identity test below isn't vacuous", () => {
-    const withPots = comparisonWhileViewing(tripScenarios[0].id, "target").filter((line) => line.pots.length > 0);
-    expect(withPots.length).toBeGreaterThanOrEqual(2);
-  });
-
-  // Same trap, for the pots: each scenario's bars must be exactly the
-  // pots its own savings views show when it's the one being viewed --
-  // the "When money is needed" list (pots) and the one-pot-per-payment
-  // chart (parallelPlan.pots) -- whichever scenario the page is on, at
-  // every basis.
-  for (const basis of BASES) {
-    it(`gives every scenario exactly the pots its own savings views show (${basis})`, () => {
-      for (const viewed of tripScenarios) {
-        for (const line of comparisonWhileViewing(viewed.id, basis)) {
-          const scenario = tripScenarios.find((s) => s.id === line.scenarioId)!;
-          const plan = buildScenarioSavings({ ...shared, scenario, basis });
-          const potList = (plan.pots ?? []).map((pot) => ({ dueDate: pot.dueDate, amountUsd: pot.amountUsd }));
-          const potChart = (plan.parallelPlan?.pots ?? []).map((pot) => ({
-            dueDate: pot.dueDate,
-            amountUsd: pot.amountUsd,
-          }));
-          expect(line.pots).toEqual(potList);
-          expect(line.pots).toEqual(potChart);
-        }
-      }
-    });
-  }
-
   it("emphasises only the scenario being viewed", () => {
     const viewed = tripScenarios[1].id;
     const lines = comparisonWhileViewing(viewed, "target");
@@ -149,7 +121,6 @@ describe("buildComparisonChartRows", () => {
     nightsInBeds: null,
     points: points.map(([date, cumulativeUsd]) => ({ date, cumulativeUsd, monthsUntil: 0 })),
     noLineReason: null,
-    pots: [],
     missingRateCount: 0,
   });
 
@@ -170,31 +141,3 @@ describe("buildComparisonChartRows", () => {
   });
 });
 
-describe("buildPotComparisonRows", () => {
-  const withPots = (scenarioId: string, pots: [string, number][]): ScenarioComparisonLine => ({
-    scenarioId,
-    name: scenarioId,
-    isViewed: false,
-    departureDate: null,
-    returnDate: null,
-    nightsInBeds: null,
-    points: [],
-    noLineReason: null,
-    pots: pots.map(([dueDate, amountUsd]) => ({ dueDate, amountUsd })),
-    missingRateCount: 0,
-  });
-
-  it("groups by the union of deadlines, and marks a scenario with nothing due as absent, not zero", () => {
-    const rows = buildPotComparisonRows([
-      withPots("P", [["2027-12-31", 7.49], ["2028-01-31", 2264], ["2028-06-30", 3104.33]]),
-      withPots("Q", [["2027-12-31", 7.49], ["2028-01-31", 1834.61], ["2028-05-31", 899.56], ["2028-06-30", 1861.08]]),
-    ]);
-    expect(rows.map((row) => row.dueDate)).toEqual(["2027-12-31", "2028-01-31", "2028-05-31", "2028-06-30"]);
-    expect(rows.find((row) => row.dueDate === "2028-05-31")!.amounts).toEqual({ P: null, Q: 899.56 });
-    expect(rows.find((row) => row.dueDate === "2028-01-31")!.amounts).toEqual({ P: 2264, Q: 1834.61 });
-  });
-
-  it("has no groups when no scenario has a pot", () => {
-    expect(buildPotComparisonRows([withPots("P", []), withPots("Q", [])])).toEqual([]);
-  });
-});

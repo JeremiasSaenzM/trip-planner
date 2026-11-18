@@ -171,28 +171,20 @@ export type ScenarioComparisonLine = {
    * the page is showing. Empty when there's no line to draw (see noLineReason). */
   points: CumulativeRequiredPoint[];
   noLineReason: "no_departure_date" | "nothing_due" | null;
-  /** This scenario's deadline pots, at the page's basis: exactly the
-   * dueDate and amountUsd of buildScenarioSavings()'s own pots -- the
-   * same list the "When money is needed" view shows. Saving deadlines,
-   * after the departure clamp and the income rule, not payment due
-   * dates. Empty when there's no departure date. */
-  pots: { dueDate: string; amountUsd: number }[];
   /** Payments or budget lines left out of this scenario's figures for
    * want of an FX rate -- a line drawn without them sits too low. */
   missingRateCount: number;
 };
 
 /**
- * One entry per scenario of the trip, for the two scenario comparison
- * charts: the cumulative amount that must be saved by each date
- * (points), and how much each saving deadline holds (pots).
+ * One entry per scenario of the trip, for the scenario comparison
+ * charts: the cumulative amount that must be saved by each date.
  *
  * Every entry -- the viewed scenario's and every other one -- is
  * buildScenarioSavings(), the same call the page's own savings views are
  * drawn from, at one shared basis; points go through
- * cumulativeRequiredSeries() exactly as the savings schedule chart's do,
- * and pots are copied field for field. Nothing here computes a figure
- * of its own.
+ * cumulativeRequiredSeries() exactly as the savings schedule chart's do.
+ * Nothing here computes a figure of its own.
  */
 export function buildScenarioComparison(
   input: Omit<ScenarioSavingsInput, "scenario"> & {
@@ -222,7 +214,6 @@ export function buildScenarioComparison(
         nightsInBeds: nights.status === "ok" ? nights.nights : null,
         points,
         noLineReason: plan.savings === null ? "no_departure_date" : points.length === 0 ? "nothing_due" : null,
-        pots: (plan.pots ?? []).map((pot) => ({ dueDate: pot.dueDate, amountUsd: pot.amountUsd })),
         missingRateCount: plan.obligationsResult.missingRates.length,
       };
     });
