@@ -83,6 +83,34 @@ describe("buildScenarioComparison", () => {
     });
   }
 
+  it("has real pots to compare in the fixtures, so the pot identity test below isn't vacuous", () => {
+    const withPots = comparisonWhileViewing(tripScenarios[0].id, "target").filter((line) => line.pots.length > 0);
+    expect(withPots.length).toBeGreaterThanOrEqual(2);
+  });
+
+  // Same trap, for the pots: each scenario's bars must be exactly the
+  // pots its own savings views show when it's the one being viewed --
+  // the "When money is needed" list (pots) and the one-pot-per-payment
+  // chart (parallelPlan.pots) -- whichever scenario the page is on, at
+  // every basis.
+  for (const basis of BASES) {
+    it(`gives every scenario exactly the pots its own savings views show (${basis})`, () => {
+      for (const viewed of tripScenarios) {
+        for (const line of comparisonWhileViewing(viewed.id, basis)) {
+          const scenario = tripScenarios.find((s) => s.id === line.scenarioId)!;
+          const plan = buildScenarioSavings({ ...shared, scenario, basis });
+          const potList = (plan.pots ?? []).map((pot) => ({ dueDate: pot.dueDate, amountUsd: pot.amountUsd }));
+          const potChart = (plan.parallelPlan?.pots ?? []).map((pot) => ({
+            dueDate: pot.dueDate,
+            amountUsd: pot.amountUsd,
+          }));
+          expect(line.pots).toEqual(potList);
+          expect(line.pots).toEqual(potChart);
+        }
+      }
+    });
+  }
+
   it("emphasises only the scenario being viewed", () => {
     const viewed = tripScenarios[1].id;
     const lines = comparisonWhileViewing(viewed, "target");
@@ -121,6 +149,7 @@ describe("buildComparisonChartRows", () => {
     nightsInBeds: null,
     points: points.map(([date, cumulativeUsd]) => ({ date, cumulativeUsd, monthsUntil: 0 })),
     noLineReason: null,
+    pots: [],
     missingRateCount: 0,
   });
 
