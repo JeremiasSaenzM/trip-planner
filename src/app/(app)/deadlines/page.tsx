@@ -32,11 +32,12 @@ export default function DeadlinesPage({ searchParams }: PageProps<"/deadlines">)
 
 async function DeadlinesScreen({ searchParams }: { searchParams: PageProps<"/deadlines">["searchParams"] }) {
   await getCurrentUser();
-  const { trip: tripId, scenario: scenarioId, basis } = await searchParams;
+  const { trip: tripId, scenario: scenarioId, basis, savings: savingsParam } = await searchParams;
   const data = await loadDashboardData({
     tripId: typeof tripId === "string" ? tripId : undefined,
     scenarioId: typeof scenarioId === "string" ? scenarioId : undefined,
     basis: typeof basis === "string" ? basis : undefined,
+    savingsView: typeof savingsParam === "string" ? savingsParam : undefined,
   });
 
   if (data.status === "no_trip") return <EmptyState>No trip yet.</EmptyState>;
@@ -58,6 +59,7 @@ async function DeadlinesScreen({ searchParams }: { searchParams: PageProps<"/dea
           scenarios={data.scenarios}
           activeScenarioId={data.scenario.id}
           basis={data.basis}
+          savingsView={data.savingsView}
         />
         <EmptyState>No deadlines, tasks or open questions recorded yet.</EmptyState>
       </div>
@@ -73,6 +75,7 @@ async function DeadlinesScreen({ searchParams }: { searchParams: PageProps<"/dea
         scenarios={data.scenarios}
         activeScenarioId={data.scenario.id}
         basis={data.basis}
+        savingsView={data.savingsView}
       />
 
       {CATEGORY_ORDER.map((category) => (

@@ -3,6 +3,9 @@ import Link from "next/link";
 import type { Scenario, Trip } from "@/lib/data/types";
 import { BASES, type Basis } from "@/lib/domain/types";
 
+import { dashboardHref } from "./dashboard-query";
+import type { SavingsView } from "./savings-view";
+
 // Each option's active state uses the chart accent color it shares with
 // the charts (var(--chart-minimum) / var(--chart-target) /
 // var(--chart-conservative)) -- text color is chosen per option per mode
@@ -23,10 +26,12 @@ export const BASIS_LABELS: Record<Basis, string> = {
 };
 
 // Trip, scenario and minimum/target/conservative toggles, shared by all
-// five dashboard screens. Plain links (?trip=&scenario=&basis=) rather
-// than client state, so a given view is a real URL and switching needs
-// no client JS -- and every one of these keys has to stay listed in
-// dashboard-query.ts's CARRIED_KEYS, or it stops surviving a nav click.
+// five dashboard screens. Plain links (?trip=&scenario=&basis=&savings=)
+// rather than client state, so a given view is a real URL and switching
+// needs no client JS -- and every one of these keys has to stay listed
+// in dashboard-query.ts's CARRIED_KEYS, or it stops surviving a nav
+// click. Every link is built by dashboardHref(), so each one carries
+// the savings view too, even though this bar doesn't switch it.
 export function DashboardControls({
   basePath,
   trips,
@@ -34,6 +39,7 @@ export function DashboardControls({
   scenarios,
   activeScenarioId,
   basis,
+  savingsView,
 }: {
   basePath: string;
   trips: Trip[];
@@ -41,16 +47,24 @@ export function DashboardControls({
   scenarios: Scenario[];
   activeScenarioId: string;
   basis: Basis;
+  savingsView: SavingsView;
 }) {
+  const selection = { trip: activeTripId, scenario: activeScenarioId, basis, savings: savingsView };
   return (
     <div className="flex flex-wrap items-center justify-between gap-2">
       <div className="flex flex-wrap items-center gap-1">
-        <TripSwitcher basePath={basePath} trips={trips} activeTripId={activeTripId} basis={basis} />
+        <TripSwitcher
+          basePath={basePath}
+          trips={trips}
+          activeTripId={activeTripId}
+          basis={basis}
+          savingsView={savingsView}
+        />
         {scenarios.length > 1 &&
           scenarios.map((scenario) => (
             <Link
               key={scenario.id}
-              href={`${basePath}?trip=${activeTripId}&scenario=${scenario.id}&basis=${basis}`}
+              href={dashboardHref(basePath, { ...selection, scenario: scenario.id })}
               aria-current={scenario.id === activeScenarioId ? "page" : undefined}
               className="rounded-full border border-zinc-200 px-3 py-1 text-xs font-medium text-zinc-600 aria-[current=page]:border-zinc-900 aria-[current=page]:bg-zinc-900 aria-[current=page]:text-white dark:border-zinc-700 dark:text-zinc-400 dark:aria-[current=page]:border-zinc-100 dark:aria-[current=page]:bg-zinc-100 dark:aria-[current=page]:text-zinc-950"
             >
@@ -58,7 +72,7 @@ export function DashboardControls({
             </Link>
           ))}
         <Link
-          href={`/scenario?trip=${activeTripId}&scenario=${activeScenarioId}&basis=${basis}`}
+          href={dashboardHref("/scenario", selection)}
           className="px-2 py-1 text-xs font-medium text-zinc-600 underline dark:text-zinc-400"
         >
           About this scenario
@@ -66,7 +80,7 @@ export function DashboardControls({
         {/* Always shown, even with a single scenario -- it's also the
             way to add a second one. */}
         <Link
-          href={`/scenarios?trip=${activeTripId}&scenario=${activeScenarioId}&basis=${basis}`}
+          href={dashboardHref("/scenarios", selection)}
           className="px-2 py-1 text-xs font-medium text-zinc-600 underline dark:text-zinc-400"
         >
           Manage scenarios
@@ -77,7 +91,7 @@ export function DashboardControls({
         {BASES.map((option) => (
           <Link
             key={option}
-            href={`${basePath}?trip=${activeTripId}&scenario=${activeScenarioId}&basis=${option}`}
+            href={dashboardHref(basePath, { ...selection, basis: option })}
             aria-current={option === basis ? "page" : undefined}
             className={`rounded-full px-3 py-1 text-xs font-medium text-zinc-600 dark:text-zinc-400 ${BASIS_ACTIVE_CLASSES[option]}`}
           >
@@ -105,20 +119,21 @@ export function TripSwitcher({
   trips,
   activeTripId,
   basis,
+  savingsView,
 }: {
   basePath: string;
   trips: Trip[];
   activeTripId: string;
   basis?: Basis;
+  savingsView?: SavingsView;
 }) {
-  const basisQuery = basis ? `&basis=${basis}` : "";
   return (
     <>
       {trips.length > 1 &&
         trips.map((trip) => (
           <Link
             key={trip.id}
-            href={`${basePath}?trip=${trip.id}${basisQuery}`}
+            href={dashboardHref(basePath, { trip: trip.id, basis, savings: savingsView })}
             aria-current={trip.id === activeTripId ? "page" : undefined}
             className="rounded-full border border-zinc-200 px-3 py-1 text-xs font-medium text-zinc-600 aria-[current=page]:border-zinc-900 aria-[current=page]:bg-zinc-900 aria-[current=page]:text-white dark:border-zinc-700 dark:text-zinc-400 dark:aria-[current=page]:border-zinc-100 dark:aria-[current=page]:bg-zinc-100 dark:aria-[current=page]:text-zinc-950"
           >

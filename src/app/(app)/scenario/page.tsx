@@ -16,6 +16,7 @@ import { CATEGORY_LABELS } from "../category-labels";
 import { CONFIDENCE_LABELS, CONFIDENCE_NOT_ASSESSED } from "../confidence-labels";
 import { BASIS_LABELS, DashboardControls, TripSwitcher } from "../dashboard-controls";
 import { loadDashboardData, type DashboardData } from "../dashboard-data";
+import { dashboardHref } from "../dashboard-query";
 import { Card, CardLabel, Caveat, EmptyState, noDepartureReason, RangeFigure, UnconfirmedMarker } from "../dashboard-ui";
 import { DeadlinePotList } from "../deadline-pots-ui";
 import { AddFlightOptionForm, FlightOptionComparisonTable, FlightOptionList } from "../flight-write-ui";
@@ -48,11 +49,12 @@ export default function ScenarioOverviewPage({ searchParams }: PageProps<"/scena
 
 async function ScenarioOverview({ searchParams }: { searchParams: PageProps<"/scenario">["searchParams"] }) {
   await getCurrentUser();
-  const { trip: tripId, scenario: scenarioId, basis } = await searchParams;
+  const { trip: tripId, scenario: scenarioId, basis, savings: savingsParam } = await searchParams;
   const data = await loadDashboardData({
     tripId: typeof tripId === "string" ? tripId : undefined,
     scenarioId: typeof scenarioId === "string" ? scenarioId : undefined,
     basis: typeof basis === "string" ? basis : undefined,
+    savingsView: typeof savingsParam === "string" ? savingsParam : undefined,
   });
 
   if (data.status === "no_trip") return <EmptyState>No trip yet. Start one from Overview.</EmptyState>;
@@ -82,6 +84,7 @@ async function ScenarioOverview({ searchParams }: { searchParams: PageProps<"/sc
         scenarios={data.scenarios}
         activeScenarioId={scenario.id}
         basis={data.basis}
+        savingsView={data.savingsView}
       />
 
       <UnconfirmedDatesBanner facts={unconfirmedDateFacts} />
@@ -274,7 +277,12 @@ async function ScenarioOverview({ searchParams }: { searchParams: PageProps<"/sc
             <Missing>
               {noDepartureReason(event)}, so there are no deadlines to save toward.{" "}
               <Link
-                href={`/scenarios?trip=${data.trip.id}&scenario=${scenario.id}&basis=${data.basis}`}
+                href={dashboardHref("/scenarios", {
+                  trip: data.trip.id,
+                  scenario: scenario.id,
+                  basis: data.basis,
+                  savings: data.savingsView,
+                })}
                 className="underline"
               >
                 Set the trip&apos;s travel window

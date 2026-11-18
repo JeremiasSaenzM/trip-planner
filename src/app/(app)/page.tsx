@@ -8,6 +8,7 @@ import { dataSource } from "@/lib/data";
 import { AddEventForm, CreateScenarioForm, CreateTripForm } from "./bootstrap-forms";
 import { BudgetByCategoryChart, SavingsScheduleChart } from "./charts";
 import { DashboardControls, TripSwitcher } from "./dashboard-controls";
+import { dashboardHref } from "./dashboard-query";
 import { loadDashboardData } from "./dashboard-data";
 import { Card, CardLabel, Caveat, noDepartureReason, RangeFigure } from "./dashboard-ui";
 import { DeadlinePotList } from "./deadline-pots-ui";
@@ -34,12 +35,13 @@ export default function OverviewPage({ searchParams }: PageProps<"/">) {
 
 async function Overview({ searchParams }: { searchParams: PageProps<"/">["searchParams"] }) {
   await getCurrentUser();
-  const { trip: tripId, scenario: scenarioId, basis } = await searchParams;
+  const { trip: tripId, scenario: scenarioId, basis, savings: savingsParam } = await searchParams;
   const [data, proposalItems] = await Promise.all([
     loadDashboardData({
       tripId: typeof tripId === "string" ? tripId : undefined,
       scenarioId: typeof scenarioId === "string" ? scenarioId : undefined,
       basis: typeof basis === "string" ? basis : undefined,
+      savingsView: typeof savingsParam === "string" ? savingsParam : undefined,
     }),
     dataSource.getProposalItems(),
   ]);
@@ -95,6 +97,7 @@ async function Overview({ searchParams }: { searchParams: PageProps<"/">["search
         scenarios={data.scenarios}
         activeScenarioId={data.scenario.id}
         basis={data.basis}
+        savingsView={data.savingsView}
       />
 
       {/* One quiet line, not a Caveat box: nothing is wrong, it's a
@@ -149,7 +152,12 @@ async function Overview({ searchParams }: { searchParams: PageProps<"/">["search
           <p data-testid="no-savings-requirement" className="mt-1 text-base text-zinc-600 dark:text-zinc-400">
             {noDepartureReason(event)}, so there&apos;s no savings requirement to compute.{" "}
             <Link
-              href={`/scenarios?trip=${data.trip.id}&scenario=${data.scenario.id}&basis=${data.basis}`}
+              href={dashboardHref("/scenarios", {
+                trip: data.trip.id,
+                scenario: data.scenario.id,
+                basis: data.basis,
+                savings: data.savingsView,
+              })}
               className="underline"
             >
               Set the trip&apos;s travel window

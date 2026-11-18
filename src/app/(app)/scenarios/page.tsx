@@ -8,7 +8,8 @@ import type { TripEvent, Scenario, Source, Trip } from "@/lib/data/types";
 import { resolveTravelWindow } from "@/lib/domain/resolve-travel-window";
 
 import { AddEventForm, CreateScenarioForm } from "../bootstrap-forms";
-import { parseBasis } from "../dashboard-query";
+import { dashboardHref, parseBasis } from "../dashboard-query";
+import { parseSavingsView } from "../savings-view";
 import { Card, EmptyState } from "../dashboard-ui";
 import { formatDate } from "../format";
 import { INFO_STATE_LABELS } from "../info-state-labels";
@@ -41,7 +42,7 @@ export default function ScenariosPage({ searchParams }: PageProps<"/scenarios">)
 // would be refused before you try).
 async function ScenariosScreen({ searchParams }: { searchParams: PageProps<"/scenarios">["searchParams"] }) {
   await getCurrentUser();
-  const { trip: tripParam, scenario: scenarioParam, basis: basisParam } = await searchParams;
+  const { trip: tripParam, scenario: scenarioParam, basis: basisParam, savings: savingsParam } = await searchParams;
 
   const [trips, events, scenarios, sources, budgetLines, payments, flightOptions, stays, movements] =
     await Promise.all([
@@ -71,6 +72,7 @@ async function ScenariosScreen({ searchParams }: { searchParams: PageProps<"/sce
   // ?scenario= means the first (oldest) one.
   const selected = tripScenarios.find((s) => s.id === scenarioParam) ?? tripScenarios[0];
   const basis = parseBasis(basisParam);
+  const savingsView = parseSavingsView(savingsParam);
 
   // What delete_scenario_cascade would actually destroy: its own budget
   // lines, plus every payment that would go with them -- either because
@@ -152,7 +154,7 @@ async function ScenariosScreen({ searchParams }: { searchParams: PageProps<"/sce
                       </span>
                     ) : (
                       <Link
-                        href={`/?trip=${trip.id}&scenario=${scenario.id}&basis=${basis}`}
+                        href={dashboardHref("/", { trip: trip.id, scenario: scenario.id, basis, savings: savingsView })}
                         className="shrink-0 text-sm font-medium underline"
                       >
                         Switch to
