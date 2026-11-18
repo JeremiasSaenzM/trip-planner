@@ -1,9 +1,12 @@
-import type { BudgetLine, FxRate, Payment, SavingsEntry, Scenario, Trip, TripEvent } from "@/lib/data/types";
+import type { BudgetLine, FxRate, Movement, Payment, SavingsEntry, Scenario, Trip, TripEvent } from "@/lib/data/types";
+import { countNightsInBeds } from "@/lib/domain/build-itinerary-timeline";
 import { buildObligations, type BuildObligationsResult } from "@/lib/domain/build-obligations";
 import { calculateRequiredSavings, type CalculateRequiredSavingsResult } from "@/lib/domain/calculate-required-savings";
+import { cumulativeRequiredSeries, type CumulativeRequiredPoint } from "@/lib/domain/cumulative-required-series";
 import { TRAVELLER_INCOME_CADENCE } from "@/lib/domain/income-cadence";
 import { resolveDepartureDate, type ResolvedDeparture } from "@/lib/domain/resolve-departure-date";
 import { resolveTravelWindow, type ResolvedTravelWindow } from "@/lib/domain/resolve-travel-window";
+import type { Basis } from "@/lib/domain/types";
 
 export type ScenarioSavingsInput = {
   trip: Trip;
@@ -108,4 +111,68 @@ export function buildScenarioSavings(input: ScenarioSavingsInput): ScenarioSavin
     obligationsResult,
     savings,
   };
+}
+
+export type ScenarioComparisonLine = {
+  scenarioId: string;
+  name: string;
+  /** The scenario the page is showing -- emphasised; every other line is context. */
+  isViewed: boolean;
+  /** The resolved travel window (resolveTravelWindow()): the scenario's
+   * own when it set one, else the trip's. Both null when neither has one. */
+  departureDate: string | null;
+  returnDate: string | null;
+  /** countNightsInBeds() over this scenario's own movements -- the same
+   * count the stay-nights check uses. null when the window isn't set. */
+  nightsInBeds: number | null;
+  /** cumulativeRequiredSeries() of this scenario's schedule, at the basis
+   * the page is showing. Empty when there's no line to draw (see noLineReason). */
+  points: CumulativeRequiredPoint[];
+  noLineReason: "no_departure_date" | "nothing_due" | null;
+  /** Payments or budget lines left out of this scenario's figures for
+   * want of an FX rate -- a line drawn without them sits too low. */
+  missingRateCount: number;
+};
+
+/**
+ * One line per scenario of the trip, for the scenario comparison chart:
+ * the cumulative amount that must be saved by each date.
+ *
+ * Every line -- the viewed scenario's and every other one -- is
+ * buildScenarioSavings() then cumulativeRequiredSeries(), the same two
+ * calls the savings schedule chart is drawn from, at one shared basis.
+ * Nothing here computes a figure of its own.
+ */
+export function buildScenarioComparison(
+  input: Omit<ScenarioSavingsInput, "scenario"> & {
+    /** The trip's scenarios, in display order -- any of another trip's are ignored. */
+    scenarios: Scenario[];
+    viewedScenarioId: string;
+    movements: Movement[];
+    basis: Basis;
+  },
+): ScenarioComparisonLine[] {
+  return input.scenarios
+    .filter((scenario) => scenario.tripId === input.trip.id)
+    .map((scenario) => {
+      const plan = buildScenarioSavings({ ...input, scenario });
+      const nights = countNightsInBeds({
+        movements: input.movements.filter((movement) => movement.scenarioId === scenario.id),
+        departureDate: plan.travelWindow.departureDate,
+        returnDate: plan.travelWindow.returnDate,
+      });
+      const points = plan.savings ? cumulativeRequiredSeries(plan.savings.schedule, input.basis, input.asOfDate) : [];
+
+      return {
+        scenarioId: scenario.id,
+        name: scenario.name,
+        isViewed: scenario.id === input.viewedScenarioId,
+        departureDate: plan.travelWindow.departureDate,
+        returnDate: plan.travelWindow.returnDate,
+        nightsInBeds: nights.status === "ok" ? nights.nights : null,
+        points,
+        noLineReason: plan.savings === null ? "no_departure_date" : points.length === 0 ? "nothing_due" : null,
+        missingRateCount: plan.obligationsResult.missingRates.length,
+      };
+    });
 }
