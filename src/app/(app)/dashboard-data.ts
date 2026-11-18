@@ -53,7 +53,7 @@ import type { Basis } from "@/lib/domain/types";
 
 import { evaluateAccommodationOption, type AccommodationOptionEvaluation } from "./accommodation-evaluation";
 import { parseBasis } from "./dashboard-query";
-import { buildScenarioSavings } from "./scenario-savings";
+import { buildScenarioComparison, buildScenarioSavings, type ScenarioComparisonLine } from "./scenario-savings";
 import { evaluateFlightOption, type FlightOptionEvaluation } from "./flight-evaluation";
 import { sortScenarios } from "./scenario-order";
 import { sortTrips } from "./trip-order";
@@ -110,6 +110,10 @@ export type DashboardData =
       pots: DeadlinePot[] | null;
       /** null when noDepartureDate -- there are no obligations to plan against. */
       parallelPlan: BuildParallelSavingsPlanResult | null;
+      /** Phase 7a: one line per scenario of this trip (the viewed one
+       * included), each built by buildScenarioSavings() exactly as the
+       * savings figures above are for the viewed one, at the same basis. */
+      scenarioComparison: ScenarioComparisonLine[];
       /** Scenario-scoped: this scenario's own payments plus the trip's shared ones. */
       payments: Payment[];
       /** Trip-wide, every scenario -- for the "does any other payment
@@ -261,6 +265,20 @@ export async function loadDashboardData(params: {
     savings,
   } = buildScenarioSavings({ trip, scenario, events, budgetLines, payments, savingsEntries, rates, asOfDate });
 
+  const scenarioComparison = buildScenarioComparison({
+    trip,
+    scenarios: tripScenarios,
+    viewedScenarioId: scenario.id,
+    events,
+    budgetLines,
+    payments,
+    savingsEntries,
+    rates,
+    movements,
+    basis,
+    asOfDate,
+  });
+
   const missingFxRates = findMissingFxRates({
     currencies: [...tripBudgetLines.map((line) => line.currency), ...tripPayments.map((payment) => payment.currency)],
     rates,
@@ -392,6 +410,7 @@ export async function loadDashboardData(params: {
       availableUsd: obligationsResult.availableUsd,
       pots: null,
       parallelPlan: null,
+      scenarioComparison,
       payments: scenarioPayments,
       tripPayments,
       budgetLines: scenarioBudgetLines,
@@ -460,6 +479,7 @@ export async function loadDashboardData(params: {
     availableUsd: obligationsResult.availableUsd,
     pots,
     parallelPlan,
+    scenarioComparison,
     payments: scenarioPayments,
     tripPayments,
     budgetLines: scenarioBudgetLines,
