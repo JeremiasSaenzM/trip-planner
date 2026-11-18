@@ -6,6 +6,7 @@ import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YA
 import type { BuildParallelSavingsPlanResult } from "@/lib/domain/build-parallel-savings-plan";
 
 import { formatDate, formatUsd } from "./format";
+import type { ScenarioComparisonLine } from "./scenario-savings";
 
 // A YYYY-MM-DD value is a calendar date, not an instant -- always parse
 // and format it pinned to "utc" so the result never depends on the
@@ -26,7 +27,7 @@ function formatUsdTick(value: number): string {
 // which need to follow the theme instead.
 const AXIS_TICK = { fontSize: 11, fill: "var(--chart-neutral)" };
 
-type SawtoothPoint = {
+export type SawtoothPoint = {
   timestamp: number;
   balance: number;
   isPeak: boolean;
@@ -119,6 +120,16 @@ export function buildParallelSawtoothData(
     });
   });
   return data;
+}
+
+/**
+ * Another scenario's line on this chart: exactly what this chart plots
+ * for that scenario when it's the one being viewed -- the same
+ * buildParallelSawtoothData() call on its own plan and money set aside,
+ * nothing computed here. Empty when it has no plan.
+ */
+export function comparisonSawtooth(line: ScenarioComparisonLine, asOfDate: string): SawtoothPoint[] {
+  return line.parallelPlan ? buildParallelSawtoothData(line.parallelPlan, line.availableUsd, asOfDate) : [];
 }
 
 export function ParallelSavingsChart({

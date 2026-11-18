@@ -171,14 +171,22 @@ export type ScenarioComparisonLine = {
    * the page is showing. Empty when there's no line to draw (see noLineReason). */
   points: CumulativeRequiredPoint[];
   noLineReason: "no_departure_date" | "nothing_due" | null;
+  /** What this scenario's own "One pot per payment" chart is drawn
+   * from -- buildScenarioSavings()'s parallelPlan and availableUsd, passed
+   * through untouched. The chart turns them into a line with the same
+   * buildParallelSawtoothData() call it uses for the viewed scenario.
+   * parallelPlan is null when there's no departure date. */
+  parallelPlan: BuildParallelSavingsPlanResult | null;
+  availableUsd: number;
   /** Payments or budget lines left out of this scenario's figures for
    * want of an FX rate -- a line drawn without them sits too low. */
   missingRateCount: number;
 };
 
 /**
- * One entry per scenario of the trip, for the scenario comparison
- * charts: the cumulative amount that must be saved by each date.
+ * One entry per scenario of the trip, for the scenario comparisons: the
+ * cumulative amount that must be saved by each date (points), and what
+ * the "One pot per payment" chart is drawn from (parallelPlan, availableUsd).
  *
  * Every entry -- the viewed scenario's and every other one -- is
  * buildScenarioSavings(), the same call the page's own savings views are
@@ -214,6 +222,8 @@ export function buildScenarioComparison(
         nightsInBeds: nights.status === "ok" ? nights.nights : null,
         points,
         noLineReason: plan.savings === null ? "no_departure_date" : points.length === 0 ? "nothing_due" : null,
+        parallelPlan: plan.parallelPlan,
+        availableUsd: plan.obligationsResult.availableUsd,
         missingRateCount: plan.obligationsResult.missingRates.length,
       };
     });
