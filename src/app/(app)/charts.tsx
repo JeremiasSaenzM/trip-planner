@@ -16,7 +16,8 @@ import {
 } from "recharts";
 
 import type { BuiltObligation } from "@/lib/domain/build-obligations";
-import { cumulativeAt, requiredMonthlyAt, type ScheduleEntry } from "@/lib/domain/calculate-required-savings";
+import { requiredMonthlyAt, type ScheduleEntry } from "@/lib/domain/calculate-required-savings";
+import { cumulativeRequiredSeries } from "@/lib/domain/cumulative-required-series";
 import { groupObligationsByDueDate } from "@/lib/domain/group-obligations-by-due-date";
 import type { CategoryTotals } from "@/lib/domain/roll-up-budget-by-scenario";
 import type { BudgetCategory } from "@/lib/domain/types";
@@ -94,6 +95,43 @@ function formatDateTick(timestamp: number): string {
   return DateTime.fromMillis(timestamp, { zone: "utc" }).toFormat("MMM d");
 }
 
+export type SavingsScheduleInput = {
+  schedule: ScheduleEntry[];
+  obligations: BuiltObligation[];
+  availableUsd: number;
+  bindingRequirementUsd: number;
+  asOfDate: string;
+  basis: Basis;
+  departureSaveBy: string | null;
+};
+
+/**
+ * The points SavingsScheduleChart plots, pure so a test can compare
+ * them with the scenario comparison chart's line for the same scenario.
+ * "Money needed by this date" is cumulativeRequiredSeries() -- the same
+ * function every comparison line comes from.
+ */
+export function buildSavingsScheduleData(input: SavingsScheduleInput) {
+  // schedule entries carry only amounts/dates -- the obligation's own
+  // description (what the tooltip names) has to be looked up by due date.
+  const deadlineNames = new Map(
+    groupObligationsByDueDate(input.obligations, input.basis, input.departureSaveBy).map((group) => [
+      group.dueDate,
+      group.description,
+    ]),
+  );
+
+  return cumulativeRequiredSeries(input.schedule, input.basis, input.asOfDate).map((point, index) => ({
+    timestamp: toTimestamp(point.date),
+    cumulativeRequired: point.cumulativeUsd,
+    // Savings grow once per payday: the same income-date count the
+    // headline divides by (monthsUntil), so the projected line meets the
+    // binding deadline's total exactly.
+    projectedSavings: input.availableUsd + input.bindingRequirementUsd * point.monthsUntil,
+    payment: index === 0 ? null : (deadlineNames.get(point.date) ?? null),
+  }));
+}
+
 export function SavingsScheduleChart({
   schedule,
   obligations,
@@ -119,25 +157,15 @@ export function SavingsScheduleChart({
     return <p className="text-sm text-zinc-500 dark:text-zinc-400">No upcoming deadlines to schedule against yet.</p>;
   }
 
-  // schedule entries carry only amounts/dates -- the obligation's own
-  // description (what the tooltip names) has to be looked up by due date.
-  const deadlineNames = new Map(
-    groupObligationsByDueDate(obligations, basis, departureSaveBy).map((group) => [group.dueDate, group.description]),
-  );
-
-  const asOfTs = toTimestamp(asOfDate);
-  const data = [
-    { timestamp: asOfTs, cumulativeRequired: 0, projectedSavings: availableUsd, payment: null as string | null },
-    // Savings grow once per payday: the same income-date count the
-    // headline divides by (entry.monthsUntil), so the projected line
-    // meets the binding deadline's total exactly.
-    ...future.map((entry) => ({
-      timestamp: toTimestamp(entry.dueDate),
-      cumulativeRequired: cumulativeAt(entry, basis),
-      projectedSavings: availableUsd + bindingRequirementUsd * (entry.monthsUntil ?? 0),
-      payment: deadlineNames.get(entry.dueDate) ?? null,
-    })),
-  ];
+  const data = buildSavingsScheduleData({
+    schedule,
+    obligations,
+    availableUsd,
+    bindingRequirementUsd,
+    asOfDate,
+    basis,
+    departureSaveBy,
+  });
 
   const tightest = future.reduce((best, entry) =>
     (requiredMonthlyAt(entry, basis) ?? 0) > (requiredMonthlyAt(best, basis) ?? 0) ? entry : best,

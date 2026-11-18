@@ -27,9 +27,9 @@ import {
   type PathContinuityIssue,
   type UnaccountedNight,
 } from "@/lib/domain/build-itinerary-timeline";
-import { buildObligations, type BuiltObligation, type MissingObligationRate } from "@/lib/domain/build-obligations";
+import type { BuiltObligation, MissingObligationRate } from "@/lib/domain/build-obligations";
 import { buildParallelSavingsPlan, type BuildParallelSavingsPlanResult } from "@/lib/domain/build-parallel-savings-plan";
-import { calculateRequiredSavings, type CalculateRequiredSavingsResult } from "@/lib/domain/calculate-required-savings";
+import type { CalculateRequiredSavingsResult } from "@/lib/domain/calculate-required-savings";
 import { checkBudgetLineDaysAddUp, type BudgetLineDaysCheckResult } from "@/lib/domain/check-budget-line-days-add-up";
 import { checkBudgetLineMatchesStay, type BudgetLineStayMismatch } from "@/lib/domain/check-budget-line-matches-stay";
 import {
@@ -46,13 +46,14 @@ import {
 } from "@/lib/domain/find-movements-missing-budget-line";
 import { findOverlappingStays, type OverlappingStaysResult } from "@/lib/domain/find-overlapping-stays";
 import { TRAVELLER_INCOME_CADENCE } from "@/lib/domain/income-cadence";
-import { resolveDepartureDate, type ResolvedDeparture } from "@/lib/domain/resolve-departure-date";
-import { resolveTravelWindow, type ResolvedTravelWindow } from "@/lib/domain/resolve-travel-window";
+import type { ResolvedDeparture } from "@/lib/domain/resolve-departure-date";
+import type { ResolvedTravelWindow } from "@/lib/domain/resolve-travel-window";
 import { rollUpBudgetByScenario, type RollUpBudgetByScenarioResult } from "@/lib/domain/roll-up-budget-by-scenario";
 import type { Basis } from "@/lib/domain/types";
 
 import { evaluateAccommodationOption, type AccommodationOptionEvaluation } from "./accommodation-evaluation";
 import { parseBasis } from "./dashboard-query";
+import { buildScenarioSavings } from "./scenario-savings";
 import { evaluateFlightOption, type FlightOptionEvaluation } from "./flight-evaluation";
 import { sortScenarios } from "./scenario-order";
 import { sortTrips } from "./trip-order";
@@ -247,20 +248,18 @@ export async function loadDashboardData(params: {
   const basis = parseBasis(params.basis);
   const asOfDate = new Date().toISOString().slice(0, 10);
 
-  const tripBudgetLines = budgetLines.filter((line) => line.tripId === trip.id);
-  const scenarioBudgetLines = tripBudgetLines.filter(
-    (line) => line.scenarioId === scenario.id || line.scenarioId === null,
-  );
-
-  // Trip-wide, for "already paid" -- a historical fact independent of
-  // which scenario is selected. Scenario-scoped, for the obligations
-  // this scenario actually needs funded.
-  const tripPayments = payments.filter((payment) =>
-    tripBudgetLines.some((line) => line.id === payment.budgetLineId),
-  );
-  const scenarioPayments = tripPayments.filter((payment) =>
-    scenarioBudgetLines.some((line) => line.id === payment.budgetLineId),
-  );
+  const {
+    event,
+    travelWindow,
+    departure,
+    tripBudgetLines,
+    scenarioBudgetLines,
+    tripPayments,
+    scenarioPayments,
+    tripSavingsEntries,
+    obligationsResult,
+    savings,
+  } = buildScenarioSavings({ trip, scenario, events, budgetLines, payments, savingsEntries, rates, asOfDate });
 
   const missingFxRates = findMissingFxRates({
     currencies: [...tripBudgetLines.map((line) => line.currency), ...tripPayments.map((payment) => payment.currency)],
@@ -276,16 +275,6 @@ export async function loadDashboardData(params: {
     rates,
   });
 
-  const event = scenario.eventId ? events.find((e) => e.id === scenario.eventId) ?? null : null;
-
-  const travelWindow = resolveTravelWindow(scenario, trip);
-  const departure = resolveDepartureDate({
-    windowDepartureDate: travelWindow.departureDate,
-    windowTravelDatesState: travelWindow.travelDatesState,
-    windowOrigin: travelWindow.origin,
-    eventStartDate: event?.startDate ?? null,
-    eventDatesState: event?.datesState ?? null,
-  });
   const travelWindowIssues = checkTravelWindow({
     departureDate: travelWindow.departureDate,
     returnDate: travelWindow.returnDate,
@@ -380,19 +369,6 @@ export async function loadDashboardData(params: {
   );
 
   const tripOpenItems = openItems.filter((item) => item.tripId === trip.id);
-  const tripSavingsEntries = savingsEntries.filter((entry) => entry.tripId === trip.id);
-
-  const obligationsResult = buildObligations({
-    payments: scenarioPayments,
-    allTripPayments: tripPayments,
-    budgetLines: scenarioBudgetLines,
-    savingsEntries: tripSavingsEntries.map((entry) => ({ amountUsd: entry.amount, recordedOn: entry.recordedOn })),
-    rates,
-    departureDate: departure?.date ?? null,
-    departureDateConfirmed: departure?.confirmed ?? false,
-    incomeCadence: TRAVELLER_INCOME_CADENCE,
-    asOfDate,
-  });
 
   if (obligationsResult.status === "no_departure_date") {
     return {
@@ -445,13 +421,6 @@ export async function loadDashboardData(params: {
       accommodationOptionEvaluations,
     };
   }
-
-  const savings = calculateRequiredSavings({
-    asOfDate,
-    savingsEntries: [{ amountUsd: obligationsResult.availableUsd, recordedOn: asOfDate }],
-    obligations: obligationsResult.obligations,
-    incomeCadence: TRAVELLER_INCOME_CADENCE,
-  });
 
   const parallelPlan = buildParallelSavingsPlan({
     obligations: obligationsResult.obligations,
