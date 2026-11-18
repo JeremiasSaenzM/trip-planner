@@ -1,8 +1,7 @@
 "use client";
 
 import { DateTime } from "luxon";
-import { useId } from "react";
-import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 import type { Basis } from "@/lib/domain/types";
 
@@ -118,15 +117,9 @@ function runningTotalDetail(line: ScenarioComparisonLine): string {
   return `${formatUsd(last.cumulativeUsd)} by ${formatDate(last.date)}`;
 }
 
-function byDeadlineDetail(line: ScenarioComparisonLine): string {
-  if (line.noLineReason === "no_departure_date") return "no bars: no departure date to save toward";
-  if (line.pots.length === 0) return "no bars: nothing left to save";
-  return `${line.pots.length} saving deadline${line.pots.length === 1 ? "" : "s"}`;
-}
-
-// Shared by both comparison charts, right under each: the swatch is the
-// chart's own mark for that scenario, the text says what the scenario is.
-function ComparisonLegend({
+// Right under each comparison chart: the swatch is the chart's own mark
+// for that scenario, the text says what the scenario is.
+export function ComparisonLegend({
   lines,
   swatch,
   detail,
@@ -209,202 +202,6 @@ export function ScenarioComparisonChart({ lines, basis }: { lines: ScenarioCompa
         lines={lines}
         swatch={(line, index) => <LegendSwatch style={lineStyle(line, index)} />}
         detail={runningTotalDetail}
-      />
-    </div>
-  );
-}
-
-export type PotComparisonRow = {
-  /** YYYY-MM-DD, a saving deadline at least one scenario has. */
-  dueDate: string;
-  /** Each scenario's pot on this deadline, by scenario id -- null when
-   * that scenario has nothing due here. */
-  amounts: Record<string, number | null>;
-};
-
-/**
- * One group per saving deadline any scenario has (the union, in date
- * order), one amount per scenario. A scenario with nothing due on a
- * deadline gets null, never 0: that absence is the comparison, and the
- * chart draws it as absence. Purely a re-layout of each scenario's own
- * pots -- never computes an amount.
- */
-export function buildPotComparisonRows(lines: ScenarioComparisonLine[]): PotComparisonRow[] {
-  const dates = [...new Set(lines.flatMap((line) => line.pots.map((pot) => pot.dueDate)))].sort();
-  return dates.map((dueDate) => ({
-    dueDate,
-    amounts: Object.fromEntries(
-      lines.map((line) => [line.scenarioId, line.pots.find((pot) => pot.dueDate === dueDate)?.amountUsd ?? null]),
-    ),
-  }));
-}
-
-// Bars: the viewed scenario solid in the accent colour; every other one
-// a neutral outline with its own hatch, so a bar is told apart by fill
-// and pattern, never by colour alone. Same per-scenario index as the
-// line chart's dashes, so a scenario keeps its mark across both views.
-const OTHER_HATCHES = [
-  { rotate: 45, gap: 4 },
-  { rotate: 135, gap: 4 },
-  { rotate: 0, gap: 3 },
-  { rotate: 90, gap: 3 },
-];
-
-function barFill(line: ScenarioComparisonLine, index: number, patternPrefix: string): string {
-  return line.isViewed ? "var(--chart-target)" : `url(#${patternPrefix}-${index})`;
-}
-
-function HatchPatterns({ lines, prefix }: { lines: ScenarioComparisonLine[]; prefix: string }) {
-  return (
-    <defs>
-      {lines.map((line, index) => {
-        const hatch = OTHER_HATCHES[index % OTHER_HATCHES.length];
-        return (
-          <pattern
-            key={line.scenarioId}
-            id={`${prefix}-${index}`}
-            width={hatch.gap}
-            height={hatch.gap}
-            patternUnits="userSpaceOnUse"
-            patternTransform={`rotate(${hatch.rotate})`}
-          >
-            <line x1="0" y1="0" x2="0" y2={hatch.gap} stroke="var(--chart-neutral)" strokeWidth="1.5" />
-          </pattern>
-        );
-      })}
-    </defs>
-  );
-}
-
-type BarShapeProps = {
-  x?: number;
-  y?: number;
-  width?: number;
-  height?: number;
-  fill?: string;
-  payload?: { absent: Record<string, boolean> };
-};
-
-// A bar, or -- where this scenario has nothing on the deadline -- a
-// short dashed mark on the baseline in the bar's own slot, so the gap
-// reads as "nothing due here", not as a bar that failed to load.
-function potBarShape(scenarioId: string, isViewed: boolean) {
-  function PotBar({ x = 0, y = 0, width = 0, height = 0, fill, payload }: BarShapeProps) {
-    if (payload?.absent[scenarioId]) {
-      return (
-        <line
-          x1={x + 1}
-          x2={x + width - 1}
-          y1={y}
-          y2={y}
-          stroke="var(--chart-neutral)"
-          strokeWidth={1.5}
-          strokeDasharray="2 2"
-        />
-      );
-    }
-    return (
-      <rect
-        x={x}
-        y={y}
-        width={width}
-        height={height}
-        fill={fill}
-        stroke={isViewed ? "none" : "var(--chart-neutral)"}
-        strokeWidth={1}
-      />
-    );
-  }
-  return PotBar;
-}
-
-function formatDeadlineTick(date: string): string {
-  return DateTime.fromISO(date, { zone: "utc" }).toFormat("MMM yyyy");
-}
-
-function PotTooltip({
-  active,
-  payload,
-  lines,
-}: {
-  active?: boolean;
-  payload?: { payload: PotComparisonRow }[];
-  lines: ScenarioComparisonLine[];
-}) {
-  if (!active || !payload?.length) return null;
-  const row = payload[0].payload;
-  return (
-    <div className="max-w-64 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-xs shadow dark:border-zinc-700 dark:bg-zinc-900">
-      <p className="font-medium">Set aside by {formatDate(row.dueDate)}</p>
-      {lines.map((line) => (
-        <p key={line.scenarioId} className={line.isViewed ? "font-medium" : "text-zinc-600 dark:text-zinc-400"}>
-          {row.amounts[line.scenarioId] === null ? "nothing due" : formatUsd(row.amounts[line.scenarioId] as number)}{" "}
-          · {line.name}
-        </p>
-      ))}
-    </div>
-  );
-}
-
-export function PotComparisonChart({ lines, basis }: { lines: ScenarioComparisonLine[]; basis: Basis }) {
-  const patternPrefix = `pot-hatch-${useId().replace(/[^a-zA-Z0-9-]/g, "")}`;
-  const rows = buildPotComparisonRows(lines);
-  // Recharts needs a number to lay a bar slot out, so an absent pot is
-  // drawn at 0 -- with its absence kept alongside, for the shape, and
-  // the tooltip reads row.amounts, never these zeros.
-  const data = rows.map((row) => ({
-    ...row,
-    absent: Object.fromEntries(lines.map((line) => [line.scenarioId, row.amounts[line.scenarioId] === null])),
-    ...Object.fromEntries(lines.map((line) => [line.scenarioId, row.amounts[line.scenarioId] ?? 0])),
-  }));
-
-  return (
-    <div data-testid="pot-comparison">
-      <p className="mb-2 text-xs text-zinc-500 dark:text-zinc-400">
-        How much each scenario needs set aside by each saving deadline, at {BASIS_LABELS[basis]} -- when the money has
-        to be saved, not when it&apos;s owed. A dashed mark means that scenario has nothing due then.
-      </p>
-      {/* Defined once, outside the chart, so the legend swatches can use them too. */}
-      <svg width="0" height="0" aria-hidden="true" className="absolute">
-        <HatchPatterns lines={lines} prefix={patternPrefix} />
-      </svg>
-      {rows.length === 0 ? (
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">No scenario has a deadline to save toward yet.</p>
-      ) : (
-        <ResponsiveContainer width="100%" height={240}>
-          <BarChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }} barGap={2}>
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
-            <XAxis dataKey="dueDate" tickFormatter={formatDeadlineTick} tick={AXIS_TICK} stroke="var(--chart-grid)" />
-            <YAxis tick={AXIS_TICK} stroke="var(--chart-grid)" width={52} tickFormatter={formatUsdTick} />
-            <Tooltip content={<PotTooltip lines={lines} />} cursor={{ fill: "var(--chart-grid)", opacity: 0.4 }} />
-            {lines.map((line, index) => (
-              <Bar
-                key={line.scenarioId}
-                dataKey={line.scenarioId}
-                name={line.name}
-                fill={barFill(line, index, patternPrefix)}
-                shape={potBarShape(line.scenarioId, line.isViewed)}
-                isAnimationActive={false}
-              />
-            ))}
-          </BarChart>
-        </ResponsiveContainer>
-      )}
-      <ComparisonLegend
-        lines={lines}
-        swatch={(line, index) => (
-          <svg width="14" height="14" aria-hidden="true" className="mt-1 shrink-0">
-            <rect
-              x="0.5"
-              y="0.5"
-              width="13"
-              height="13"
-              fill={barFill(line, index, patternPrefix)}
-              stroke={line.isViewed ? "none" : "var(--chart-neutral)"}
-            />
-          </svg>
-        )}
-        detail={byDeadlineDetail}
       />
     </div>
   );
