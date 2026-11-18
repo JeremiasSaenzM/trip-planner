@@ -14,6 +14,7 @@ import { DeadlinePotList } from "./deadline-pots-ui";
 import { formatUsd } from "./format";
 import { departureAnchorText } from "./pot-item-text";
 import { ParallelSavingsChart } from "./savings-plan-charts";
+import { ScenarioComparisonChart } from "./scenario-comparison-chart";
 import { RecordSavingsEntryForm, SavingsEntryList } from "./savings-entries-ui";
 
 export const metadata: Metadata = { title: "Overview" };
@@ -222,6 +223,16 @@ async function Overview({ searchParams }: { searchParams: PageProps<"/">["search
         <CardLabel>Budget by category</CardLabel>
         <BudgetByCategoryChart byCategory={rollup.byCategory} basis={data.basis} />
       </Card>
+
+      {/* Phase 7a: every scenario of this trip on one chart, built from
+          the same obligations as the savings schedule below -- so the
+          viewed scenario's line here is exactly that chart's steps. */}
+      {data.scenarioComparison.length >= 2 && (
+        <Card>
+          <CardLabel>All scenarios compared</CardLabel>
+          <ScenarioComparisonChart lines={data.scenarioComparison} basis={data.basis} />
+        </Card>
+      )}
 
       {savings && binding !== null && (
         <Card>

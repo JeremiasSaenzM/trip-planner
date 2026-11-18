@@ -51,3 +51,14 @@ export function formatObservationAge(ageDays: number): string {
   if (ageDays === 1) return "Observed 1 day ago";
   return `Observed ${ageDays} days ago`;
 }
+
+// A travel window as a reader would say it: "2–25 July 2028", or
+// "28 June – 3 July 2028" across a month, or with both years across New
+// Year. Pinned to "utc" for the same reason as formatDate above.
+export function formatDateRange(start: string, end: string): string {
+  const from = DateTime.fromISO(start, { zone: "utc" });
+  const to = DateTime.fromISO(end, { zone: "utc" });
+  if (from.year !== to.year) return `${from.toFormat("d MMMM yyyy")} – ${to.toFormat("d MMMM yyyy")}`;
+  if (from.month !== to.month) return `${from.toFormat("d MMMM")} – ${to.toFormat("d MMMM yyyy")}`;
+  return `${from.toFormat("d")}–${to.toFormat("d MMMM yyyy")}`;
+}

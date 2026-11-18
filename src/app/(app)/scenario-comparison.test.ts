@@ -5,6 +5,7 @@ import * as fixtures from "@/lib/data/fixtures";
 import { BASES } from "@/lib/domain/types";
 
 import { buildSavingsScheduleData } from "./charts";
+import { buildComparisonChartRows } from "./scenario-comparison-chart";
 import { buildScenarioComparison, buildScenarioSavings, type ScenarioComparisonLine } from "./scenario-savings";
 import { sortScenarios } from "./scenario-order";
 
@@ -107,5 +108,35 @@ describe("buildScenarioComparison", () => {
       basis: "target",
     });
     expect(lines.map((line) => line.scenarioId)).not.toContain("other-trip-scenario");
+  });
+});
+
+describe("buildComparisonChartRows", () => {
+  const line = (scenarioId: string, points: [string, number][]): ScenarioComparisonLine => ({
+    scenarioId,
+    name: scenarioId,
+    isViewed: false,
+    departureDate: null,
+    returnDate: null,
+    nightsInBeds: null,
+    points: points.map(([date, cumulativeUsd]) => ({ date, cumulativeUsd, monthsUntil: 0 })),
+    noLineReason: null,
+    missingRateCount: 0,
+  });
+
+  it("puts every line on the union of dates, holding each step's value and null outside the line", () => {
+    const rows = buildComparisonChartRows([
+      line("P", [["2026-11-18", 0], ["2027-01-31", 500], ["2028-06-30", 9000]]),
+      line("Q", [["2026-11-18", 0], ["2027-12-31", 1300], ["2028-05-31", 8100]]),
+    ]);
+    const at = (date: string) => rows.find((row) => row.timestamp === DateTime.fromISO(date, { zone: "utc" }).toMillis())!;
+    expect(rows).toHaveLength(5);
+    expect(at("2027-12-31")).toMatchObject({ P: 500, Q: 1300 });
+    expect(at("2028-06-30")).toMatchObject({ P: 9000, Q: null });
+  });
+
+  it("never invents a point for a line with none", () => {
+    const rows = buildComparisonChartRows([line("P", [["2026-11-18", 0], ["2028-06-30", 9000]]), line("Q", [])]);
+    expect(rows.every((row) => row.Q === null)).toBe(true);
   });
 });

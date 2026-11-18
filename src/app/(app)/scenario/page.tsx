@@ -24,6 +24,7 @@ import { INFO_STATE_LABELS } from "../info-state-labels";
 import { AddMovementForm, AddStayForm, LocationList, MovementList, StayList } from "../itinerary-write-ui";
 import { MOVEMENT_MODE_LABELS } from "../itinerary-labels";
 import { departureAnchorText } from "../pot-item-text";
+import { ScenarioComparisonChart } from "../scenario-comparison-chart";
 import { summarizeBudgetEvidence } from "../scenario-evidence";
 import { SOURCE_TIER_LABELS } from "../source-labels";
 
@@ -282,6 +283,17 @@ async function ScenarioOverview({ searchParams }: { searchParams: PageProps<"/sc
           )}
         </Card>
       </section>
+
+      {data.scenarioComparison.length >= 2 && (
+        <section aria-labelledby="compared" className="space-y-2">
+          <h2 id="compared" className="text-lg font-semibold">
+            Compared with the trip&apos;s other scenarios
+          </h2>
+          <Card>
+            <ScenarioComparisonChart lines={data.scenarioComparison} basis={data.basis} />
+          </Card>
+        </section>
+      )}
 
       <section aria-labelledby="built-on" className="space-y-2">
         <h2 id="built-on" className="text-lg font-semibold">

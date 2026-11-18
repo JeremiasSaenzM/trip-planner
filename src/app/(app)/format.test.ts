@@ -1,7 +1,7 @@
 import { Settings } from "luxon";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { formatAmountCompact, formatDate, formatObservationAge } from "./format";
+import { formatAmountCompact, formatDate, formatDateRange, formatObservationAge } from "./format";
 
 describe("formatDate", () => {
   afterEach(() => {
@@ -50,5 +50,19 @@ describe("formatObservationAge", () => {
 
   it("uses the plural for more than one day", () => {
     expect(formatObservationAge(14)).toBe("Observed 14 days ago");
+  });
+});
+
+describe("formatDateRange", () => {
+  it("names the month once when both dates share it", () => {
+    expect(formatDateRange("2028-07-02", "2028-07-25")).toBe("2–25 July 2028");
+  });
+
+  it("names both months across a month boundary", () => {
+    expect(formatDateRange("2028-06-28", "2028-07-03")).toBe("28 June – 3 July 2028");
+  });
+
+  it("names both years across New Year", () => {
+    expect(formatDateRange("2028-12-28", "2029-01-03")).toBe("28 December 2028 – 3 January 2029");
   });
 });
