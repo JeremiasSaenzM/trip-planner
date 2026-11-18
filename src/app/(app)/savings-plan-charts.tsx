@@ -6,6 +6,7 @@ import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YA
 import type { BuildParallelSavingsPlanResult } from "@/lib/domain/build-parallel-savings-plan";
 
 import { formatDate, formatUsd } from "./format";
+import { ComparisonLegend } from "./scenario-comparison-chart";
 import type { ScenarioComparisonLine } from "./scenario-savings";
 
 // A YYYY-MM-DD value is a calendar date, not an instant -- always parse
@@ -54,9 +55,28 @@ function PeakDot(props: { cx?: number; cy?: number; payload?: SawtoothPoint }) {
   );
 }
 
-function BalanceTooltip({ active, payload }: { active?: boolean; payload?: { payload: SawtoothPoint }[] }) {
-  if (!active || !payload?.length) return null;
-  const point = payload[0].payload;
+// The viewed scenario's own peaks keep their labels. Another scenario's
+// peaks get a plain muted dot, no label: their labels would land on top
+// of the viewed scenario's at shared deadlines.
+function OtherPeakDot(props: { cx?: number; cy?: number; payload?: SawtoothPoint }) {
+  const { cx, cy, payload } = props;
+  if (!payload?.isPeak || cx === undefined || cy === undefined) return null;
+  return <circle cx={cx} cy={cy} r={3} fill="var(--chart-neutral)" />;
+}
+
+// Reads the viewed scenario's own line ("Balance") -- with other
+// scenarios on the chart, payload also holds their entries, and the
+// tooltip stays what it was: this scenario's balance and saving rate.
+function BalanceTooltip({
+  active,
+  payload,
+}: {
+  active?: boolean;
+  payload?: { name?: string; payload: SawtoothPoint }[];
+}) {
+  const own = payload?.find((entry) => entry.name === "Balance");
+  if (!active || !own) return null;
+  const point = own.payload;
   return (
     <div className="rounded-lg border border-zinc-200 bg-white px-3 py-2 text-xs shadow dark:border-zinc-700 dark:bg-zinc-900">
       <p className="font-medium">{formatDateTick(point.timestamp)}</p>
@@ -132,25 +152,78 @@ export function comparisonSawtooth(line: ScenarioComparisonLine, asOfDate: strin
   return line.parallelPlan ? buildParallelSawtoothData(line.parallelPlan, line.availableUsd, asOfDate) : [];
 }
 
+// Other scenarios' lines: the neutral colour, thinner, each with its own
+// dash, so the viewed scenario's line -- drawn exactly as it always was --
+// stays the one that reads first. A scenario keeps its dash by its place
+// in the trip's scenario order, whichever one is being viewed.
+const OTHER_DASHES = ["6 4", "2 3", "10 3 2 3", "1 4"];
+
+function otherLineStyle(index: number) {
+  return { stroke: "var(--chart-neutral)", strokeWidth: 1.5, strokeDasharray: OTHER_DASHES[index % OTHER_DASHES.length] };
+}
+
+function byDeadlineDetail(line: ScenarioComparisonLine): string {
+  if (line.parallelPlan === null) return "no line: no departure date to save toward";
+  if (line.parallelPlan.periods.length === 0) return "no line: no upcoming deadlines";
+  const count = line.parallelPlan.periods.length;
+  return `${count} upcoming deadline${count === 1 ? "" : "s"}`;
+}
+
+/**
+ * "One pot per payment": this scenario's combined balance across every
+ * open pot over time. Given comparison (the trip's scenarios, when it
+ * has two or more), every other scenario's line is drawn on the same
+ * chart -- the same chart, the same axes, nothing else changed -- with a
+ * legend under it saying what each scenario is.
+ */
 export function ParallelSavingsChart({
   plan,
   availableUsd,
   asOfDate,
+  comparison,
 }: {
-  plan: BuildParallelSavingsPlanResult;
+  /** The viewed scenario's own plan -- null when it has no departure date. */
+  plan: BuildParallelSavingsPlanResult | null;
   availableUsd: number;
   asOfDate: string;
+  comparison?: ScenarioComparisonLine[];
 }) {
-  const pastDue = plan.pots.filter((pot) => pot.isPastDue);
+  const hasOwnLine = plan !== null && plan.periods.length > 0;
+  const others = (comparison ?? [])
+    .map((line, index) => ({ line, index, data: comparisonSawtooth(line, asOfDate) }))
+    .filter(({ line, data }) => !line.isViewed && data.length > 0);
 
-  if (plan.periods.length === 0) {
-    return <p className="text-sm text-zinc-500 dark:text-zinc-400">No upcoming deadlines to plan a pot for yet.</p>;
+  const legend = comparison && (
+    <ComparisonLegend
+      lines={comparison}
+      swatch={(line, index) => (
+        <svg width="28" height="10" aria-hidden="true" className="mt-1.5 shrink-0">
+          <line
+            x1="1"
+            y1="5"
+            x2="27"
+            y2="5"
+            {...(line.isViewed ? { stroke: "var(--chart-target)", strokeWidth: 2 } : otherLineStyle(index))}
+          />
+        </svg>
+      )}
+      detail={byDeadlineDetail}
+    />
+  );
+
+  if (!hasOwnLine && others.length === 0) {
+    return (
+      <div data-testid="one-pot-per-payment">
+        <p className="text-sm text-zinc-500 dark:text-zinc-400">No upcoming deadlines to plan a pot for yet.</p>
+        {legend}
+      </div>
+    );
   }
 
-  const data = buildParallelSawtoothData(plan, availableUsd, asOfDate);
+  const data = hasOwnLine ? buildParallelSawtoothData(plan, availableUsd, asOfDate) : [];
 
   return (
-    <div>
+    <div data-testid="one-pot-per-payment">
       <ResponsiveContainer width="100%" height={240}>
         <LineChart data={data} margin={{ top: 20, right: 8, left: 0, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
@@ -164,17 +237,37 @@ export function ParallelSavingsChart({
           />
           <YAxis tick={AXIS_TICK} stroke="var(--chart-grid)" width={44} tickFormatter={formatUsdTick} />
           <Tooltip content={<BalanceTooltip />} />
-          <Line
-            type="linear"
-            dataKey="balance"
-            name="Balance"
-            stroke="var(--chart-target)"
-            strokeWidth={2}
-            dot={<PeakDot />}
-          />
+          {/* Others first, so the viewed scenario's line is drawn on top. */}
+          {others.map(({ line, index, data: otherData }) => (
+            <Line
+              key={line.scenarioId}
+              data={otherData}
+              type="linear"
+              dataKey="balance"
+              name={line.name}
+              {...otherLineStyle(index)}
+              dot={<OtherPeakDot />}
+            />
+          ))}
+          {hasOwnLine && (
+            <Line
+              type="linear"
+              dataKey="balance"
+              name="Balance"
+              stroke="var(--chart-target)"
+              strokeWidth={2}
+              dot={<PeakDot />}
+            />
+          )}
         </LineChart>
       </ResponsiveContainer>
-      <ParallelSavingsList pastDue={pastDue} periods={plan.periods} />
+      {!hasOwnLine && (
+        <p className="text-xs text-zinc-500 dark:text-zinc-400">
+          This scenario has no upcoming deadlines yet -- only the trip&apos;s other scenarios are drawn.
+        </p>
+      )}
+      {legend}
+      {hasOwnLine && <ParallelSavingsList pastDue={plan.pots.filter((pot) => pot.isPastDue)} periods={plan.periods} />}
     </div>
   );
 }

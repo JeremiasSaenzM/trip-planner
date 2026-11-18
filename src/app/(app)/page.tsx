@@ -85,10 +85,17 @@ async function Overview({ searchParams }: { searchParams: PageProps<"/">["search
   const savingsCharts: Record<SavingsView, ReactNode> = {
     "by-deadline": (
       <>
-        {parallelPlan && (
+        {/* The same chart, with every scenario of the trip in it once
+            there are two or more. */}
+        {(parallelPlan || comparing) && (
           <Card>
             <CardLabel>One pot per payment</CardLabel>
-            <ParallelSavingsChart plan={parallelPlan} availableUsd={availableUsd} asOfDate={data.asOfDate} />
+            <ParallelSavingsChart
+              plan={parallelPlan}
+              availableUsd={availableUsd}
+              asOfDate={data.asOfDate}
+              comparison={comparing ? data.scenarioComparison : undefined}
+            />
           </Card>
         )}
       </>
@@ -272,12 +279,12 @@ async function Overview({ searchParams }: { searchParams: PageProps<"/">["search
         <BudgetByCategoryChart byCategory={rollup.byCategory} basis={data.basis} />
       </Card>
 
-      {/* Phase 7a: a matched pair of savings charts at a time -- this
-          scenario's own and, with two or more scenarios, the same view of
-          every scenario of the trip. Never one of each: a curve read
-          against bars is how both get misread. A Record over every
-          SavingsView, so a new view (Phase 7's saving-method selector)
-          doesn't build until it has its own pair. */}
+      {/* Phase 7a: one savings view at a time. By deadline is the One
+          pot per payment chart, with every scenario of the trip in it once
+          there are two or more; Running total is the savings schedule and,
+          with two or more scenarios, its cumulative comparison. A Record
+          over every SavingsView, so a new view (Phase 7's saving-method
+          selector) doesn't build until it has its charts. */}
       <section aria-label="Saving over time" className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
