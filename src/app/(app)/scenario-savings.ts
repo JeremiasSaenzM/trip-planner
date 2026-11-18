@@ -1,6 +1,8 @@
 import type { BudgetLine, FxRate, Movement, Payment, SavingsEntry, Scenario, Trip, TripEvent } from "@/lib/data/types";
 import { countNightsInBeds } from "@/lib/domain/build-itinerary-timeline";
+import { buildDeadlinePots, type DeadlinePot } from "@/lib/domain/build-deadline-pots";
 import { buildObligations, type BuildObligationsResult } from "@/lib/domain/build-obligations";
+import { buildParallelSavingsPlan, type BuildParallelSavingsPlanResult } from "@/lib/domain/build-parallel-savings-plan";
 import { calculateRequiredSavings, type CalculateRequiredSavingsResult } from "@/lib/domain/calculate-required-savings";
 import { cumulativeRequiredSeries, type CumulativeRequiredPoint } from "@/lib/domain/cumulative-required-series";
 import { TRAVELLER_INCOME_CADENCE } from "@/lib/domain/income-cadence";
@@ -18,6 +20,8 @@ export type ScenarioSavingsInput = {
   payments: Payment[];
   savingsEntries: SavingsEntry[];
   rates: FxRate[];
+  /** The basis every pot is sized at -- the page's own basis. */
+  basis: Basis;
   asOfDate: string;
 };
 
@@ -34,13 +38,18 @@ export type ScenarioSavings = {
   obligationsResult: BuildObligationsResult;
   /** null when obligationsResult has no departure date to save toward. */
   savings: CalculateRequiredSavingsResult | null;
+  /** Every saving deadline with what's in it, at input.basis
+   * (buildDeadlinePots()). null when there's no departure date. */
+  pots: DeadlinePot[] | null;
+  /** "One pot per payment" at input.basis. null when there's no departure date. */
+  parallelPlan: BuildParallelSavingsPlanResult | null;
 };
 
 /**
- * One scenario's savings plan, from raw rows to the required-savings
- * schedule: scoping, the travel window, the departure date, the
- * obligations (departure rule and income rule) and the schedule built
- * from them.
+ * One scenario's savings plan, from raw rows to everything the savings
+ * views draw: scoping, the travel window, the departure date, the
+ * obligations (departure rule and income rule), and the schedule, the
+ * deadline pots and the one-pot-per-payment plan built from them.
  *
  * The one place that happens. The dashboard calls it for the scenario
  * being viewed, and the scenario comparison chart calls it once for
@@ -89,15 +98,46 @@ export function buildScenarioSavings(input: ScenarioSavingsInput): ScenarioSavin
     asOfDate,
   });
 
-  const savings =
-    obligationsResult.status === "ready"
-      ? calculateRequiredSavings({
-          asOfDate,
-          savingsEntries: [{ amountUsd: obligationsResult.availableUsd, recordedOn: asOfDate }],
-          obligations: obligationsResult.obligations,
-          incomeCadence: TRAVELLER_INCOME_CADENCE,
-        })
-      : null;
+  if (obligationsResult.status !== "ready") {
+    return {
+      event,
+      travelWindow,
+      departure,
+      tripBudgetLines,
+      scenarioBudgetLines,
+      tripPayments,
+      scenarioPayments,
+      tripSavingsEntries,
+      obligationsResult,
+      savings: null,
+      pots: null,
+      parallelPlan: null,
+    };
+  }
+
+  const savings = calculateRequiredSavings({
+    asOfDate,
+    savingsEntries: [{ amountUsd: obligationsResult.availableUsd, recordedOn: asOfDate }],
+    obligations: obligationsResult.obligations,
+    incomeCadence: TRAVELLER_INCOME_CADENCE,
+  });
+
+  const parallelPlan = buildParallelSavingsPlan({
+    obligations: obligationsResult.obligations,
+    availableUsd: obligationsResult.availableUsd,
+    asOfDate,
+    basis: input.basis,
+    incomeCadence: TRAVELLER_INCOME_CADENCE,
+    departureDate: obligationsResult.departureSaveBy,
+  });
+
+  const pots = buildDeadlinePots({
+    obligations: obligationsResult.obligations,
+    basis: input.basis,
+    asOfDate,
+    departureDate: obligationsResult.departureDate,
+    availableUsd: obligationsResult.availableUsd,
+  });
 
   return {
     event,
@@ -110,6 +150,8 @@ export function buildScenarioSavings(input: ScenarioSavingsInput): ScenarioSavin
     tripSavingsEntries,
     obligationsResult,
     savings,
+    pots,
+    parallelPlan,
   };
 }
 
@@ -149,7 +191,6 @@ export function buildScenarioComparison(
     scenarios: Scenario[];
     viewedScenarioId: string;
     movements: Movement[];
-    basis: Basis;
   },
 ): ScenarioComparisonLine[] {
   return input.scenarios

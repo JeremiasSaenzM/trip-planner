@@ -18,7 +18,7 @@ import type {
   Stay,
   Trip,
 } from "@/lib/data/types";
-import { buildDeadlinePots, type DeadlinePot } from "@/lib/domain/build-deadline-pots";
+import type { DeadlinePot } from "@/lib/domain/build-deadline-pots";
 import {
   buildItineraryTimeline,
   checkNightsAccountedFor,
@@ -28,7 +28,7 @@ import {
   type UnaccountedNight,
 } from "@/lib/domain/build-itinerary-timeline";
 import type { BuiltObligation, MissingObligationRate } from "@/lib/domain/build-obligations";
-import { buildParallelSavingsPlan, type BuildParallelSavingsPlanResult } from "@/lib/domain/build-parallel-savings-plan";
+import type { BuildParallelSavingsPlanResult } from "@/lib/domain/build-parallel-savings-plan";
 import type { CalculateRequiredSavingsResult } from "@/lib/domain/calculate-required-savings";
 import { checkBudgetLineDaysAddUp, type BudgetLineDaysCheckResult } from "@/lib/domain/check-budget-line-days-add-up";
 import { checkBudgetLineMatchesStay, type BudgetLineStayMismatch } from "@/lib/domain/check-budget-line-matches-stay";
@@ -45,7 +45,6 @@ import {
   type MovementMissingBudgetLine,
 } from "@/lib/domain/find-movements-missing-budget-line";
 import { findOverlappingStays, type OverlappingStaysResult } from "@/lib/domain/find-overlapping-stays";
-import { TRAVELLER_INCOME_CADENCE } from "@/lib/domain/income-cadence";
 import type { ResolvedDeparture } from "@/lib/domain/resolve-departure-date";
 import type { ResolvedTravelWindow } from "@/lib/domain/resolve-travel-window";
 import { rollUpBudgetByScenario, type RollUpBudgetByScenarioResult } from "@/lib/domain/roll-up-budget-by-scenario";
@@ -263,7 +262,9 @@ export async function loadDashboardData(params: {
     tripSavingsEntries,
     obligationsResult,
     savings,
-  } = buildScenarioSavings({ trip, scenario, events, budgetLines, payments, savingsEntries, rates, asOfDate });
+    pots,
+    parallelPlan,
+  } = buildScenarioSavings({ trip, scenario, events, budgetLines, payments, savingsEntries, rates, basis, asOfDate });
 
   const scenarioComparison = buildScenarioComparison({
     trip,
@@ -440,23 +441,6 @@ export async function loadDashboardData(params: {
       accommodationOptionEvaluations,
     };
   }
-
-  const parallelPlan = buildParallelSavingsPlan({
-    obligations: obligationsResult.obligations,
-    availableUsd: obligationsResult.availableUsd,
-    asOfDate,
-    basis,
-    incomeCadence: TRAVELLER_INCOME_CADENCE,
-    departureDate: obligationsResult.departureSaveBy,
-  });
-
-  const pots = buildDeadlinePots({
-    obligations: obligationsResult.obligations,
-    basis,
-    asOfDate,
-    departureDate: obligationsResult.departureDate,
-    availableUsd: obligationsResult.availableUsd,
-  });
 
   return {
     status: "ready",
