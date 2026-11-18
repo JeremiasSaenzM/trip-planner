@@ -28,11 +28,12 @@ async function BudgetLinesScreen({
   searchParams: PageProps<"/budget-lines">["searchParams"];
 }) {
   await getCurrentUser();
-  const { trip: tripId, scenario: scenarioId, basis } = await searchParams;
+  const { trip: tripId, scenario: scenarioId, basis, savings: savingsParam } = await searchParams;
   const data = await loadDashboardData({
     tripId: typeof tripId === "string" ? tripId : undefined,
     scenarioId: typeof scenarioId === "string" ? scenarioId : undefined,
     basis: typeof basis === "string" ? basis : undefined,
+    savingsView: typeof savingsParam === "string" ? savingsParam : undefined,
   });
 
   if (data.status === "no_trip") return <EmptyState>No trip yet.</EmptyState>;
@@ -55,6 +56,7 @@ async function BudgetLinesScreen({
         scenarios={data.scenarios}
         activeScenarioId={data.scenario.id}
         basis={data.basis}
+        savingsView={data.savingsView}
       />
 
       <section className="space-y-3">

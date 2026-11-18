@@ -52,6 +52,7 @@ import type { Basis } from "@/lib/domain/types";
 
 import { evaluateAccommodationOption, type AccommodationOptionEvaluation } from "./accommodation-evaluation";
 import { parseBasis } from "./dashboard-query";
+import { parseSavingsView, type SavingsView } from "./savings-view";
 import { buildScenarioComparison, buildScenarioSavings, type ScenarioComparisonLine } from "./scenario-savings";
 import { evaluateFlightOption, type FlightOptionEvaluation } from "./flight-evaluation";
 import { sortScenarios } from "./scenario-order";
@@ -73,6 +74,8 @@ export type DashboardData =
       scenarios: Scenario[];
       event: TripEvent | null;
       basis: Basis;
+      /** Which pair of savings charts to show (?savings=, savings-view.ts). */
+      savingsView: SavingsView;
       asOfDate: string;
       rollup: RollUpBudgetByScenarioResult;
       /** The travel window in effect for this scenario -- its own
@@ -198,6 +201,7 @@ export async function loadDashboardData(params: {
   tripId?: string;
   scenarioId?: string;
   basis?: string;
+  savingsView?: string;
 }): Promise<DashboardData> {
   const [
     trips,
@@ -249,6 +253,7 @@ export async function loadDashboardData(params: {
   if (!scenario) return { status: "no_scenario", trip, trips: sortedTrips, events: tripEvents };
 
   const basis = parseBasis(params.basis);
+  const savingsView = parseSavingsView(params.savingsView);
   const asOfDate = new Date().toISOString().slice(0, 10);
 
   const {
@@ -398,6 +403,7 @@ export async function loadDashboardData(params: {
       scenarios: tripScenarios,
       event,
       basis,
+      savingsView,
       asOfDate,
       rollup,
       travelWindow,
@@ -450,6 +456,7 @@ export async function loadDashboardData(params: {
     scenarios: tripScenarios,
     event,
     basis,
+    savingsView,
     asOfDate,
     rollup,
     travelWindow,

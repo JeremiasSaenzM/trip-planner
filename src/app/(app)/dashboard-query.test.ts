@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { dashboardQuery, parseBasis } from "./dashboard-query";
+import { dashboardHref, dashboardQuery, parseBasis } from "./dashboard-query";
+import { parseSavingsView, SAVINGS_VIEWS } from "./savings-view";
 
 describe("dashboardQuery", () => {
   it("carries scenario and basis", () => {
@@ -42,5 +43,41 @@ describe("parseBasis", () => {
     expect(parseBasis("Minimum")).toBe("target");
     expect(parseBasis("min")).toBe("target");
     expect(parseBasis(["minimum"])).toBe("target");
+  });
+});
+
+describe("dashboardQuery and the savings view", () => {
+  it("carries savings= across a nav click, like basis=", () => {
+    expect(dashboardQuery(new URLSearchParams("scenario=abc&basis=target&savings=running-total"))).toBe(
+      "?scenario=abc&basis=target&savings=running-total",
+    );
+  });
+});
+
+describe("dashboardHref", () => {
+  it("builds a link carrying the whole selection", () => {
+    expect(
+      dashboardHref("/scenario", { trip: "t", scenario: "s", basis: "conservative", savings: "running-total" }),
+    ).toBe("/scenario?trip=t&scenario=s&basis=conservative&savings=running-total");
+  });
+
+  it("leaves the default savings view off the link", () => {
+    expect(dashboardHref("/", { trip: "t", scenario: "s", basis: "target", savings: "by-deadline" })).toBe(
+      "/?trip=t&scenario=s&basis=target",
+    );
+  });
+
+  it("whatever it carries, dashboardQuery carries on", () => {
+    const href = dashboardHref("/", { trip: "t", scenario: "s", basis: "minimum", savings: "running-total" });
+    const query = new URL(href, "http://x").searchParams;
+    expect(`/${dashboardQuery(query)}`).toBe(href);
+  });
+});
+
+describe("parseSavingsView", () => {
+  it("accepts each view and falls back to By deadline for anything else", () => {
+    for (const view of SAVINGS_VIEWS) expect(parseSavingsView(view)).toBe(view);
+    expect(parseSavingsView(undefined)).toBe("by-deadline");
+    expect(parseSavingsView("pots")).toBe("by-deadline");
   });
 });
