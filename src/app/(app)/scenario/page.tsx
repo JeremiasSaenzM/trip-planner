@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Suspense } from "react";
+import { Suspense, type ReactNode } from "react";
 
 import { getCurrentUser } from "@/lib/auth";
 import type { BudgetLine, TripEvent, Location, Movement } from "@/lib/data/types";
@@ -25,7 +25,9 @@ import { INFO_STATE_LABELS } from "../info-state-labels";
 import { AddMovementForm, AddStayForm, LocationList, MovementList, StayList } from "../itinerary-write-ui";
 import { MOVEMENT_MODE_LABELS } from "../itinerary-labels";
 import { departureAnchorText } from "../pot-item-text";
-import { ScenarioComparisonChart } from "../scenario-comparison-chart";
+import { PotComparisonChart, ScenarioComparisonChart } from "../scenario-comparison-chart";
+import type { SavingsView } from "../savings-view";
+import { SavingsViewToggle } from "../savings-view-toggle";
 import { summarizeBudgetEvidence } from "../scenario-evidence";
 import { SOURCE_TIER_LABELS } from "../source-labels";
 
@@ -69,6 +71,10 @@ async function ScenarioOverview({ searchParams }: { searchParams: PageProps<"/sc
   const { scenario, event, rollup, savings, departure, travelWindow, pots, budgetLines, sources, locations } =
     data;
   const binding = savings?.bindingRequirement[data.basis] ?? null;
+  const comparisonCharts: Record<SavingsView, ReactNode> = {
+    "by-deadline": <PotComparisonChart lines={data.scenarioComparison} basis={data.basis} />,
+    "running-total": <ScenarioComparisonChart lines={data.scenarioComparison} basis={data.basis} />,
+  };
   const evidence = summarizeBudgetEvidence(budgetLines, sources);
   const unconfirmedDateFacts = buildUnconfirmedDateFacts({
     event: event ? { name: event.name, startDate: event.startDate, datesState: event.datesState } : null,
@@ -294,12 +300,22 @@ async function ScenarioOverview({ searchParams }: { searchParams: PageProps<"/sc
 
       {data.scenarioComparison.length >= 2 && (
         <section aria-labelledby="compared" className="space-y-2">
-          <h2 id="compared" className="text-lg font-semibold">
-            Compared with the trip&apos;s other scenarios
-          </h2>
-          <Card>
-            <ScenarioComparisonChart lines={data.scenarioComparison} basis={data.basis} />
-          </Card>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 id="compared" className="text-lg font-semibold">
+              Compared with the trip&apos;s other scenarios
+            </h2>
+            <SavingsViewToggle
+              basePath="/scenario"
+              trip={data.trip.id}
+              scenario={scenario.id}
+              basis={data.basis}
+              savingsView={data.savingsView}
+            />
+          </div>
+          {/* Only the comparison here -- this page has no per-scenario
+              savings chart to pair it with. Same Record-per-view rule as
+              Overview's. */}
+          <Card>{comparisonCharts[data.savingsView]}</Card>
         </section>
       )}
 

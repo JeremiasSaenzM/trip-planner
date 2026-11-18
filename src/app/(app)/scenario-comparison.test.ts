@@ -5,7 +5,7 @@ import * as fixtures from "@/lib/data/fixtures";
 import { BASES } from "@/lib/domain/types";
 
 import { buildSavingsScheduleData } from "./charts";
-import { buildComparisonChartRows } from "./scenario-comparison-chart";
+import { buildComparisonChartRows, buildPotComparisonRows } from "./scenario-comparison-chart";
 import { buildScenarioComparison, buildScenarioSavings, type ScenarioComparisonLine } from "./scenario-savings";
 import { sortScenarios } from "./scenario-order";
 
@@ -167,5 +167,34 @@ describe("buildComparisonChartRows", () => {
   it("never invents a point for a line with none", () => {
     const rows = buildComparisonChartRows([line("P", [["2026-11-18", 0], ["2028-06-30", 9000]]), line("Q", [])]);
     expect(rows.every((row) => row.Q === null)).toBe(true);
+  });
+});
+
+describe("buildPotComparisonRows", () => {
+  const withPots = (scenarioId: string, pots: [string, number][]): ScenarioComparisonLine => ({
+    scenarioId,
+    name: scenarioId,
+    isViewed: false,
+    departureDate: null,
+    returnDate: null,
+    nightsInBeds: null,
+    points: [],
+    noLineReason: null,
+    pots: pots.map(([dueDate, amountUsd]) => ({ dueDate, amountUsd })),
+    missingRateCount: 0,
+  });
+
+  it("groups by the union of deadlines, and marks a scenario with nothing due as absent, not zero", () => {
+    const rows = buildPotComparisonRows([
+      withPots("P", [["2027-12-31", 7.49], ["2028-01-31", 2264], ["2028-06-30", 3104.33]]),
+      withPots("Q", [["2027-12-31", 7.49], ["2028-01-31", 1834.61], ["2028-05-31", 899.56], ["2028-06-30", 1861.08]]),
+    ]);
+    expect(rows.map((row) => row.dueDate)).toEqual(["2027-12-31", "2028-01-31", "2028-05-31", "2028-06-30"]);
+    expect(rows.find((row) => row.dueDate === "2028-05-31")!.amounts).toEqual({ P: null, Q: 899.56 });
+    expect(rows.find((row) => row.dueDate === "2028-01-31")!.amounts).toEqual({ P: 2264, Q: 1834.61 });
+  });
+
+  it("has no groups when no scenario has a pot", () => {
+    expect(buildPotComparisonRows([withPots("P", []), withPots("Q", [])])).toEqual([]);
   });
 });
