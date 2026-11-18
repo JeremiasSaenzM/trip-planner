@@ -25,6 +25,7 @@ import { INFO_STATE_LABELS } from "../info-state-labels";
 import { AddMovementForm, AddStayForm, LocationList, MovementList, StayList } from "../itinerary-write-ui";
 import { MOVEMENT_MODE_LABELS } from "../itinerary-labels";
 import { departureAnchorText } from "../pot-item-text";
+import { ParallelSavingsChart } from "../savings-plan-charts";
 import { ScenarioComparisonChart } from "../scenario-comparison-chart";
 import type { SavingsView } from "../savings-view";
 import { SavingsViewToggle } from "../savings-view-toggle";
@@ -72,7 +73,14 @@ async function ScenarioOverview({ searchParams }: { searchParams: PageProps<"/sc
     data;
   const binding = savings?.bindingRequirement[data.basis] ?? null;
   const comparisonCharts: Record<SavingsView, ReactNode> = {
-    "by-deadline": null,
+    "by-deadline": (
+      <ParallelSavingsChart
+        plan={data.parallelPlan}
+        availableUsd={data.availableUsd}
+        asOfDate={data.asOfDate}
+        comparison={data.scenarioComparison}
+      />
+    ),
     "running-total": <ScenarioComparisonChart lines={data.scenarioComparison} basis={data.basis} />,
   };
   const evidence = summarizeBudgetEvidence(budgetLines, sources);
@@ -312,9 +320,8 @@ async function ScenarioOverview({ searchParams }: { searchParams: PageProps<"/sc
               savingsView={data.savingsView}
             />
           </div>
-          {/* Only the comparison here -- this page has no per-scenario
-              savings chart to pair it with. Same Record-per-view rule as
-              Overview's. */}
+          {/* Only the comparison here -- this page has no savings chart of
+              its own. Same Record-per-view rule as Overview's. */}
           <Card>{comparisonCharts[data.savingsView]}</Card>
         </section>
       )}

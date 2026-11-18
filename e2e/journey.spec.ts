@@ -492,9 +492,15 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await expect(page.getByTestId("required-monthly-saving")).toHaveCount(0);
   });
 
-  await test.step("with a second scenario, the savings view defaults to By deadline", async () => {
+  await test.step("with a second scenario, By deadline is the One pot per payment chart with both scenarios in it", async () => {
     const savingsToggle = page.getByRole("navigation", { name: "How to show savings" });
     await expect(savingsToggle.getByRole("link", { name: "By deadline" })).toHaveAttribute("aria-current", "page");
+    const items = page.getByTestId("one-pot-per-payment").getByTestId("scenario-comparison-legend-item");
+    await expect(items).toHaveCount(2);
+    const viewed = items.filter({ hasText: "Host TBA scenario" });
+    await expect(viewed).toContainText("(this scenario)");
+    await expect(viewed).toContainText("no line: no departure date to save toward");
+    await expect(items.filter({ hasText: "Thornmere 2029" })).not.toContainText("(this scenario)");
     await expect(page.getByTestId("scenario-comparison")).toHaveCount(0);
   });
 
@@ -503,6 +509,7 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await savingsToggle.getByRole("link", { name: "Running total" }).click();
     await expect(page).toHaveURL(/[?&]savings=running-total/);
     await expect(page.getByTestId("scenario-comparison").getByTestId("scenario-comparison-legend-item")).toHaveCount(2);
+    await expect(page.getByTestId("one-pot-per-payment")).toHaveCount(0);
 
     // Out through the nav and back: the view must still be Running total.
     const nav = page.getByRole("navigation", { name: "Main" });
