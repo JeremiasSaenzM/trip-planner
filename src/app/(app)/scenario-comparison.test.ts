@@ -40,7 +40,7 @@ function comparisonWhileViewing(viewedScenarioId: string, basis: (typeof BASES)[
  * when it's the one being viewed -- the "money needed by this date" line. */
 function savingsViewLine(scenarioId: string, basis: (typeof BASES)[number]) {
   const scenario = tripScenarios.find((s) => s.id === scenarioId)!;
-  const plan = buildScenarioSavings({ ...shared, scenario });
+  const plan = buildScenarioSavings({ ...shared, scenario, basis });
   if (plan.savings === null || plan.obligationsResult.status !== "ready") return [];
   return buildSavingsScheduleData({
     schedule: plan.savings.schedule,
