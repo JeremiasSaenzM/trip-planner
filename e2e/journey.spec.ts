@@ -492,6 +492,16 @@ test("the full first-run journey, starting from a signed-out, empty account", as
     await expect(page.getByTestId("required-monthly-saving")).toHaveCount(0);
   });
 
+  await test.step("with a second scenario, the comparison chart lists both and says why one has no line", async () => {
+    const comparison = page.getByTestId("scenario-comparison");
+    const items = comparison.getByTestId("scenario-comparison-legend-item");
+    await expect(items).toHaveCount(2);
+    const viewed = items.filter({ hasText: "Host TBA scenario" });
+    await expect(viewed).toContainText("(this scenario)");
+    await expect(viewed).toContainText("no line: no departure date to save toward");
+    await expect(items.filter({ hasText: "Thornmere 2029" })).not.toContainText("(this scenario)");
+  });
+
   await test.step("the selection survives a nav click", async () => {
     const budgetLink = page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Budget" });
     // Also waits for the nav to hydrate: its prerendered fallback has
