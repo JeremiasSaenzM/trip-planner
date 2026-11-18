@@ -6,6 +6,7 @@ import { BASES } from "@/lib/domain/types";
 
 import { buildSavingsScheduleData } from "./charts";
 import { buildComparisonChartRows } from "./scenario-comparison-chart";
+import { buildParallelSawtoothData, comparisonSawtooth } from "./savings-plan-charts";
 import { buildScenarioComparison, buildScenarioSavings, type ScenarioComparisonLine } from "./scenario-savings";
 import { sortScenarios } from "./scenario-order";
 
@@ -83,6 +84,33 @@ describe("buildScenarioComparison", () => {
     });
   }
 
+  it("has more than one scenario on the One pot per payment chart, so its identity test isn't vacuous", () => {
+    const drawn = comparisonWhileViewing(tripScenarios[0].id, "target").filter(
+      (line) => comparisonSawtooth(line, AS_OF).length > 0,
+    );
+    expect(drawn.length).toBeGreaterThanOrEqual(2);
+  });
+
+  // The same trap, on the "One pot per payment" chart: each scenario's
+  // line in it must be exactly what that chart plots for the scenario
+  // when it's the one being viewed -- the page's own call,
+  // buildParallelSawtoothData(parallelPlan, availableUsd, asOfDate) --
+  // whichever scenario the page is on, at every basis.
+  for (const basis of BASES) {
+    it(`puts every scenario on the One pot per payment chart exactly as its own view plots it (${basis})`, () => {
+      for (const viewed of tripScenarios) {
+        for (const line of comparisonWhileViewing(viewed.id, basis)) {
+          const scenario = tripScenarios.find((s) => s.id === line.scenarioId)!;
+          const plan = buildScenarioSavings({ ...shared, scenario, basis });
+          const ownView = plan.parallelPlan
+            ? buildParallelSawtoothData(plan.parallelPlan, plan.obligationsResult.availableUsd, AS_OF)
+            : [];
+          expect(comparisonSawtooth(line, AS_OF)).toEqual(ownView);
+        }
+      }
+    });
+  }
+
   it("emphasises only the scenario being viewed", () => {
     const viewed = tripScenarios[1].id;
     const lines = comparisonWhileViewing(viewed, "target");
@@ -121,6 +149,8 @@ describe("buildComparisonChartRows", () => {
     nightsInBeds: null,
     points: points.map(([date, cumulativeUsd]) => ({ date, cumulativeUsd, monthsUntil: 0 })),
     noLineReason: null,
+    parallelPlan: null,
+    availableUsd: 0,
     missingRateCount: 0,
   });
 
