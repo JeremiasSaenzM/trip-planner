@@ -14,7 +14,7 @@ import { Card, CardLabel, Caveat, noDepartureReason, RangeFigure } from "./dashb
 import { DeadlinePotList } from "./deadline-pots-ui";
 import { formatUsd } from "./format";
 import { departureAnchorText } from "./pot-item-text";
-import { ParallelSavingsChart } from "./savings-plan-charts";
+import { ParallelSavingsChart, ParallelSavingsComparisonChart } from "./savings-plan-charts";
 import { ScenarioComparisonChart } from "./scenario-comparison-chart";
 import type { SavingsView } from "./savings-view";
 import { SavingsViewToggle } from "./savings-view-toggle";
@@ -85,17 +85,17 @@ async function Overview({ searchParams }: { searchParams: PageProps<"/">["search
   const savingsCharts: Record<SavingsView, ReactNode> = {
     "by-deadline": (
       <>
-        {/* The same chart, with every scenario of the trip in it once
-            there are two or more. */}
-        {(parallelPlan || comparing) && (
+        {parallelPlan && (
           <Card>
             <CardLabel>One pot per payment</CardLabel>
-            <ParallelSavingsChart
-              plan={parallelPlan}
-              availableUsd={availableUsd}
-              asOfDate={data.asOfDate}
-              comparison={comparing ? data.scenarioComparison : undefined}
-            />
+            <ParallelSavingsChart plan={parallelPlan} availableUsd={availableUsd} asOfDate={data.asOfDate} />
+          </Card>
+        )}
+        {/* The same chart, drawn for every scenario of the trip at once. */}
+        {comparing && (
+          <Card>
+            <CardLabel>All scenarios compared</CardLabel>
+            <ParallelSavingsComparisonChart lines={data.scenarioComparison} asOfDate={data.asOfDate} />
           </Card>
         )}
       </>
@@ -279,12 +279,11 @@ async function Overview({ searchParams }: { searchParams: PageProps<"/">["search
         <BudgetByCategoryChart byCategory={rollup.byCategory} basis={data.basis} />
       </Card>
 
-      {/* Phase 7a: one savings view at a time. By deadline is the One
-          pot per payment chart, with every scenario of the trip in it once
-          there are two or more; Running total is the savings schedule and,
-          with two or more scenarios, its cumulative comparison. A Record
-          over every SavingsView, so a new view (Phase 7's saving-method
-          selector) doesn't build until it has its charts. */}
+      {/* Phase 7a: one savings view at a time, each this scenario's own
+          chart and, with two or more scenarios, the same chart drawn for
+          every scenario of the trip. A Record over every SavingsView, so a
+          new view (Phase 7's saving-method selector) doesn't build until
+          it has its charts. */}
       <section aria-label="Saving over time" className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase dark:text-zinc-400">

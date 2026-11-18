@@ -6,7 +6,7 @@ import { BASES } from "@/lib/domain/types";
 
 import { buildSavingsScheduleData } from "./charts";
 import { buildComparisonChartRows } from "./scenario-comparison-chart";
-import { buildParallelSawtoothData, comparisonSawtooth } from "./savings-plan-charts";
+import { buildParallelSawtoothData, buildSawtoothComparisonSeries, comparisonSawtooth } from "./savings-plan-charts";
 import { buildScenarioComparison, buildScenarioSavings, type ScenarioComparisonLine } from "./scenario-savings";
 import { sortScenarios } from "./scenario-order";
 
@@ -106,6 +106,16 @@ describe("buildScenarioComparison", () => {
             ? buildParallelSawtoothData(plan.parallelPlan, plan.obligationsResult.availableUsd, AS_OF)
             : [];
           expect(comparisonSawtooth(line, AS_OF)).toEqual(ownView);
+        }
+        // And what the comparison canvas actually draws for each scenario.
+        const lines = comparisonWhileViewing(viewed.id, basis);
+        for (const series of buildSawtoothComparisonSeries(lines, AS_OF)) {
+          const scenario = tripScenarios.find((s) => s.id === series.scenarioId)!;
+          const plan = buildScenarioSavings({ ...shared, scenario, basis });
+          const ownView = plan.parallelPlan
+            ? buildParallelSawtoothData(plan.parallelPlan, plan.obligationsResult.availableUsd, AS_OF)
+            : [];
+          expect(series.data).toEqual(ownView);
         }
       }
     });

@@ -25,7 +25,7 @@ import { INFO_STATE_LABELS } from "../info-state-labels";
 import { AddMovementForm, AddStayForm, LocationList, MovementList, StayList } from "../itinerary-write-ui";
 import { MOVEMENT_MODE_LABELS } from "../itinerary-labels";
 import { departureAnchorText } from "../pot-item-text";
-import { ParallelSavingsChart } from "../savings-plan-charts";
+import { ParallelSavingsComparisonChart } from "../savings-plan-charts";
 import { ScenarioComparisonChart } from "../scenario-comparison-chart";
 import type { SavingsView } from "../savings-view";
 import { SavingsViewToggle } from "../savings-view-toggle";
@@ -73,14 +73,7 @@ async function ScenarioOverview({ searchParams }: { searchParams: PageProps<"/sc
     data;
   const binding = savings?.bindingRequirement[data.basis] ?? null;
   const comparisonCharts: Record<SavingsView, ReactNode> = {
-    "by-deadline": (
-      <ParallelSavingsChart
-        plan={data.parallelPlan}
-        availableUsd={data.availableUsd}
-        asOfDate={data.asOfDate}
-        comparison={data.scenarioComparison}
-      />
-    ),
+    "by-deadline": <ParallelSavingsComparisonChart lines={data.scenarioComparison} asOfDate={data.asOfDate} />,
     "running-total": <ScenarioComparisonChart lines={data.scenarioComparison} basis={data.basis} />,
   };
   const evidence = summarizeBudgetEvidence(budgetLines, sources);

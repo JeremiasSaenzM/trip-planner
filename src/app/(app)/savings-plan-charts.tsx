@@ -24,6 +24,10 @@ function formatUsdTick(value: number): string {
   return `$${Math.round(value).toLocaleString()}`;
 }
 
+// Other scenarios on the comparison canvas: the same line, dots and
+// labels as the viewed one, faded.
+const MUTED_OPACITY = 0.4;
+
 // See charts.tsx's own comment: Recharts hard-codes axis tick colors,
 // which need to follow the theme instead.
 const AXIS_TICK = { fontSize: 11, fill: "var(--chart-neutral)" };
@@ -42,11 +46,13 @@ export type SawtoothPoint = {
   monthlySaving: number;
 };
 
-function PeakDot(props: { cx?: number; cy?: number; payload?: SawtoothPoint }) {
-  const { cx, cy, payload } = props;
+// muted: another scenario's peaks on the comparison canvas -- the same
+// dot and label, faded. Unset on the per-scenario chart.
+function PeakDot(props: { cx?: number; cy?: number; payload?: SawtoothPoint; muted?: boolean }) {
+  const { cx, cy, payload, muted } = props;
   if (!payload?.isPeak || cx === undefined || cy === undefined) return null;
   return (
-    <g>
+    <g opacity={muted ? MUTED_OPACITY : undefined}>
       <circle cx={cx} cy={cy} r={3} fill="var(--chart-target)" />
       <text x={cx} y={cy - 8} textAnchor={payload.labelAnchor} fontSize={10} fill="var(--chart-neutral)">
         {payload.label}
@@ -55,28 +61,20 @@ function PeakDot(props: { cx?: number; cy?: number; payload?: SawtoothPoint }) {
   );
 }
 
-// The viewed scenario's own peaks keep their labels. Another scenario's
-// peaks get a plain muted dot, no label: their labels would land on top
-// of the viewed scenario's at shared deadlines.
-function OtherPeakDot(props: { cx?: number; cy?: number; payload?: SawtoothPoint }) {
-  const { cx, cy, payload } = props;
-  if (!payload?.isPeak || cx === undefined || cy === undefined) return null;
-  return <circle cx={cx} cy={cy} r={3} fill="var(--chart-neutral)" />;
-}
-
-// Reads the viewed scenario's own line ("Balance") -- with other
-// scenarios on the chart, payload also holds their entries, and the
-// tooltip stays what it was: this scenario's balance and saving rate.
+// seriesName: on the comparison canvas, which series to read -- the
+// viewed scenario's. Unset on the per-scenario chart, which has one.
 function BalanceTooltip({
   active,
   payload,
+  seriesName,
 }: {
   active?: boolean;
   payload?: { name?: string; payload: SawtoothPoint }[];
+  seriesName?: string;
 }) {
-  const own = payload?.find((entry) => entry.name === "Balance");
-  if (!active || !own) return null;
-  const point = own.payload;
+  const entry = seriesName === undefined ? payload?.[0] : payload?.find((item) => item.name === seriesName);
+  if (!active || !entry) return null;
+  const point = entry.payload;
   return (
     <div className="rounded-lg border border-zinc-200 bg-white px-3 py-2 text-xs shadow dark:border-zinc-700 dark:bg-zinc-900">
       <p className="font-medium">{formatDateTick(point.timestamp)}</p>
@@ -142,88 +140,25 @@ export function buildParallelSawtoothData(
   return data;
 }
 
-/**
- * Another scenario's line on this chart: exactly what this chart plots
- * for that scenario when it's the one being viewed -- the same
- * buildParallelSawtoothData() call on its own plan and money set aside,
- * nothing computed here. Empty when it has no plan.
- */
-export function comparisonSawtooth(line: ScenarioComparisonLine, asOfDate: string): SawtoothPoint[] {
-  return line.parallelPlan ? buildParallelSawtoothData(line.parallelPlan, line.availableUsd, asOfDate) : [];
-}
-
-// Other scenarios' lines: the neutral colour, thinner, each with its own
-// dash, so the viewed scenario's line -- drawn exactly as it always was --
-// stays the one that reads first. A scenario keeps its dash by its place
-// in the trip's scenario order, whichever one is being viewed.
-const OTHER_DASHES = ["6 4", "2 3", "10 3 2 3", "1 4"];
-
-function otherLineStyle(index: number) {
-  return { stroke: "var(--chart-neutral)", strokeWidth: 1.5, strokeDasharray: OTHER_DASHES[index % OTHER_DASHES.length] };
-}
-
-function byDeadlineDetail(line: ScenarioComparisonLine): string {
-  if (line.parallelPlan === null) return "no line: no departure date to save toward";
-  if (line.parallelPlan.periods.length === 0) return "no line: no upcoming deadlines";
-  const count = line.parallelPlan.periods.length;
-  return `${count} upcoming deadline${count === 1 ? "" : "s"}`;
-}
-
-/**
- * "One pot per payment": this scenario's combined balance across every
- * open pot over time. Given comparison (the trip's scenarios, when it
- * has two or more), every other scenario's line is drawn on the same
- * chart -- the same chart, the same axes, nothing else changed -- with a
- * legend under it saying what each scenario is.
- */
 export function ParallelSavingsChart({
   plan,
   availableUsd,
   asOfDate,
-  comparison,
 }: {
-  /** The viewed scenario's own plan -- null when it has no departure date. */
-  plan: BuildParallelSavingsPlanResult | null;
+  plan: BuildParallelSavingsPlanResult;
   availableUsd: number;
   asOfDate: string;
-  comparison?: ScenarioComparisonLine[];
 }) {
-  const hasOwnLine = plan !== null && plan.periods.length > 0;
-  const others = (comparison ?? [])
-    .map((line, index) => ({ line, index, data: comparisonSawtooth(line, asOfDate) }))
-    .filter(({ line, data }) => !line.isViewed && data.length > 0);
+  const pastDue = plan.pots.filter((pot) => pot.isPastDue);
 
-  const legend = comparison && (
-    <ComparisonLegend
-      lines={comparison}
-      swatch={(line, index) => (
-        <svg width="28" height="10" aria-hidden="true" className="mt-1.5 shrink-0">
-          <line
-            x1="1"
-            y1="5"
-            x2="27"
-            y2="5"
-            {...(line.isViewed ? { stroke: "var(--chart-target)", strokeWidth: 2 } : otherLineStyle(index))}
-          />
-        </svg>
-      )}
-      detail={byDeadlineDetail}
-    />
-  );
-
-  if (!hasOwnLine && others.length === 0) {
-    return (
-      <div data-testid="one-pot-per-payment">
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">No upcoming deadlines to plan a pot for yet.</p>
-        {legend}
-      </div>
-    );
+  if (plan.periods.length === 0) {
+    return <p className="text-sm text-zinc-500 dark:text-zinc-400">No upcoming deadlines to plan a pot for yet.</p>;
   }
 
-  const data = hasOwnLine ? buildParallelSawtoothData(plan, availableUsd, asOfDate) : [];
+  const data = buildParallelSawtoothData(plan, availableUsd, asOfDate);
 
   return (
-    <div data-testid="one-pot-per-payment">
+    <div>
       <ResponsiveContainer width="100%" height={240}>
         <LineChart data={data} margin={{ top: 20, right: 8, left: 0, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
@@ -237,37 +172,140 @@ export function ParallelSavingsChart({
           />
           <YAxis tick={AXIS_TICK} stroke="var(--chart-grid)" width={44} tickFormatter={formatUsdTick} />
           <Tooltip content={<BalanceTooltip />} />
-          {/* Others first, so the viewed scenario's line is drawn on top. */}
-          {others.map(({ line, index, data: otherData }) => (
-            <Line
-              key={line.scenarioId}
-              data={otherData}
-              type="linear"
-              dataKey="balance"
-              name={line.name}
-              {...otherLineStyle(index)}
-              dot={<OtherPeakDot />}
-            />
-          ))}
-          {hasOwnLine && (
-            <Line
-              type="linear"
-              dataKey="balance"
-              name="Balance"
-              stroke="var(--chart-target)"
-              strokeWidth={2}
-              dot={<PeakDot />}
-            />
-          )}
+          <Line
+            type="linear"
+            dataKey="balance"
+            name="Balance"
+            stroke="var(--chart-target)"
+            strokeWidth={2}
+            dot={<PeakDot />}
+          />
         </LineChart>
       </ResponsiveContainer>
-      {!hasOwnLine && (
-        <p className="text-xs text-zinc-500 dark:text-zinc-400">
-          This scenario has no upcoming deadlines yet -- only the trip&apos;s other scenarios are drawn.
-        </p>
+      <ParallelSavingsList pastDue={pastDue} periods={plan.periods} />
+    </div>
+  );
+}
+
+export type SawtoothComparisonSeries = {
+  scenarioId: string;
+  name: string;
+  isViewed: boolean;
+  /** Exactly what ParallelSavingsChart plots for this scenario when it's
+   * the one being viewed. Empty when it has no plan. */
+  data: SawtoothPoint[];
+};
+
+/**
+ * Another scenario's line: the same buildParallelSawtoothData() call
+ * ParallelSavingsChart makes for the viewed one, on that scenario's own
+ * plan and money set aside. Nothing computed here.
+ */
+export function comparisonSawtooth(line: ScenarioComparisonLine, asOfDate: string): SawtoothPoint[] {
+  return line.parallelPlan ? buildParallelSawtoothData(line.parallelPlan, line.availableUsd, asOfDate) : [];
+}
+
+/** Every series the comparison canvas draws, one per scenario, in the trip's scenario order. */
+export function buildSawtoothComparisonSeries(
+  lines: ScenarioComparisonLine[],
+  asOfDate: string,
+): SawtoothComparisonSeries[] {
+  return lines.map((line) => ({
+    scenarioId: line.scenarioId,
+    name: line.name,
+    isViewed: line.isViewed,
+    data: comparisonSawtooth(line, asOfDate),
+  }));
+}
+
+// Each other scenario keeps its own dash, by its place in the trip's
+// scenario order, so the legend can tell them apart from each other.
+const OTHER_DASHES = ["6 4", "2 3", "10 3 2 3", "1 4"];
+
+function seriesStyle(isViewed: boolean, index: number) {
+  return isViewed
+    ? { stroke: "var(--chart-target)", strokeWidth: 2 }
+    : {
+        stroke: "var(--chart-target)",
+        strokeWidth: 2,
+        strokeOpacity: MUTED_OPACITY,
+        strokeDasharray: OTHER_DASHES[index % OTHER_DASHES.length],
+      };
+}
+
+function comparisonDetail(line: ScenarioComparisonLine): string {
+  if (line.parallelPlan === null) return "no line: no departure date to save toward";
+  if (line.parallelPlan.periods.length === 0) return "no line: no upcoming deadlines";
+  const count = line.parallelPlan.periods.length;
+  return `${count} upcoming deadline${count === 1 ? "" : "s"}`;
+}
+
+/**
+ * The chart ParallelSavingsChart draws for one scenario, drawn for every
+ * scenario of the trip at once on its own canvas: the same line chart,
+ * axes, series shape, peak dots and labels, and tooltip. The viewed
+ * scenario's series is drawn exactly as on its own chart, on top; every
+ * other one the same, faded and dashed. A legend under it says what each
+ * scenario is.
+ */
+export function ParallelSavingsComparisonChart({
+  lines,
+  asOfDate,
+}: {
+  lines: ScenarioComparisonLine[];
+  asOfDate: string;
+}) {
+  const series = buildSawtoothComparisonSeries(lines, asOfDate)
+    .map((item, index) => ({ ...item, index }))
+    .filter((item) => item.data.length > 0)
+    // Others first, so the viewed scenario's series is drawn on top.
+    .sort((a, b) => Number(a.isViewed) - Number(b.isViewed));
+  const viewed = series.find((item) => item.isViewed);
+
+  return (
+    <div data-testid="one-pot-per-payment-comparison">
+      {series.length === 0 ? (
+        <p className="text-sm text-zinc-500 dark:text-zinc-400">No upcoming deadlines to plan a pot for yet.</p>
+      ) : (
+        // Same LineChart, axes and tooltip as ParallelSavingsChart's --
+        // only the series differ. Each series carries its own data, so
+        // scenarios with different deadlines share one time axis.
+        <ResponsiveContainer width="100%" height={240}>
+          <LineChart margin={{ top: 20, right: 8, left: 0, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
+            <XAxis
+              dataKey="timestamp"
+              type="number"
+              domain={["dataMin", "dataMax"]}
+              tickFormatter={formatDateTick}
+              tick={AXIS_TICK}
+              stroke="var(--chart-grid)"
+            />
+            <YAxis tick={AXIS_TICK} stroke="var(--chart-grid)" width={44} tickFormatter={formatUsdTick} />
+            <Tooltip content={<BalanceTooltip seriesName={viewed?.name ?? ""} />} />
+            {series.map((item) => (
+              <Line
+                key={item.scenarioId}
+                data={item.data}
+                type="linear"
+                dataKey="balance"
+                name={item.name}
+                {...seriesStyle(item.isViewed, item.index)}
+                dot={<PeakDot muted={!item.isViewed} />}
+              />
+            ))}
+          </LineChart>
+        </ResponsiveContainer>
       )}
-      {legend}
-      {hasOwnLine && <ParallelSavingsList pastDue={plan.pots.filter((pot) => pot.isPastDue)} periods={plan.periods} />}
+      <ComparisonLegend
+        lines={lines}
+        swatch={(line, index) => (
+          <svg width="28" height="10" aria-hidden="true" className="mt-1.5 shrink-0">
+            <line x1="1" y1="5" x2="27" y2="5" {...seriesStyle(line.isViewed, index)} />
+          </svg>
+        )}
+        detail={comparisonDetail}
+      />
     </div>
   );
 }
