@@ -43,7 +43,7 @@ function fxRateAddForm(page: Page) {
 // visible: true -- after a client-side navigation this Next.js version
 // keeps the previous page mounted but hidden (see the Scenario Overview
 // step below), and Overview's own cards can name the same budget line:
-// the One pot per payment comparison labels every scenario's peaks.
+// the list under One pot per payment names each deadline's payments.
 function budgetLineRow(page: Page, description: string) {
   return page.locator("div.rounded-xl").filter({ hasText: description }).filter({ visible: true });
 }

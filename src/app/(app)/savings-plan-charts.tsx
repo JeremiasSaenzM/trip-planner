@@ -3,9 +3,11 @@
 import { DateTime } from "luxon";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
-import type { BuildParallelSavingsPlanResult } from "@/lib/domain/build-parallel-savings-plan";
+import type { DeadlinePot } from "@/lib/domain/build-deadline-pots";
+import type { BuildParallelSavingsPlanResult, ParallelSavingsPeriod } from "@/lib/domain/build-parallel-savings-plan";
 
 import { formatDate, formatUsd } from "./format";
+import { potItemText } from "./pot-item-text";
 import { ComparisonLegend } from "./scenario-comparison-chart";
 import type { ScenarioComparisonLine } from "./scenario-savings";
 
@@ -24,8 +26,8 @@ function formatUsdTick(value: number): string {
   return `$${Math.round(value).toLocaleString()}`;
 }
 
-// Other scenarios on the comparison canvas: the same line, dots and
-// labels as the viewed one, faded.
+// Other scenarios on the comparison canvas: the same line and dots as
+// the viewed one, faded.
 const MUTED_OPACITY = 0.4;
 
 // See charts.tsx's own comment: Recharts hard-codes axis tick colors,
@@ -36,29 +38,20 @@ export type SawtoothPoint = {
   timestamp: number;
   balance: number;
   isPeak: boolean;
-  label: string | null;
-  /** Peak labels can run long (e.g. "Before departure (9 items)"
-   * including an amount) -- anchoring every label dead-center clips the
-   * last one against the chart's right edge, since it's the point
-   * closest to it. "end" for that point keeps the text growing leftward,
-   * into the plot, instead of off the edge. */
-  labelAnchor: "start" | "middle" | "end";
   monthlySaving: number;
 };
 
-// muted: another scenario's peaks on the comparison canvas -- the same
-// dot and label, faded. Unset on the per-scenario chart.
+// A dot at each peak -- the moment a deadline's pot is paid out -- and
+// no text: what each deadline holds is in the list under the chart,
+// which has room for it. Text on the plot collided with itself, ran off
+// the right edge, and on the comparison canvas collided across
+// scenarios too.
+// muted: another scenario's peaks on the comparison canvas, faded.
+// Unset on the per-scenario chart.
 function PeakDot(props: { cx?: number; cy?: number; payload?: SawtoothPoint; muted?: boolean }) {
   const { cx, cy, payload, muted } = props;
   if (!payload?.isPeak || cx === undefined || cy === undefined) return null;
-  return (
-    <g opacity={muted ? MUTED_OPACITY : undefined}>
-      <circle cx={cx} cy={cy} r={3} fill="var(--chart-target)" />
-      <text x={cx} y={cy - 8} textAnchor={payload.labelAnchor} fontSize={10} fill="var(--chart-neutral)">
-        {payload.label}
-      </text>
-    </g>
-  );
+  return <circle cx={cx} cy={cy} r={3} fill="var(--chart-target)" opacity={muted ? MUTED_OPACITY : undefined} />;
 }
 
 // seriesName: on the comparison canvas, which series to read -- the
@@ -111,8 +104,6 @@ export function buildParallelSawtoothData(
       timestamp: toTimestamp(asOfDate),
       balance,
       isPeak: false,
-      label: null,
-      labelAnchor: "middle",
       monthlySaving: plan.periods[0].totalMonthlySaving,
     },
   ];
@@ -123,8 +114,6 @@ export function buildParallelSawtoothData(
       timestamp: toTimestamp(pot.dueDate),
       balance,
       isPeak: true,
-      label: `${pot.description} (${formatUsd(pot.amountUsd)})`,
-      labelAnchor: i === openPots.length - 1 ? "end" : "middle",
       monthlySaving: period.totalMonthlySaving,
     });
     balance = Math.max(0, balance - pot.amountUsd);
@@ -132,8 +121,6 @@ export function buildParallelSawtoothData(
       timestamp: toTimestamp(pot.dueDate),
       balance,
       isPeak: false,
-      label: null,
-      labelAnchor: "middle",
       monthlySaving: period.totalMonthlySaving,
     });
   });
@@ -142,10 +129,14 @@ export function buildParallelSawtoothData(
 
 export function ParallelSavingsChart({
   plan,
+  pots,
   availableUsd,
   asOfDate,
 }: {
   plan: BuildParallelSavingsPlanResult;
+  /** buildDeadlinePots() on the same obligations and basis as plan --
+   * what the list under the chart names each deadline's payments from. */
+  pots: DeadlinePot[];
   availableUsd: number;
   asOfDate: string;
 }) {
@@ -182,9 +173,26 @@ export function ParallelSavingsChart({
           />
         </LineChart>
       </ResponsiveContainer>
-      <ParallelSavingsList pastDue={pastDue} periods={plan.periods} />
+      <ParallelSavingsList pastDue={pastDue} rows={buildPeriodRows(plan.periods, pots)} />
     </div>
   );
+}
+
+export type PeriodRow = {
+  period: ParallelSavingsPeriod;
+  /** The deadline this period ends at: buildDeadlinePots()'s pot for
+   * period.toDate. null only if the two builders ever disagree about
+   * which deadlines exist -- scenario-comparison.test.ts fails if they do. */
+  pot: DeadlinePot | null;
+};
+
+/**
+ * Pairs each saving period with the deadline it ends at, by date. Both
+ * come from the same obligations through groupObligationsByDueDate(), so
+ * this only looks the pot up -- it never computes an amount.
+ */
+export function buildPeriodRows(periods: ParallelSavingsPeriod[], pots: DeadlinePot[]): PeriodRow[] {
+  return periods.map((period) => ({ period, pot: pots.find((pot) => pot.dueDate === period.toDate) ?? null }));
 }
 
 export type SawtoothComparisonSeries = {
@@ -243,10 +251,11 @@ function comparisonDetail(line: ScenarioComparisonLine): string {
 /**
  * The chart ParallelSavingsChart draws for one scenario, drawn for every
  * scenario of the trip at once on its own canvas: the same line chart,
- * axes, series shape, peak dots and labels, and tooltip. The viewed
- * scenario's series is drawn exactly as on its own chart, on top; every
- * other one the same, faded and dashed. A legend under it says what each
- * scenario is.
+ * axes, series shape, peak dots, and tooltip. The viewed scenario's
+ * series is drawn exactly as on its own chart, on top; every other one
+ * the same, faded and dashed. A legend under it says what each scenario
+ * is. Nothing says what a drop holds: this canvas compares shapes, and
+ * what one scenario's deadline holds is on that scenario's own chart.
  */
 export function ParallelSavingsComparisonChart({
   lines,
@@ -310,15 +319,49 @@ export function ParallelSavingsComparisonChart({
   );
 }
 
-function ParallelSavingsList({
-  pastDue,
-  periods,
-}: {
-  pastDue: BuildParallelSavingsPlanResult["pots"];
-  periods: BuildParallelSavingsPlanResult["periods"];
-}) {
+// A deadline with more payments than this folds them behind a
+// disclosure instead of a wall of lines -- never behind a bare count:
+// opening it names every one.
+const INLINE_ITEM_LIMIT = 3;
+
+// What a period's closing deadline holds: its amount, and every payment
+// in it by name, in potItemText()'s words -- the same lines "When money
+// is needed" uses, so the two lists can't describe a payment differently.
+function PotItems({ pot }: { pot: DeadlinePot }) {
+  const due = (
+    <>
+      Due {formatDate(pot.dueDate)}:{" "}
+      <span className="font-medium text-zinc-900 dark:text-zinc-100">{formatUsd(pot.amountUsd)}</span>
+    </>
+  );
+  const list = (
+    <ul className="mt-0.5 space-y-0.5 border-l border-zinc-200 pl-2 dark:border-zinc-700">
+      {pot.items.map((item, i) => (
+        <li key={i}>{potItemText(item)}</li>
+      ))}
+    </ul>
+  );
+  if (pot.items.length <= INLINE_ITEM_LIMIT) {
+    return (
+      <div className="mt-0.5 text-xs">
+        <p>{due}</p>
+        {list}
+      </div>
+    );
+  }
   return (
-    <ul className="mt-2 space-y-1 text-sm text-zinc-600 dark:text-zinc-400">
+    <details className="mt-0.5 text-xs">
+      <summary className="cursor-pointer">
+        {due} · {pot.items.length} payments
+      </summary>
+      {list}
+    </details>
+  );
+}
+
+function ParallelSavingsList({ pastDue, rows }: { pastDue: BuildParallelSavingsPlanResult["pots"]; rows: PeriodRow[] }) {
+  return (
+    <ul data-testid="saving-periods" className="mt-2 space-y-2 text-sm text-zinc-600 dark:text-zinc-400">
       {pastDue.map((pot, i) =>
         pot.shortfallNow === null ? (
           <li key={`past-${i}`}>
@@ -330,13 +373,16 @@ function ParallelSavingsList({
           </li>
         ),
       )}
-      {periods.map((period, i) => (
-        <li key={i}>
-          {formatDate(period.fromDate)} → {formatDate(period.toDate)} ·{" "}
-          {period.monthsInPeriod === 0
-            ? "same date window"
-            : `save ${formatUsd(period.totalMonthlySaving)}/month`}{" "}
-          ({period.openPotCount} pot{period.openPotCount === 1 ? "" : "s"})
+      {rows.map(({ period, pot }, i) => (
+        <li key={i} data-testid="saving-period">
+          <p>
+            {formatDate(period.fromDate)} → {formatDate(period.toDate)} ·{" "}
+            {period.monthsInPeriod === 0
+              ? "same date window"
+              : `save ${formatUsd(period.totalMonthlySaving)}/month`}{" "}
+            ({period.openPotCount} pot{period.openPotCount === 1 ? "" : "s"})
+          </p>
+          {pot && <PotItems pot={pot} />}
         </li>
       ))}
     </ul>

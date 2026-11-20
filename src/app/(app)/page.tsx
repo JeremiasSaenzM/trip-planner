@@ -85,10 +85,10 @@ async function Overview({ searchParams }: { searchParams: PageProps<"/">["search
   const savingsCharts: Record<SavingsView, ReactNode> = {
     "by-deadline": (
       <>
-        {parallelPlan && (
+        {parallelPlan && pots && (
           <Card>
             <CardLabel>One pot per payment</CardLabel>
-            <ParallelSavingsChart plan={parallelPlan} availableUsd={availableUsd} asOfDate={data.asOfDate} />
+            <ParallelSavingsChart plan={parallelPlan} pots={pots} availableUsd={availableUsd} asOfDate={data.asOfDate} />
           </Card>
         )}
         {/* The same chart, drawn for every scenario of the trip at once. */}
