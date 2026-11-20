@@ -6,7 +6,12 @@ import { BASES } from "@/lib/domain/types";
 
 import { buildSavingsScheduleData } from "./charts";
 import { buildComparisonChartRows } from "./scenario-comparison-chart";
-import { buildParallelSawtoothData, buildSawtoothComparisonSeries, comparisonSawtooth } from "./savings-plan-charts";
+import {
+  buildParallelSawtoothData,
+  buildPeriodRows,
+  buildSawtoothComparisonSeries,
+  comparisonSawtooth,
+} from "./savings-plan-charts";
 import { buildScenarioComparison, buildScenarioSavings, type ScenarioComparisonLine } from "./scenario-savings";
 import { sortScenarios } from "./scenario-order";
 
@@ -146,6 +151,52 @@ describe("buildScenarioComparison", () => {
       basis: "target",
     });
     expect(lines.map((line) => line.scenarioId)).not.toContain("other-trip-scenario");
+  });
+});
+
+// What the One pot per payment chart's peak labels used to carry, now in
+// the list under it: each saving period ends at a deadline, and its row
+// shows that deadline's amount and payments from buildDeadlinePots() --
+// built from the same obligations as the chart's own drop. The trap is
+// the two builders disagreeing about a deadline, so each row's figure
+// must be exactly the drop the chart draws on that date.
+describe("buildPeriodRows", () => {
+  function rowsFor(scenarioId: string, basis: (typeof BASES)[number]) {
+    const scenario = tripScenarios.find((s) => s.id === scenarioId)!;
+    const built = buildScenarioSavings({ ...shared, scenario, basis });
+    if (built.parallelPlan === null || built.pots === null) return null;
+    return { plan: built.parallelPlan, rows: buildPeriodRows(built.parallelPlan.periods, built.pots) };
+  }
+
+  it("has a deadline with more than three payments in the fixtures, so the folded list is exercised", () => {
+    const counts = tripScenarios.flatMap((s) => rowsFor(s.id, "target")?.rows.map((row) => row.pot?.items.length ?? 0) ?? []);
+    expect(Math.max(...counts)).toBeGreaterThan(3);
+  });
+
+  for (const basis of BASES) {
+    it(`gives every period the deadline it ends at, with the chart's own drop as its amount (${basis})`, () => {
+      let checked = 0;
+      for (const scenario of tripScenarios) {
+        const built = rowsFor(scenario.id, basis);
+        if (built === null) continue;
+        const openPots = built.plan.pots.filter((pot) => !pot.isPastDue);
+        expect(built.rows).toHaveLength(openPots.length);
+        built.rows.forEach((row, i) => {
+          expect(row.pot).not.toBeNull();
+          expect(row.pot!.dueDate).toBe(openPots[i].dueDate);
+          expect(row.pot!.amountUsd).toBe(openPots[i].amountUsd);
+          // The payments named are the whole of that amount, nothing left out.
+          expect(row.pot!.items.reduce((sum, item) => sum + item.amountUsd, 0)).toBeCloseTo(row.pot!.amountUsd, 6);
+          checked++;
+        });
+      }
+      expect(checked).toBeGreaterThan(0);
+    });
+  }
+
+  it("leaves a period without a pot rather than inventing one", () => {
+    const period = { fromDate: "2027-01-01", toDate: "2027-02-28", totalMonthlySaving: 10, openPotCount: 1, monthsInPeriod: 1 };
+    expect(buildPeriodRows([period], [])).toEqual([{ period, pot: null }]);
   });
 });
 
